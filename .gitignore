@@ -1,0 +1,9 @@
+node_modules
+.DS_Store
+.env*
+!.env.example
+.next/
+dist/
+*.tsbuildinfo
+.vercel
+.claude/settings.local.json
