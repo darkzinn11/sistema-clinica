@@ -43,8 +43,9 @@ import {
   Wallet,
   Wallet2,
   Warning2,
-  Whatsapp,
+  Moneys,
 } from "iconsax-reactjs";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import type { Icon as IconType } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
@@ -126,7 +127,7 @@ const ICONS: { name: string; icon: IconType }[] = [
   { name: "Wallet", icon: Wallet },
   { name: "Bank", icon: Bank },
   { name: "ReceiptText", icon: ReceiptText },
-  { name: "Whatsapp", icon: Whatsapp },
+  { name: "Whatsapp", icon: WhatsappIcon },
   { name: "Global", icon: Global },
   { name: "Microscope", icon: Microscope },
   { name: "Verify", icon: Verify },
@@ -164,7 +165,7 @@ const BAR_LIST_DATA = [
 
 function SectionNav({ sections }: { sections: string[] }) {
   return (
-    <nav aria-label="Seções do guia" className="sticky top-6 hidden shrink-0 flex-col gap-0.5 lg:flex lg:w-52">
+    <nav aria-label="Seções do guia" className="sticky top-24 hidden shrink-0 flex-col gap-0.5 lg:flex lg:w-52">
       {sections.map((s) => (
         <a key={s} href={`#${s.toLowerCase().replace(/\s+/g, "-")}`} className="rounded-full px-3 py-1.5 text-sm text-text-muted hover:bg-surface hover:text-text">
           {s}
@@ -469,9 +470,9 @@ export default function DesignSystem() {
           <Section id="gráficos" title="Gráficos" description="StatCard, BarChart, LineChart, DonutChart e BarList — regras da skill dataviz já aplicadas.">
             <div className="flex flex-col gap-6">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <StatCard label="Faturamento do mês" value={brl(4820000)} delta={{ value: 12, period: "vs. mês anterior" }} trend={[20, 24, 22, 28, 30, 34, 38]} />
-                <StatCard label="Taxa de não comparecimento" value="6,4%" delta={{ value: -2, period: "vs. mês anterior", goodWhenUp: false }} />
-                <StatCard label="Pacientes ativos" value="1.284" footer={<DescriptionList columns={1} items={[{ label: "Novos este mês", value: "86" }]} />} />
+                <StatCard icon={<Moneys />} label="Faturamento do mês" value={brl(4820000)} delta={{ value: 12, period: "vs. mês anterior" }} trend={[20, 24, 22, 28, 30, 34, 38]} />
+                <StatCard icon={<CloseCircle />} label="Taxa de não comparecimento" value="6,4%" delta={{ value: -2, period: "vs. mês anterior", goodWhenUp: false }} />
+                <StatCard icon={<People />} label="Pacientes ativos" value="1.284" footer={<DescriptionList columns={1} items={[{ label: "Novos este mês", value: "86" }]} />} />
               </div>
               <Card>
                 <CardHeader title="Receita × despesa (semana)" />

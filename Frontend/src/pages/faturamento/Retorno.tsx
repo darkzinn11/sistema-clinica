@@ -1,5 +1,5 @@
 import { IconCircle } from "@/components/ui/icon-circle";
-import { CloseCircle, DocumentUpload, ShieldTick, TickCircle } from "iconsax-reactjs";
+import { CloseCircle, DocumentUpload, MoneyAdd, Refresh2, ShieldCross, ShieldTick, TickCircle } from "iconsax-reactjs";
 import { type DragEvent, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -81,9 +81,9 @@ export default function Retorno() {
       </Card>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3 ui-stat-strip" data-columns="3">
-        <StatCard label="Glosado no mês" value={brl(glosadoNoMes)} />
-        <StatCard label="Valor recursado" value={brl(recursado)} />
-        <StatCard label="Recuperado" value={brl(recuperado)} />
+        <StatCard icon={<ShieldCross />} label="Glosado no mês" value={brl(glosadoNoMes)} />
+        <StatCard icon={<Refresh2 />} label="Valor recursado" value={brl(recursado)} />
+        <StatCard icon={<MoneyAdd />} label="Recuperado" value={brl(recuperado)} />
       </div>
 
       <Card>

@@ -1,5 +1,5 @@
 import { IconCircle } from "@/components/ui/icon-circle";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Sms, TickCircle } from "iconsax-reactjs";
 import { Link } from "react-router";
 import { Input } from "@/components/ui/input";
@@ -10,10 +10,6 @@ export default function EsqueciSenha() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    document.title = "Esqueci minha senha · MultiSaúde";
-  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

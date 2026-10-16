@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Calendar1, CalendarSearch, Chart } from "iconsax-reactjs";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/charts";
@@ -44,9 +45,9 @@ export default function Page() {
       />
 
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3 ui-stat-strip" data-columns="3">
-        <StatCard label="Ocupação média (14 dias)" value={pct(avgPct * 100)} />
-        <StatCard label="Dias-profissional com vaga livre" value={freeSlotsCount.toLocaleString("pt-BR")} footer={<p className="text-sm text-text-muted">ocupação abaixo de 50%</p>} />
-        <StatCard label="Dia mais cheio" value={dateShort(busiest.date)} footer={<p className="text-sm text-text-muted">{pct(busiest.pct * 100)} de ocupação média</p>} />
+        <StatCard icon={<Chart />} label="Ocupação média (14 dias)" value={pct(avgPct * 100)} />
+        <StatCard icon={<CalendarSearch />} label="Dias-profissional com vaga livre" value={freeSlotsCount.toLocaleString("pt-BR")} footer={<p className="text-sm text-text-muted">ocupação abaixo de 50%</p>} />
+        <StatCard icon={<Calendar1 />} label="Dia mais cheio" value={dateShort(busiest.date)} footer={<p className="text-sm text-text-muted">{pct(busiest.pct * 100)} de ocupação média</p>} />
       </div>
 
       <Card className="mapa-ocupacao">

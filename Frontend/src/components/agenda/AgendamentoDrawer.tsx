@@ -8,8 +8,8 @@ import {
   TickCircle,
   UserAdd,
   Warning2,
-  Whatsapp,
 } from "iconsax-reactjs";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -254,7 +254,7 @@ export function AgendamentoDrawer({
             <Button
               variant={whatsappSent ? "subtle" : "secondary"}
               size="sm"
-              icon={whatsappSent ? TickCircle : Whatsapp}
+              icon={whatsappSent ? TickCircle : WhatsappIcon}
               disabled={whatsappSent}
               onClick={() => setWhatsappSent(true)}
             >

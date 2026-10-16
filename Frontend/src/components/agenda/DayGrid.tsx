@@ -23,16 +23,19 @@ export interface GridColumn {
   isToday?: boolean;
 }
 
-/** Faixa fora do expediente: hachurado sutil, recuada e arredondada como os cards, com rótulo discreto. */
-function OffHours({ top, height, label = "Fora do expediente" }: { top: number; height: number; label?: string }) {
+/** Faixa fora do expediente: hachurado sutil, recuada e arredondada como os cards. Só leva rótulo quando a coluna está fechada o dia todo. */
+function OffHours({ top, height, label }: { top: number; height: number; label?: string }) {
   return (
     <div className="ms-agenda-off absolute inset-x-1 overflow-hidden" style={{ top: top + 2, height: Math.max(0, height - 4) }}>
-      {height >= 44 && (
+      {label && height >= 44 && (
         <span className="sticky top-2 block px-3 pt-2 text-[11px] font-medium text-text-subtle">{label}</span>
       )}
     </div>
   );
 }
+
+/** Agendamentos cancelados/desmarcados não entram na contagem do cabeçalho. */
+const CANCELLED = ["cancelado_pelo_profissional", "desmarcado_pelo_paciente"];
 
 /**
  * Grade de horários com uma coluna por entidade (profissional, sala ou dia da
@@ -154,6 +157,18 @@ export function DayGrid({
                   <span className="flex min-w-0 max-w-full items-center gap-2">
                     {col.colorVar && <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.colorVar }} />}
                     <span className={cn("truncate font-semibold", col.largeLabel ? "tabular text-2xl leading-none" : "text-[13px]", col.highlight ? "text-accent-ink" : "text-text")}>{col.label}</span>
+                    {!col.largeLabel && (() => {
+                      const total = appointmentsFor(col.id).filter((a) => !CANCELLED.includes(a.status)).length;
+                      return (
+                        <span
+                          title={`${total} agendamento${total === 1 ? "" : "s"}`}
+                          className={cn("tabular shrink-0 rounded-full px-1.5 py-px text-[11px] font-semibold", total > 0 ? "bg-accent text-on-accent" : "bg-surface-raised text-text-muted")}
+                        >
+                          {total}
+                          <span className="sr-only"> agendamento{total === 1 ? "" : "s"}</span>
+                        </span>
+                      );
+                    })()}
                   </span>
                   {col.sublabel && <span className="max-w-full truncate text-[11px] text-text-muted">{col.sublabel}</span>}
                 </div>

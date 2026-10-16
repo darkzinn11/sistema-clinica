@@ -1,4 +1,4 @@
-import { SearchNormal1, TickCircle, Warning2 } from "iconsax-reactjs";
+import { Calendar2, CloseCircle, SearchNormal1, TickCircle, Timer1, Warning2 } from "iconsax-reactjs";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -67,10 +67,10 @@ export default function Page() {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4 ui-stat-strip" data-columns="4">
-        <StatCard label="Previstos hoje" value={previstos} />
-        <StatCard label="Já chegaram" value={chegaram} delta={{ value: previstos ? Math.round((chegaram / previstos) * 100) : 0, period: "do total", suffix: "%", goodWhenUp: true }} />
-        <StatCard label="Atrasados" value={atrasados} delta={atrasados > 0 ? { value: atrasados, period: "sem chegada", suffix: "", goodWhenUp: false } : undefined} />
-        <StatCard label="Faltas hoje" value={faltas} />
+        <StatCard icon={<Calendar2 />} label="Previstos hoje" value={previstos} />
+        <StatCard icon={<TickCircle />} label="Já chegaram" value={chegaram} delta={{ value: previstos ? Math.round((chegaram / previstos) * 100) : 0, period: "do total", suffix: "%", goodWhenUp: true }} />
+        <StatCard icon={<Timer1 />} label="Atrasados" value={atrasados} delta={atrasados > 0 ? { value: atrasados, period: "sem chegada", suffix: "", goodWhenUp: false } : undefined} />
+        <StatCard icon={<CloseCircle />} label="Faltas hoje" value={faltas} />
       </div>
 
       <Card>

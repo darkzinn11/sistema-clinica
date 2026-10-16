@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Eye, EyeSlash, Lock } from "iconsax-reactjs";
 import { useNavigate } from "react-router";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,6 @@ export default function RedefinirSenha() {
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    document.title = "Redefinir senha · MultiSaúde";
-  }, []);
 
   const mismatch = confirm.length > 0 && confirm !== password;
   const canSubmit = passwordScore(password) >= 4 && confirm === password && password.length > 0;

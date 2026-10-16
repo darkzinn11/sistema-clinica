@@ -83,12 +83,13 @@ export function Topbar({ onOpenSearch, onOpenMobileNav }: { onOpenSearch: () => 
     return () => window.removeEventListener("scroll", update);
   }, []);
 
+
   return (
     <header
-      className="ms-topbar-scroll-fade sticky top-0 z-30 h-17 min-w-0 shrink-0 bg-bg/92 px-4 backdrop-blur-xl sm:px-6 lg:h-19 lg:px-8"
       data-scrolled={isScrolled ? "true" : "false"}
+      className="ms-topbar pointer-events-none sticky top-0 z-30 h-17 min-w-0 shrink-0 px-4 sm:px-6 lg:h-19 lg:px-8"
     >
-      <div className="ui-shell-content flex h-full items-center gap-2 sm:gap-3">
+      <div className="ui-shell-content flex h-full items-center gap-2 sm:gap-3 [&>*]:pointer-events-auto">
       <button type="button" onClick={onOpenMobileNav} aria-label="Abrir menu" className="ui-topbar-control ui-topbar-pill flex h-10 w-10 items-center justify-center text-text-muted hover:text-text lg:hidden">
         <HamburgerMenu size={20} variant="Linear" aria-hidden />
       </button>

@@ -61,7 +61,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             required={required}
             aria-invalid={Boolean(error) || undefined}
             aria-describedby={describedBy}
-            className={cn(control, "h-9 rounded-full px-4", Icon && "pl-10", suffix ? "pr-12" : "", error ? "border-danger" : "border-border-strong", className)}
+            className={cn(control, "h-11 rounded-full px-4", Icon && "pl-10", suffix ? "pr-12" : "", error ? "border-danger" : "border-border-strong", className)}
             {...props}
           />
           {suffix && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted">{suffix}</span>}
@@ -92,7 +92,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             required={required}
             aria-invalid={Boolean(error) || undefined}
             aria-describedby={describedBy}
-            className={cn(control, "h-9 appearance-none rounded-full pl-4 pr-10", error ? "border-danger" : "border-border-strong", className)}
+            className={cn(control, "h-11 appearance-none rounded-full pl-4 pr-10", error ? "border-danger" : "border-border-strong", className)}
             {...props}
           >
             {placeholder && <option value="">{placeholder}</option>}

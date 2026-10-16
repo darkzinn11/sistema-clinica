@@ -2,7 +2,8 @@
  * Dados fictícios do módulo Configurações. Determinístico e local ao
  * protótipo — nada chega de rede, nada persiste além do estado de cada tela.
  */
-import { Cpu, Gallery, Global, Microscope, ReceiptText, Verify, Whatsapp } from "iconsax-reactjs";
+import { Cpu, Gallery, Global, Microscope, ReceiptText, Verify } from "iconsax-reactjs";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import type { Icon as IconType } from "iconsax-reactjs";
 import type { Tone } from "@/components/ui/badge";
 import { locations, professionals } from "@/lib/mock/core";
@@ -71,7 +72,7 @@ export interface Integration {
 }
 
 export const integrations: Integration[] = [
-  { id: "whatsapp", name: "WhatsApp Business", description: "Confirmações, lembretes e avisos de chegada por WhatsApp.", status: "conectado", icon: Whatsapp, lastSync: "há 4 min" },
+  { id: "whatsapp", name: "WhatsApp Business", description: "Confirmações, lembretes e avisos de chegada por WhatsApp.", status: "conectado", icon: WhatsappIcon, lastSync: "há 4 min" },
   { id: "api", name: "API pública", description: "Integração via API REST para sistemas de terceiros.", status: "conectado", icon: Global, lastSync: "há 1 h" },
   { id: "pacs", name: "PACS (imagens)", description: "Recebe e exibe laudos de imagem direto no prontuário.", status: "nao_conectado", icon: Gallery },
   { id: "lab", name: "Laboratório de apoio", description: "Troca de pedidos e resultados com laboratório parceiro.", status: "erro", icon: Microscope, lastSync: "falhou há 2 dias" },

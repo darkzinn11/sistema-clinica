@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Add, SearchNormal1, Warning2 } from "iconsax-reactjs";
+import { Add, ReceiptMinus, ReceiptText, SearchNormal1, Warning2 } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -58,8 +58,8 @@ export default function NotasFiscais() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 ui-stat-strip" data-columns="3">
-        <StatCard label="Total emitido" value={brl(totalEmitido)} />
-        <StatCard label="ISS retido" value={brl(totalIss)} />
+        <StatCard icon={<ReceiptText />} label="Total emitido" value={brl(totalEmitido)} />
+        <StatCard icon={<ReceiptMinus />} label="ISS retido" value={brl(totalIss)} />
         <StatCard label="Notas com erro" value={String(comErro)} icon={comErro > 0 ? <Warning2 size={18} /> : undefined} />
       </div>
 

@@ -1,4 +1,4 @@
-import { Add, ArrowLeft2, ArrowRight2, ClipboardTick, TickCircle, Warning2 } from "iconsax-reactjs";
+import { Add, ArchiveBox, ArrowLeft2, ArrowRight2, ClipboardTick, Clock, DocumentText, Moneys, TickCircle, Warning2 } from "iconsax-reactjs";
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
@@ -61,10 +61,10 @@ export default function Lotes() {
       />
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 ui-stat-strip" data-columns="4">
-        <StatCard label="Lotes em aberto" value={totalAberto} />
-        <StatCard label="Aguardando retorno" value={brl(valorEnviado)} />
-        <StatCard label="Pendentes de conferência" value={pendenteConferencia} />
-        <StatCard label="Valor total em lotes" value={brl(valorTotal)} />
+        <StatCard icon={<ArchiveBox />} label="Lotes em aberto" value={totalAberto} />
+        <StatCard icon={<Clock />} label="Aguardando retorno" value={brl(valorEnviado)} />
+        <StatCard icon={<DocumentText />} label="Pendentes de conferência" value={pendenteConferencia} />
+        <StatCard icon={<Moneys />} label="Valor total em lotes" value={brl(valorTotal)} />
       </div>
 
       <Card>
