@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
-import { Add, ArrowDown2, CardTick, Edit2, Eye, SearchNormal1, TickCircle, Trash } from "iconsax-reactjs";
+import { Add, ArrowDown2, CalendarTick, CardTick, Clock, Danger, Edit2, Eye, MoneyRecive, MoneySend, SearchNormal1, TickCircle, Trash } from "iconsax-reactjs";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Input, Select } from "@/components/ui/input";
@@ -125,10 +125,10 @@ export function ContasLista({ tipo }: { tipo: "receita" | "despesa" }) {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 ui-stat-strip" data-columns="4">
-        <StatCard label="Em aberto" value={brl(kpis.emAberto)} />
-        <StatCard label="Vencido" value={brl(kpis.vencido)} />
-        <StatCard label={isReceita ? "Recebido no mês" : "Pago no mês"} value={brl(kpis.noMes)} />
-        <StatCard label="Previsto para 30 dias" value={brl(kpis.previsto30)} />
+        <StatCard icon={<Clock />} label="Em aberto" value={brl(kpis.emAberto)} />
+        <StatCard icon={<Danger />} label="Vencido" value={brl(kpis.vencido)} />
+        <StatCard icon={isReceita ? <MoneyRecive /> : <MoneySend />} label={isReceita ? "Recebido no mês" : "Pago no mês"} value={brl(kpis.noMes)} />
+        <StatCard icon={<CalendarTick />} label="Previsto para 30 dias" value={brl(kpis.previsto30)} />
       </div>
 
       <Card>

@@ -3,7 +3,7 @@ import type { Icon as IconType } from "iconsax-reactjs";
 import { DropdownMenu } from "@/components/ui/overlay";
 import { cn } from "@/lib/cn";
 
-const pillBase = "inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 text-sm transition-colors";
+const pillBase = "inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-4 text-sm transition-colors";
 const pillActive = "border-accent/40 bg-accent-muted text-accent";
 const pillInactive = "border-border-strong bg-surface-raised text-text-muted hover:text-text";
 

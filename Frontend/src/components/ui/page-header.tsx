@@ -1,6 +1,6 @@
 import { ArrowRight2 } from "iconsax-reactjs";
 import { Link } from "react-router";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 export interface Crumb {
@@ -31,9 +31,6 @@ export function PageHeader({
   children?: ReactNode;
   className?: string;
 }) {
-  useEffect(() => {
-    if (typeof title === "string") document.title = `${title} · MultiSaúde`;
-  }, [title]);
   return (
     <header className={cn("flex flex-col gap-4 pb-6", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (

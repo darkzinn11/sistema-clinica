@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { StatCard } from "@/components/ui/charts";
 import { cn } from "@/lib/cn";
 import { clinic, insurances, professionals } from "@/lib/mock/core";
-import { reportBySlug } from "@/lib/mock/relatorios";
+import { CATEGORY_ICON, reportBySlug } from "@/lib/mock/relatorios";
 import { getReportConfig } from "@/components/relatorios/report-configs";
 import { PERIOD_OPTIONS, defaultFilters, type ReportFilters } from "@/components/relatorios/report-types";
 import { ReportChart } from "@/components/relatorios/report-chart";
@@ -29,6 +29,7 @@ export default function Relatorio() {
   const { slug = "" } = useParams();
   const report = reportBySlug(slug);
   useRegisterRecentReport(report?.slug);
+  const KpiIcon = report ? CATEGORY_ICON[report.category] : undefined;
 
   const [filters, setFilters] = useState<ReportFilters>(() => defaultFilters(clinic.units[0].id));
   const [refreshing, setRefreshing] = useState(false);
@@ -139,7 +140,7 @@ export default function Relatorio() {
 
         <div className="ui-stat-strip grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" data-columns="4">
           {config.kpis.map((kpi) => (
-            <StatCard key={kpi.label} label={kpi.label} value={kpi.value} delta={kpi.delta} />
+            <StatCard key={kpi.label} icon={KpiIcon && <KpiIcon />} label={kpi.label} value={kpi.value} delta={kpi.delta} />
           ))}
         </div>
 

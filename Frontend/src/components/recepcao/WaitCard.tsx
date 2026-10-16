@@ -80,16 +80,16 @@ export function WaitCard({
 
       <div className="flex items-center gap-2 border-t border-border pt-3">
         {(appointment.status === "aguardando" || appointment.status === "aguardando_pagamento") && (
-          <Button size="xs" variant="primary" onClick={onChamar} className="flex-1">
+          <Button size="sm" variant="primary" onClick={onChamar} className="flex-1">
             Chamar
           </Button>
         )}
         {appointment.status === "chamando" && (
-          <Button size="xs" variant="subtle" icon={DirectSend} onClick={onEncaminhar} className="flex-1">
+          <Button size="sm" variant="subtle" icon={DirectSend} onClick={onEncaminhar} className="flex-1">
             Encaminhar
           </Button>
         )}
-        <ButtonLink size="xs" variant="ghost" icon={ProfileCircle} to={`/pacientes/${patient.id}`}>
+        <ButtonLink size="sm" variant="ghost" icon={ProfileCircle} to={`/pacientes/${patient.id}`}>
           Ficha
         </ButtonLink>
       </div>

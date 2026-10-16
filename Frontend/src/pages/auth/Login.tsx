@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Eye, EyeSlash, Lock, Sms } from "iconsax-reactjs";
 import { useNavigate } from "react-router";
 import { Input, Checkbox } from "@/components/ui/input";
@@ -12,10 +12,6 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    document.title = "Entrar · MultiSaúde";
-  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

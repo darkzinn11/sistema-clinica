@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Add, CalendarTick, DocumentText, Moneys, SearchNormal1, TickCircle, Whatsapp } from "iconsax-reactjs";
+import { Add, CalendarTick, DocumentText, Moneys, SearchNormal1, TickCircle } from "iconsax-reactjs";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,7 +131,7 @@ export default function Propostas() {
         footer={
           detalhe && (
             <>
-              <Button variant="secondary" icon={Whatsapp} onClick={() => setEnviadoWpp(true)}>
+              <Button variant="secondary" icon={WhatsappIcon} onClick={() => setEnviadoWpp(true)}>
                 Enviar por WhatsApp
               </Button>
               <Button variant="secondary" icon={CalendarTick} onClick={() => converterEmAgendamento(detalhe.id)}>

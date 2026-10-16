@@ -15,18 +15,20 @@ const variantClasses: Record<Variant, string> = {
   subtle: "bg-accent-muted text-accent hover:brightness-95",
 };
 
+// Alturas com folga vertical (~10–12px acima e abaixo do texto no md). Campos e selects acompanham o md;
+// os filtros (FilterButton) também, para as barras de filtro ficarem alinhadas.
 const sizeClasses: Record<Size, string> = {
-  xs: "h-7 px-2 text-xs gap-1",
-  sm: "h-8 px-3 text-sm gap-1.5",
-  md: "h-9 px-3.5 text-base gap-2",
-  lg: "h-11 px-5 text-md gap-2",
+  xs: "h-8 px-3 text-xs gap-1",
+  sm: "h-9 px-3.5 text-sm gap-1.5",
+  md: "h-11 px-5 text-base gap-2",
+  lg: "h-12 px-6 text-md gap-2",
 };
 
 const iconOnlySize: Record<Size, string> = {
-  xs: "h-7 w-7",
-  sm: "h-8 w-8",
-  md: "h-9 w-9",
-  lg: "h-11 w-11",
+  xs: "h-8 w-8",
+  sm: "h-9 w-9",
+  md: "h-11 w-11",
+  lg: "h-12 w-12",
 };
 
 const iconPx: Record<Size, number> = { xs: 14, sm: 15, md: 16, lg: 18 };

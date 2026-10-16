@@ -773,9 +773,11 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
   },
 };
 
-export const ENTITY_GROUPS: { label: string; icon: IconType; items: { entity: string; href: string }[] }[] = [
+export const ENTITY_GROUPS: { id: string; label: string; description: string; icon: IconType; items: { entity: string; href: string }[] }[] = [
   {
+    id: "pessoas",
     label: "Pessoas",
+    description: "Quem atende, quem usa o sistema e com quem a clínica se relaciona.",
     icon: People,
     items: [
       { entity: "profissionais", href: "/cadastros/profissionais" },
@@ -785,39 +787,43 @@ export const ENTITY_GROUPS: { label: string; icon: IconType; items: { entity: st
     ],
   },
   {
+    id: "atendimento",
     label: "Atendimento",
+    description: "O que a clínica oferece, onde atende e como a agenda funciona.",
     icon: ClipboardTick,
     items: [
       { entity: "procedimentos", href: "/cadastros/procedimentos" },
+      { entity: "convenios", href: "/cadastros/convenios" },
       { entity: "locais", href: "/cadastros/locais" },
       { entity: "equipamentos", href: "/cadastros/equipamentos" },
-      { entity: "convenios", href: "/cadastros/convenios" },
-      { entity: "origens", href: "/cadastros/origens" },
       { entity: "feriados", href: "/cadastros/feriados" },
+      { entity: "origens", href: "/cadastros/origens" },
     ],
   },
   {
+    id: "financeiro",
     label: "Financeiro",
+    description: "Preços, recebimentos, contas e repasses.",
     icon: Wallet2,
     items: [
       { entity: "tabelas-de-preco", href: "/cadastros/tabelas-de-preco" },
       { entity: "formas-de-recebimento", href: "/cadastros/formas-de-recebimento" },
+      { entity: "regras-de-repasse", href: "/cadastros/regras-de-repasse" },
+      { entity: "contas-correntes", href: "/cadastros/contas-correntes" },
       { entity: "plano-de-contas", href: "/cadastros/plano-de-contas" },
       { entity: "centros-de-custo", href: "/cadastros/centros-de-custo" },
-      { entity: "contas-correntes", href: "/cadastros/contas-correntes" },
-      { entity: "regras-de-repasse", href: "/cadastros/regras-de-repasse" },
       { entity: "vouchers", href: "/cadastros/vouchers" },
     ],
   },
   {
-    label: "Documentos",
-    icon: DocumentText,
-    items: [{ entity: "modelos", href: "/cadastros/modelos" }],
-  },
-  {
-    label: "Empresa",
+    id: "clinica",
+    label: "Clínica e documentos",
+    description: "Dados da empresa e modelos usados em impressos.",
     icon: Buildings2,
-    items: [{ entity: "empresa", href: "/cadastros/empresa" }],
+    items: [
+      { entity: "empresa", href: "/cadastros/empresa" },
+      { entity: "modelos", href: "/cadastros/modelos" },
+    ],
   },
 ];
 

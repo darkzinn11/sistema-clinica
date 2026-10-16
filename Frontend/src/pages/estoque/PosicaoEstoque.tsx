@@ -1,5 +1,5 @@
 import { IconCircle } from "@/components/ui/icon-circle";
-import { Box1, CalendarRemove, SearchNormal1 } from "iconsax-reactjs";
+import { Box, Box1, BoxRemove, CalendarRemove, SearchNormal1, Timer1, WalletMoney } from "iconsax-reactjs";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { StatCard } from "@/components/ui/charts";
@@ -42,10 +42,10 @@ export default function PosicaoEstoque() {
       <PageHeader title="Posição do estoque" description="Saldo atual de todos os produtos da clínica." breadcrumbs={[{ label: "Estoque" }]} />
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4 ui-stat-strip" data-columns="4">
-        <StatCard label="Itens cadastrados" value={produtos.length} />
-        <StatCard label="Abaixo do mínimo" value={abaixoMinimo.length} />
-        <StatCard label="Vencendo em 30 dias" value={itensVencendo.length} />
-        <StatCard label="Valor em estoque" value={brl(valorEstoque)} />
+        <StatCard icon={<Box />} label="Itens cadastrados" value={produtos.length} />
+        <StatCard icon={<BoxRemove />} label="Abaixo do mínimo" value={abaixoMinimo.length} />
+        <StatCard icon={<Timer1 />} label="Vencendo em 30 dias" value={itensVencendo.length} />
+        <StatCard icon={<WalletMoney />} label="Valor em estoque" value={brl(valorEstoque)} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
