@@ -290,7 +290,8 @@ UPDATE/DELETE e um gatilho (`bloquear_alteracao`) recusa alteração ou exclusã
   `em_atendimento` ou `atendido` (sem prazo para anotar depois de concluído: decisão provisória).
 - **Habilitação leitor → autor (decisão do dono da clínica):** João pode ver o histórico de José sem que José veja o
   de Maria. Tem direção (João→José não dá nada a José) e **não é transitiva**. Mesmo habilitado, o leitor só vê
-  evolução de colega dos pacientes com os quais **tem vínculo**. Só o Administrador habilita e revoga; o histórico
+  evolução de colega dos pacientes com os quais **tem vínculo**. Sem prazo de validade: vale até ser revogada.
+  Só o Administrador habilita e revoga; o histórico
   de habilitações é imutável (só se revoga) e ler evolução de colega é registrado à parte na auditoria
   (`ver_evolucoes_compartilhadas`). A resposta indica o autor (`profissionalNome`) e se é própria (`propria`).
 - **Correção = nova versão.** A original permanece (`vigente` fica falso) e só a versão mais recente pode ser

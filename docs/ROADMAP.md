@@ -1,6 +1,10 @@
 # MultiSaúde — Roadmap por fatias
 
 Cada fatia é um **fluxo de clínica ponta a ponta**, demonstrável, e não um módulo isolado.
+
+**Critério de ordem (decisão do dono do projeto):** seguir a sequência em que as coisas acontecem na clínica, a
+partir de uma clínica que acabou de abrir (o paciente chega, é atendido no guichê, agenda), e não o que seria mais
+impressionante de mostrar. A ordem das fatias abaixo é provisória e será revista por esse critério.
 Uma fatia só fecha quando tem: migração nova (nunca editar aplicada), API, permissões do
 papel envolvido, testes (inclusive isolamento de tenant) e uma demonstração por curl/Postman.
 
@@ -15,7 +19,8 @@ Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrá
   é requisito, incluindo contenção de varredura em volume.
 - Prontuário: por padrão o médico só vê as evoluções que ele escreveu. O dono da clínica quer poder **habilitar** que
   um médico veja as de outro (João vê as de José, sem José ver as de Maria): habilitação por par, com direção,
-  não transitiva, feita pelo Administrador e limitada a pacientes com vínculo.
+  não transitiva, feita pelo Administrador e limitada a pacientes com vínculo. **Sem prazo de validade**: vale até
+  ser revogada (decisão do dono do projeto).
 - Laboratório é **externo** (Lacmar, no mesmo prédio). Sem módulo de laboratório.
   Exame = pedido emitido pelo médico (documento). Resultado = anexo no prontuário,
   trazido pelo paciente. Integração com o Lacmar fica fora do escopo até haver demanda.
