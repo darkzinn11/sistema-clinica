@@ -269,10 +269,38 @@ Os contadores ficam em memória (`VolumeLimiter`): reiniciar zera, e com mais de
 armazenamento compartilhado. Os limites são ponto de partida e devem ser calibrados com o uso real da clínica.
 Excesso gera log de aviso com tenant e usuário (sem dados do paciente).
 
+## Prontuário (evolução) e auditoria de acesso
+
+A V17 criou `evolucoes` e `acessos_prontuario`. As duas só aceitam leitura e inserção: a aplicação não tem
+UPDATE/DELETE e um gatilho (`bloquear_alteracao`) recusa alteração ou exclusão de qualquer papel.
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| POST | `/api/v1/agendamentos/{id}/evolucoes` | `prontuario:escrever` |
+| POST | `/api/v1/evolucoes/{id}/corrigir` | `prontuario:escrever` |
+| GET | `/api/v1/pacientes/{id}/evolucoes` | `prontuario:ler` |
+| GET | `/api/v1/auditoria/acessos?pacienteId=&usuarioId=&de=&ate=&limite=` | `auditoria:ler` (Administrador) |
+
+- **Evolução é do autor.** Só o médico que a escreveu a lê e a corrige. Evolução de colega, inexistente ou de outra
+  unidade respondem o mesmo 404. O Administrador e a Recepção não têm `prontuario:ler`.
+- **Só se escreve em atendimento iniciado:** o agendamento precisa ser do próprio médico, da unidade da sessão e estar
+  `em_atendimento` ou `atendido` (sem prazo para anotar depois de concluído: decisão provisória).
+- **Correção = nova versão.** A original permanece (`vigente` fica falso) e só a versão mais recente pode ser
+  corrigida de novo. O `hash` (SHA-256) permite detectar adulteração direta no banco; **não é assinatura digital**.
+- **Auditoria gravada na mesma transação da leitura**: se falhar, a leitura falha; se o limite de volume recusar a
+  resposta, nada é registrado. Registra listagem e consulta de pacientes (uma linha por paciente entregue), leitura de
+  evoluções, criação e correção. Quem consulta a auditoria não é registrado.
+
 ### Lacunas conhecidas (ainda não tratadas)
 
-- **Sem auditoria de leitura.** Quem consultou qual paciente não fica registrado: é o que dissuade e permite
-  investigar cópia manual por quem tem acesso legítimo. Entra junto com o prontuário.
+- **Sem assinatura digital.** O CFM exige ICP-Brasil para documento médico eletrônico. O hash só detecta adulteração.
+  É requisito legal a resolver antes de usar com pacientes reais.
+- **Evolução fica inacessível se o autor sair.** Só o autor lê; se o profissional for desativado, ninguém lê. Falta
+  definir quem responde por prontuário de quem saiu (responsável técnico) e o acesso do próprio paciente (LGPD).
+- **Papéis padrão definidos em dois lugares** (migrações e `BootstrapAdmin`). Já divergiram uma vez: clínica nova
+  nasceria com o Médico antigo, que via todas as agendas. Vale ter uma fonte única.
+
+- **Auditoria sem retenção definida e sem alerta:** o registro existe, mas ninguém é avisado de padrão suspeito.
 - **O médico recebe CPF, e-mail e celular completos** dos pacientes com vínculo. Pode-se mascarar.
 - **Limite de volume só em pacientes.** Agenda, grades e bloqueios não têm teto por usuário (não expõem dados
   pessoais além de IDs, mas permitem mapear a operação).

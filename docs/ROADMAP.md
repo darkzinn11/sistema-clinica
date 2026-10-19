@@ -39,9 +39,15 @@ Fluxo: recepção agenda → paciente chega (check-in) → médico atende e regi
 - Papéis: Recepção com permissões reais; novo papel Médico (só os próprios atendimentos).
 - Auditoria de leitura do prontuário.
 
-### Pendências da Fatia 1 (decididas, ainda não construídas)
-- Prontuário mínimo com evolução imutável, visível só ao autor, com auditoria de leitura embutida.
+### Feito na Fatia 1
+- Agenda completa (grades, bloqueios, cancelar, remarcar, histórico, disponibilidade), papéis Médico e Recepção,
+  acesso por vínculo, privacidade entre médicos e unidades, contenção de varredura.
+- Prontuário mínimo: evolução imutável, só do autor, correção por nova versão, auditoria de acesso a pacientes.
+
+### Pendências da Fatia 1
 - Encaminhamento do médico à recepção ao fim do atendimento (hoje não há registro dessa passagem).
+- Check-in com fila/senha (hoje só a mudança de status).
+- Assinatura digital ICP-Brasil e política de acesso a prontuário de quem saiu da clínica (requisitos legais).
 
 ## Fatia 2 — Prescrição, pedido de exame e documentos
 Fluxo: médico prescreve, pede exames (para o Lacmar), emite atestado; paciente volta com
