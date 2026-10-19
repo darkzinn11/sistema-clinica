@@ -20,12 +20,14 @@ public class PatientController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('pacientes:ler')")
+    @PreAuthorize("hasAnyAuthority('pacientes:ler', 'pacientes:ler_vinculados')")
     public List<PatientView> search(@AuthenticationPrincipal Session session,
         @RequestParam(defaultValue = "") String busca,
         @RequestParam(defaultValue = "50") int limite) {
         int safeLimit = Math.max(1, Math.min(limite, 100));
-        return transactions.inTenant(session.identity().tenantId(), () -> repository.search(busca, safeLimit));
+        return transactions.inTenant(session.identity().tenantId(), () -> seesEveryPatient(session)
+            ? repository.search(busca, safeLimit)
+            : repository.professionalOf(session.identity().usuarioId()).map(p -> repository.searchConnected(busca, safeLimit, p)).orElse(List.of()));
     }
 
     @PostMapping
@@ -36,9 +38,18 @@ public class PatientController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('pacientes:ler')")
+    @PreAuthorize("hasAnyAuthority('pacientes:ler', 'pacientes:ler_vinculados')")
     public PatientView find(@AuthenticationPrincipal Session session, @PathVariable java.util.UUID id) {
-        return transactions.inTenant(session.identity().tenantId(), () -> repository.find(id));
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            if (seesEveryPatient(session)) return repository.find(id);
+            // 404 também quando existe mas não há vínculo: não revela que o paciente é da clínica.
+            return repository.professionalOf(session.identity().usuarioId()).flatMap(p -> repository.findConnected(id, p))
+                .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Paciente não encontrado."));
+        });
+    }
+
+    private static boolean seesEveryPatient(Session session) {
+        return session.identity().permissoes().contains("pacientes:ler");
     }
 
     @PutMapping("/{id}")

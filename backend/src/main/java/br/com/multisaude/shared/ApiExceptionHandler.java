@@ -2,6 +2,7 @@ package br.com.multisaude.shared;
 
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -20,6 +21,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<?> conflict(DataIntegrityViolationException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Cadastro duplicado ou referência inválida."));
+    }
+
+    @ExceptionHandler(EmptyResultDataAccessException.class)
+    ResponseEntity<?> notFound(EmptyResultDataAccessException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", "Registro não encontrado."));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

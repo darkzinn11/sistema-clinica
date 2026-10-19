@@ -21,8 +21,8 @@ public class ProfessionalRepository {
     }
     public ProfessionalView create(CreateProfessionalRequest req, UUID tenant) {
         UUID id=UUID.randomUUID();
-        jdbc.update("INSERT INTO clinica.profissionais(id,tenant_id,nome,conselho,conselho_num,conselho_uf,cbo) VALUES(?,?,?,?,?,?,?)",
-            id,tenant,req.nome().trim(),blank(req.conselho()),blank(req.conselhoNum()),blank(req.conselhoUf()),blank(req.cbo()));
+        jdbc.update("INSERT INTO clinica.profissionais(id,tenant_id,nome,conselho,conselho_num,conselho_uf,cbo,usuario_id) VALUES(?,?,?,?,?,?,?,?)",
+            id,tenant,req.nome().trim(),blank(req.conselho()),blank(req.conselhoNum()),blank(req.conselhoUf()),blank(req.cbo()),req.usuarioId());
         for(UUID specialty:req.especialidadeIds()) jdbc.update("INSERT INTO clinica.profissional_especialidades(tenant_id,profissional_id,especialidade_id) VALUES(?,?,?)",tenant,id,specialty);
         for(UUID unit:req.unidadeIds()) jdbc.update("INSERT INTO clinica.profissional_unidades(tenant_id,profissional_id,unidade_id) VALUES(?,?,?)",tenant,id,unit);
         return find(id);
@@ -33,7 +33,8 @@ public class ProfessionalRepository {
     public boolean destinationsBelongToTenant(CreateProfessionalRequest req, UUID tenant) {
         Integer units=jdbc.queryForObject("SELECT count(*) FROM clinica.unidades WHERE tenant_id=? AND ativo AND id=ANY(?)",Integer.class,tenant,req.unidadeIds().toArray(new UUID[0]));
         Integer specialties=jdbc.queryForObject("SELECT count(*) FROM clinica.especialidades WHERE id=ANY(?)",Integer.class,req.especialidadeIds().toArray(new UUID[0]));
-        return units != null && units == req.unidadeIds().size() && specialties != null && specialties == req.especialidadeIds().size();
+        boolean userOk = req.usuarioId() == null || Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM clinica.usuarios WHERE tenant_id=? AND id=? AND ativo)",Boolean.class,tenant,req.usuarioId()));
+        return userOk && units != null && units == req.unidadeIds().size() && specialties != null && specialties == req.especialidadeIds().size();
     }
     private ProfessionalView view(java.sql.ResultSet rs) throws java.sql.SQLException {
         UUID id=rs.getObject("id",UUID.class);

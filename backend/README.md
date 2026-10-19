@@ -201,3 +201,25 @@ Criar e remarcar passam pela mesma validação (`AppointmentService.requireFreeS
 tentativas de login por IP é compartilhado entre as classes de teste. O endpoint de login continua
 coberto em `IdentityIntegrationTest`. A suíte leva alguns minutos porque o banco de desenvolvimento
 fica na VPS, atrás do túnel SSH: o custo é a latência de cada comando.
+
+## Papéis e acesso do médico a pacientes
+
+A V13 liga `profissionais.usuario_id` ao usuário que faz login (um usuário por profissional) e cria os papéis
+**Médico** e **Recepção** com permissões reais. `POST /api/v1/profissionais` aceita `usuarioId` opcional.
+
+| Papel | Permissões |
+| --- | --- |
+| Administrador | tudo o que existe hoje (inclui `agenda:configurar`); **sem** acesso clínico |
+| Recepção | `agenda:ler/criar/editar/cancelar`, `pacientes:ler/criar/editar`, `profissionais:ler` |
+| Médico | `agenda:ler/editar`, `pacientes:ler_vinculados` |
+
+`pacientes:ler` libera todos os pacientes da clínica. `pacientes:ler_vinculados` libera só os pacientes com
+**vínculo** com o profissional do usuário logado:
+- já atendeu (`em_atendimento` ou `atendido`), ou
+- tem agendamento `agendado`/`confirmado`/`check_in` que ainda não terminou.
+
+Cancelado, não compareceu e remarcado não criam vínculo, e um agendamento passado esquecido em `agendado` também
+não (senão daria acesso permanente). Sem vínculo a resposta é **404**, igual a paciente inexistente: não se revela
+que o paciente é da clínica. Usuário com `pacientes:ler_vinculados` sem profissional ligado não vê ninguém.
+Não existe acesso de emergência por exceção: decisão da clínica.
+`ApiExceptionHandler` agora responde 404 a registro inexistente (antes `GET` de ID desconhecido dava 500).

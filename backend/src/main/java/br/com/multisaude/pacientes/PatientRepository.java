@@ -3,6 +3,7 @@ package br.com.multisaude.pacientes;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -22,6 +23,32 @@ public class PatientRepository {
             WHERE ativo AND (lower(nome) LIKE ? OR cpf LIKE ? OR celular LIKE ?)
             ORDER BY nome, id LIMIT ?
             """, (rs, row) -> view(rs), "%" + term + "%", "%" + digits + "%", "%" + digits + "%", limit);
+    }
+
+    // Vínculo médico-paciente: já atendeu (em atendimento ou atendido) ou tem agendamento ativo que ainda não terminou.
+    // Agendamento passado esquecido em "agendado" não conta, senão daria acesso permanente.
+    private static final String CONNECTED = """
+        EXISTS (SELECT 1 FROM clinica.agendamentos a WHERE a.paciente_id = p.id AND a.profissional_id = ? AND (
+            a.status IN ('em_atendimento', 'atendido')
+            OR (a.status IN ('agendado', 'confirmado', 'check_in') AND upper(a.periodo) > now())))
+        """;
+
+    public Optional<UUID> professionalOf(UUID userId) {
+        return jdbc.query("SELECT id FROM clinica.profissionais WHERE usuario_id = ? AND ativo", (rs, row) -> rs.getObject(1, UUID.class), userId)
+            .stream().findFirst();
+    }
+
+    public List<PatientView> searchConnected(String query, int limit, UUID professional) {
+        String term = query == null ? "" : query.trim().toLowerCase();
+        String digits = term.replaceAll("\\D", "");
+        return jdbc.query("SELECT p.id, p.nome, p.nome_social, p.cpf, p.nascimento, p.celular, p.email, p.ativo FROM clinica.pacientes p "
+            + "WHERE p.ativo AND (lower(p.nome) LIKE ? OR p.cpf LIKE ? OR p.celular LIKE ?) AND " + CONNECTED + " ORDER BY p.nome, p.id LIMIT ?",
+            (rs, row) -> view(rs), "%" + term + "%", "%" + digits + "%", "%" + digits + "%", professional, limit);
+    }
+
+    public Optional<PatientView> findConnected(UUID id, UUID professional) {
+        return jdbc.query("SELECT p.id, p.nome, p.nome_social, p.cpf, p.nascimento, p.celular, p.email, p.ativo FROM clinica.pacientes p "
+            + "WHERE p.id = ? AND " + CONNECTED, (rs, row) -> view(rs), id, professional).stream().findFirst();
     }
 
     public PatientView create(CreatePatientRequest request, UUID tenant) {

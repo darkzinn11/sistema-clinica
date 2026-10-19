@@ -130,13 +130,17 @@ abstract class AgendaTestBase {
      * que custa um BCrypt por teste e esgotaria o limite de tentativas por IP compartilhado entre as classes.
      */
     protected String login() throws Exception {
+        return tokenFor(user);
+    }
+
+    protected String tokenFor(UUID userId) throws Exception {
         byte[] random = new byte[32];
         new java.security.SecureRandom().nextBytes(random);
         String token = tenant + "." + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(random);
         byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(token.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         transactions.inTenant(tenant, () -> jdbc.update(
             "INSERT INTO clinica.sessoes (tenant_id, usuario_id, unidade_id, token_hash, expira_em) VALUES (?, ?, ?, ?, now() + interval '1 hour')",
-            tenant, user, unit, hash));
+            tenant, userId, unit, hash));
         return token;
     }
 }

@@ -57,7 +57,8 @@ public class BootstrapAdmin implements ApplicationRunner {
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, ?)", unit, tenant, required("BOOTSTRAP_UNIT_NAME"));
             jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Administrador', ARRAY['usuarios:ler','usuarios:criar','pacientes:ler','pacientes:criar','pacientes:editar','pacientes:inativar','profissionais:ler','profissionais:criar','agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:configurar'])",
                 request.papelId(), tenant);
-            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Recepção', ARRAY[]::text[])", tenant);
+            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Recepção', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','pacientes:ler','pacientes:criar','pacientes:editar','profissionais:ler'])", tenant);
+            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Médico', ARRAY['agenda:ler','agenda:editar','pacientes:ler_vinculados'])", tenant);
             repository.createUser(tenant, request, hash);
             return null;
         });
