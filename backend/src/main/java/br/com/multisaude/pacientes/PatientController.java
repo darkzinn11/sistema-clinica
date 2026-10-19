@@ -17,8 +17,9 @@ public class PatientController {
     private final PatientRepository repository;
     private final TenantTransactions transactions;
     private final ProfessionalRepository professionals;
-    public PatientController(PatientRepository repository, TenantTransactions transactions, ProfessionalRepository professionals) {
-        this.repository = repository; this.transactions = transactions; this.professionals = professionals;
+    private final PatientReadGuard guard;
+    public PatientController(PatientRepository repository, TenantTransactions transactions, ProfessionalRepository professionals, PatientReadGuard guard) {
+        this.repository = repository; this.transactions = transactions; this.professionals = professionals; this.guard = guard;
     }
 
     @GetMapping
@@ -27,9 +28,14 @@ public class PatientController {
         @RequestParam(defaultValue = "") String busca,
         @RequestParam(defaultValue = "50") int limite) {
         int safeLimit = Math.max(1, Math.min(limite, 100));
-        return transactions.inTenant(session.identity().tenantId(), () -> seesEveryPatient(session)
+        boolean full = seesEveryPatient(session);
+        guard.request(session.identity().tenantId(), session.identity().usuarioId(), full);
+        List<PatientView> found = transactions.inTenant(session.identity().tenantId(), () -> full
             ? repository.search(busca, safeLimit)
             : professionals.idOfUser(session.identity().usuarioId()).map(p -> repository.searchConnected(busca, safeLimit, p)).orElse(List.of()));
+        // Cobra antes de devolver: o que estourar o orçamento por hora não é entregue.
+        guard.records(session.identity().tenantId(), session.identity().usuarioId(), full, found.size());
+        return found;
     }
 
     @PostMapping
@@ -42,12 +48,16 @@ public class PatientController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('pacientes:ler', 'pacientes:ler_vinculados')")
     public PatientView find(@AuthenticationPrincipal Session session, @PathVariable java.util.UUID id) {
-        return transactions.inTenant(session.identity().tenantId(), () -> {
-            if (seesEveryPatient(session)) return repository.find(id);
+        boolean full = seesEveryPatient(session);
+        guard.request(session.identity().tenantId(), session.identity().usuarioId(), full);
+        PatientView found = transactions.inTenant(session.identity().tenantId(), () -> {
+            if (full) return repository.find(id);
             // 404 também quando existe mas não há vínculo: não revela que o paciente é da clínica.
             return professionals.idOfUser(session.identity().usuarioId()).flatMap(p -> repository.findConnected(id, p))
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Paciente não encontrado."));
         });
+        guard.records(session.identity().tenantId(), session.identity().usuarioId(), full, 1);
+        return found;
     }
 
     private static boolean seesEveryPatient(Session session) {
