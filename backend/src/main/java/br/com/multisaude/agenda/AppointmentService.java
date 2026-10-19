@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import br.com.multisaude.identidade.IdentityModels.Session;
+import br.com.multisaude.profissionais.ProfessionalRepository;
 import br.com.multisaude.shared.TenantTransactions;
 import static br.com.multisaude.agenda.AgendaModels.*;
 
@@ -25,16 +26,20 @@ public class AppointmentService {
         "confirmado", Set.of("check_in", "nao_compareceu"),
         "check_in", Set.of("em_atendimento"),
         "em_atendimento", Set.of("atendido"));
+    // Iniciar e finalizar atendimento é do médico, e só no próprio; confirmar, check-in e falta são da recepção.
+    private static final Set<String> CLINICAL_STATUS = Set.of("em_atendimento", "atendido");
     private static final Set<String> CAN_CANCEL = Set.of("agendado", "confirmado", "check_in");
     private static final Set<String> CAN_RESCHEDULE = Set.of("agendado", "confirmado");
 
     private final AgendaRepository repo;
     private final ScheduleRepository schedule;
+    private final ProfessionalRepository professionals;
     private final TenantTransactions tx;
 
-    public AppointmentService(AgendaRepository repo, ScheduleRepository schedule, TenantTransactions tx) {
+    public AppointmentService(AgendaRepository repo, ScheduleRepository schedule, ProfessionalRepository professionals, TenantTransactions tx) {
         this.repo = repo;
         this.schedule = schedule;
+        this.professionals = professionals;
         this.tx = tx;
     }
 
@@ -88,8 +93,13 @@ public class AppointmentService {
         if (!MANUAL_TRANSITIONS.values().stream().anyMatch(targets -> targets.contains(request.status()))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status inválido. Para cancelar ou remarcar use as rotas próprias.");
         }
+        boolean clinical = CLINICAL_STATUS.contains(request.status());
+        if (!s.identity().permissoes().contains(clinical ? "agenda:atender" : "agenda:editar")) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Sem permissão para esta mudança de status.");
+        }
         return tx.inTenant(s.identity().tenantId(), () -> {
-            AppointmentView current = load(s, id, request.versao());
+            UUID ownOnly = clinical ? professionals.idOfUser(s.identity().usuarioId()).orElse(new UUID(0, 0)) : null;
+            AppointmentView current = load(s, id, request.versao(), ownOnly);
             if (!MANUAL_TRANSITIONS.getOrDefault(current.status(), Set.of()).contains(request.status())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Transição não permitida: " + current.status() + " para " + request.status() + ".");
             }
@@ -134,7 +144,13 @@ public class AppointmentService {
     }
 
     private AppointmentView load(Session s, UUID id, int expectedVersion) {
+        return load(s, id, expectedVersion, null);
+    }
+
+    /** ownOnly: se informado, o agendamento precisa ser desse profissional; senão 404, igual a inexistente. */
+    private AppointmentView load(Session s, UUID id, int expectedVersion, UUID ownOnly) {
         AppointmentView current = repo.lockAppointment(id)
+            .filter(a -> ownOnly == null || a.profissionalId().equals(ownOnly))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agendamento não encontrado."));
         if (!current.unidadeId().equals(s.identity().unidadeId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Agendamento pertence a outra unidade.");

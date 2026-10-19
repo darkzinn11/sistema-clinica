@@ -15,6 +15,9 @@ public class ProfessionalRepository {
         return jdbc.query("SELECT id,nome,conselho,conselho_num,conselho_uf,cbo,ativo FROM clinica.profissionais WHERE ativo AND lower(nome) LIKE ? ORDER BY nome LIMIT ?",
             (rs,row) -> view(rs), "%"+q+"%", limit);
     }
+    public Optional<UUID> idOfUser(UUID userId) {
+        return jdbc.query("SELECT id FROM clinica.profissionais WHERE usuario_id = ? AND ativo", (rs, row) -> rs.getObject(1, UUID.class), userId).stream().findFirst();
+    }
     public List<SpecialtyView> specialties() {
         return jdbc.query("SELECT id,nome,cbo FROM clinica.especialidades ORDER BY nome", (rs,row) ->
             new SpecialtyView(rs.getObject("id",UUID.class), rs.getString("nome"), rs.getString("cbo")));

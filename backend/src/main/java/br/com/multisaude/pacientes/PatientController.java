@@ -7,6 +7,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import br.com.multisaude.identidade.IdentityModels.Session;
+import br.com.multisaude.profissionais.ProfessionalRepository;
 import br.com.multisaude.shared.TenantTransactions;
 import static br.com.multisaude.pacientes.PatientModels.*;
 
@@ -15,8 +16,9 @@ import static br.com.multisaude.pacientes.PatientModels.*;
 public class PatientController {
     private final PatientRepository repository;
     private final TenantTransactions transactions;
-    public PatientController(PatientRepository repository, TenantTransactions transactions) {
-        this.repository = repository; this.transactions = transactions;
+    private final ProfessionalRepository professionals;
+    public PatientController(PatientRepository repository, TenantTransactions transactions, ProfessionalRepository professionals) {
+        this.repository = repository; this.transactions = transactions; this.professionals = professionals;
     }
 
     @GetMapping
@@ -27,7 +29,7 @@ public class PatientController {
         int safeLimit = Math.max(1, Math.min(limite, 100));
         return transactions.inTenant(session.identity().tenantId(), () -> seesEveryPatient(session)
             ? repository.search(busca, safeLimit)
-            : repository.professionalOf(session.identity().usuarioId()).map(p -> repository.searchConnected(busca, safeLimit, p)).orElse(List.of()));
+            : professionals.idOfUser(session.identity().usuarioId()).map(p -> repository.searchConnected(busca, safeLimit, p)).orElse(List.of()));
     }
 
     @PostMapping
@@ -43,7 +45,7 @@ public class PatientController {
         return transactions.inTenant(session.identity().tenantId(), () -> {
             if (seesEveryPatient(session)) return repository.find(id);
             // 404 também quando existe mas não há vínculo: não revela que o paciente é da clínica.
-            return repository.professionalOf(session.identity().usuarioId()).flatMap(p -> repository.findConnected(id, p))
+            return professionals.idOfUser(session.identity().usuarioId()).flatMap(p -> repository.findConnected(id, p))
                 .orElseThrow(() -> new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Paciente não encontrado."));
         });
     }

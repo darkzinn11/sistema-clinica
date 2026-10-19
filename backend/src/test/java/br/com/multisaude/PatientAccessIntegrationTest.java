@@ -23,7 +23,7 @@ class PatientAccessIntegrationTest extends AgendaTestBase {
     @org.junit.jupiter.api.BeforeEach
     void doctorFixtures() {
         transactions.inTenant(tenant, () -> {
-            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Médico teste', ARRAY['agenda:ler','pacientes:ler_vinculados'])", doctorRole, tenant);
+            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Médico teste', ARRAY['agenda:ler_proprios','agenda:atender','pacientes:ler_vinculados'])", doctorRole, tenant);
             jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash) VALUES (?, ?, 'Médico teste', ?, 'x')", doctorUser, tenant, "medico-" + email);
             jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, doctorUser, unit, doctorRole);
             jdbc.update("UPDATE clinica.profissionais SET usuario_id = ? WHERE id = ?", doctorUser, professional);

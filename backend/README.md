@@ -154,7 +154,7 @@ agendamento antes, a resposta é 409 e o cliente deve recarregar.
 | --- | --- | --- |
 | GET | `/api/v1/agendamento-motivos` | `agenda:ler` |
 | GET | `/api/v1/agendamentos/{id}/historico` | `agenda:ler` |
-| POST | `/api/v1/agendamentos/{id}/status` | `agenda:editar` |
+| POST | `/api/v1/agendamentos/{id}/status` | `agenda:editar` (confirmar, check-in, falta) ou `agenda:atender` (iniciar/finalizar, só o próprio) |
 | POST | `/api/v1/agendamentos/{id}/cancelar` | `agenda:cancelar` |
 | POST | `/api/v1/agendamentos/{id}/remarcar` | `agenda:remarcar` |
 
@@ -211,7 +211,7 @@ A V13 liga `profissionais.usuario_id` ao usuário que faz login (um usuário por
 | --- | --- |
 | Administrador | tudo o que existe hoje (inclui `agenda:configurar`); **sem** acesso clínico |
 | Recepção | `agenda:ler/criar/editar/cancelar/remarcar`, `pacientes:ler/criar/editar`, `profissionais:ler` |
-| Médico | `agenda:ler/editar`, `pacientes:ler_vinculados` (**não remarca**: só a recepção tem `agenda:remarcar`) |
+| Médico | `agenda:ler_proprios`, `agenda:atender`, `pacientes:ler_vinculados` (só a própria agenda; **não remarca** nem confirma: isso é da recepção) |
 
 `pacientes:ler` libera todos os pacientes da clínica. `pacientes:ler_vinculados` libera só os pacientes com
 **vínculo** com o profissional do usuário logado:
@@ -223,3 +223,31 @@ não (senão daria acesso permanente). Sem vínculo a resposta é **404**, igual
 que o paciente é da clínica. Usuário com `pacientes:ler_vinculados` sem profissional ligado não vê ninguém.
 Não existe acesso de emergência por exceção: decisão da clínica.
 `ApiExceptionHandler` agora responde 404 a registro inexistente (antes `GET` de ID desconhecido dava 500).
+
+## Proteção contra vazamento de dados
+
+A clínica tem rodízio de médicos, e há médicos que atendem em várias clínicas: informação que sai de uma
+agenda pode ir parar em outra. Por isso o médico só enxerga e opera **a própria** agenda.
+
+- `agenda:ler` enxerga todos os profissionais (recepção, gestão). `agenda:ler_proprios` só o profissional ligado
+  ao usuário (`AgendaAccess`). Vale para listagem de agendamentos, histórico, grades, bloqueios e disponibilidade.
+  Pedir a agenda de um colega responde 403; usuário restrito sem profissional ligado não vê nada.
+- Bloqueios: o médico vê os da unidade inteira e os próprios; o motivo de um colega pode ser pessoal.
+- Mudar status: `agenda:atender` só inicia/finaliza o atendimento do **próprio**; confirmar, check-in e falta
+  exigem `agenda:editar` (recepção). Agendamento de colega, inexistente ou de outra clínica respondem o mesmo
+  404, inclusive com versão errada, para a resposta não servir de oráculo de existência.
+- O médico não cria, cancela, remarca nem configura agenda, e não lê profissionais, usuários nem papéis.
+
+Já estava bem: o banco isola clínicas por RLS; `server.error.include-message: never`; só `/actuator/health` e sem
+detalhes; logs só com IDs (sem nome, CPF ou e-mail); login com hash falso para tempo constante.
+
+### Lacunas conhecidas (ainda não tratadas)
+
+- **Sem auditoria de leitura.** Quem consultou qual paciente não fica registrado: é o que dissuade e permite
+  investigar cópia manual por quem tem acesso legítimo. Entra junto com o prontuário.
+- **Leituras por profissional não filtram pela unidade da sessão:** a recepção da unidade A vê agendamentos da B.
+  Depende de decisão da clínica.
+- **`GET /procedimentos` mostra preços** a qualquer papel de agenda, inclusive ao médico.
+- **O médico recebe CPF, e-mail e celular completos** dos pacientes com vínculo. Pode-se mascarar.
+- **Sem limite de taxa fora do login:** quem tem acesso legítimo poderia varrer dados em volume.
+- Um médico que copia dados manualmente não é impedido por software; só a auditoria e o contrato o desencorajam.

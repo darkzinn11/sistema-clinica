@@ -102,8 +102,10 @@ public class ScheduleRepository {
         return jdbc.queryForObject(BLOCK_SELECT + " AND id = ?", (r, n) -> block(r), unit, id);
     }
 
-    public List<BlockView> blocks(UUID unit, OffsetDateTime from, OffsetDateTime to) {
-        return jdbc.query(BLOCK_SELECT + " AND periodo && tstzrange(?, ?, '[)') ORDER BY lower(periodo)", (r, n) -> block(r), unit, ts(from), ts(to));
+    /** restricted: só bloqueios da unidade inteira e os do próprio profissional; os motivos dos colegas podem ser pessoais. */
+    public List<BlockView> blocks(UUID unit, OffsetDateTime from, OffsetDateTime to, boolean restricted, UUID professional) {
+        return jdbc.query(BLOCK_SELECT + " AND periodo && tstzrange(?, ?, '[)') AND (NOT ? OR profissional_id IS NULL OR profissional_id = ?) ORDER BY lower(periodo)",
+            (r, n) -> block(r), unit, ts(from), ts(to), restricted, professional);
     }
 
     public boolean revokeBlock(UUID id, UUID unit) {

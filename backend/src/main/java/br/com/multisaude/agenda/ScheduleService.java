@@ -23,10 +23,12 @@ public class ScheduleService {
     private static final int MAX_AVAILABILITY_DAYS = 31;
     private final ScheduleRepository repo;
     private final TenantTransactions tx;
+    private final AgendaAccess access;
 
-    public ScheduleService(ScheduleRepository repo, TenantTransactions tx) {
+    public ScheduleService(ScheduleRepository repo, TenantTransactions tx, AgendaAccess access) {
         this.repo = repo;
         this.tx = tx;
+        this.access = access;
     }
 
     public GradeView createGrade(Session s, CreateGradeRequest x) {
@@ -55,7 +57,13 @@ public class ScheduleService {
     }
 
     public List<GradeView> grades(Session s, UUID professional) {
-        return tx.inTenant(s.identity().tenantId(), () -> repo.grades(s.identity().unidadeId(), professional));
+        return tx.inTenant(s.identity().tenantId(), () -> {
+            var scope = access.scope(s);
+            if (scope.all()) return repo.grades(s.identity().unidadeId(), professional);
+            if (scope.professional() == null) return List.<GradeView>of();
+            if (professional != null) scope.requireCanSee(professional);
+            return repo.grades(s.identity().unidadeId(), scope.professional());
+        });
     }
 
     public void deactivateGrade(Session s, UUID id) {
@@ -82,7 +90,10 @@ public class ScheduleService {
 
     public List<BlockView> blocks(Session s, OffsetDateTime from, OffsetDateTime to) {
         if (!to.isAfter(from)) throw bad("Intervalo inválido.");
-        return tx.inTenant(s.identity().tenantId(), () -> repo.blocks(s.identity().unidadeId(), from, to));
+        return tx.inTenant(s.identity().tenantId(), () -> {
+            var scope = access.scope(s);
+            return repo.blocks(s.identity().unidadeId(), from, to, !scope.all(), scope.professional());
+        });
     }
 
     public void revokeBlock(Session s, UUID id) {
@@ -100,6 +111,7 @@ public class ScheduleService {
         if (ChronoUnit.DAYS.between(from, to) >= MAX_AVAILABILITY_DAYS) throw bad("Consulte no máximo " + MAX_AVAILABILITY_DAYS + " dias por vez.");
         UUID unit = s.identity().unidadeId();
         return tx.inTenant(s.identity().tenantId(), () -> {
+            access.scope(s).requireCanSee(professional);
             int duration = repo.procedureDuration(procedure).orElseThrow(() -> bad("Procedimento inválido."));
             if (!repo.professionalServesUnit(professional, unit)) throw bad("Profissional inválido ou não atende nesta unidade.");
             ZoneId zone = repo.unitZone(unit);

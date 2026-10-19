@@ -21,7 +21,7 @@ public class ScheduleController {
         this.schedule = schedule;
     }
 
-    @GetMapping("/grades") @PreAuthorize("hasAuthority('agenda:ler')")
+    @GetMapping("/grades") @PreAuthorize("hasAnyAuthority('agenda:ler', 'agenda:ler_proprios')")
     public List<GradeView> grades(@AuthenticationPrincipal Session s, @RequestParam(required = false) UUID profissionalId) {
         return schedule.grades(s, profissionalId);
     }
@@ -36,7 +36,7 @@ public class ScheduleController {
         schedule.deactivateGrade(s, id);
     }
 
-    @GetMapping("/bloqueios") @PreAuthorize("hasAuthority('agenda:ler')")
+    @GetMapping("/bloqueios") @PreAuthorize("hasAnyAuthority('agenda:ler', 'agenda:ler_proprios')")
     public List<BlockView> blocks(@AuthenticationPrincipal Session s, @RequestParam OffsetDateTime de, @RequestParam OffsetDateTime ate) {
         return schedule.blocks(s, de, ate);
     }
@@ -51,7 +51,7 @@ public class ScheduleController {
         schedule.revokeBlock(s, id);
     }
 
-    @GetMapping("/agenda/disponibilidade") @PreAuthorize("hasAuthority('agenda:ler')")
+    @GetMapping("/agenda/disponibilidade") @PreAuthorize("hasAnyAuthority('agenda:ler', 'agenda:ler_proprios')")
     public List<SlotView> availability(@AuthenticationPrincipal Session s, @RequestParam UUID profissionalId, @RequestParam UUID procedimentoId,
                                        @RequestParam LocalDate de, @RequestParam LocalDate ate) {
         return schedule.availability(s, profissionalId, procedimentoId, de, ate);

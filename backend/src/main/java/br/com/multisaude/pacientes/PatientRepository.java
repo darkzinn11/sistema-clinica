@@ -33,11 +33,6 @@ public class PatientRepository {
             OR (a.status IN ('agendado', 'confirmado', 'check_in') AND upper(a.periodo) > now())))
         """;
 
-    public Optional<UUID> professionalOf(UUID userId) {
-        return jdbc.query("SELECT id FROM clinica.profissionais WHERE usuario_id = ? AND ativo", (rs, row) -> rs.getObject(1, UUID.class), userId)
-            .stream().findFirst();
-    }
-
     public List<PatientView> searchConnected(String query, int limit, UUID professional) {
         String term = query == null ? "" : query.trim().toLowerCase();
         String digits = term.replaceAll("\\D", "");
