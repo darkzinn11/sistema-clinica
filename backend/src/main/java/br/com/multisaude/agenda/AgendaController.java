@@ -6,5 +6,15 @@ import java.time.OffsetDateTime; import java.util.*; import jakarta.validation.V
  @GetMapping("/procedimentos") @PreAuthorize("hasAuthority('agenda:ler')") public List<ProcedureView> procedures(@AuthenticationPrincipal Session s){return tx.inTenant(s.identity().tenantId(),repo::procedures);}
  @PostMapping("/procedimentos") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('agenda:criar')") public ProcedureView procedure(@AuthenticationPrincipal Session s,@Valid @RequestBody CreateProcedureRequest x){return tx.inTenant(s.identity().tenantId(),()->repo.createProcedure(x,s.identity().tenantId()));}
  @GetMapping("/agendamentos") @PreAuthorize("hasAuthority('agenda:ler')") public List<AppointmentView> appointments(@AuthenticationPrincipal Session s,@RequestParam UUID profissionalId,@RequestParam OffsetDateTime de,@RequestParam OffsetDateTime ate){if(!ate.isAfter(de))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Intervalo inválido.");return tx.inTenant(s.identity().tenantId(),()->repo.appointments(profissionalId,de,ate));}
- @PostMapping("/agendamentos") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('agenda:criar')") public AppointmentView appointment(@AuthenticationPrincipal Session s,@Valid @RequestBody CreateAppointmentRequest x){try{return tx.inTenant(s.identity().tenantId(),()->repo.createAppointment(x,s.identity().tenantId(),s.identity().usuarioId()));}catch(DataIntegrityViolationException e){throw new ResponseStatusException(HttpStatus.CONFLICT,"Horário ocupado ou referência inválida.");}}
+ @PostMapping("/agendamentos") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('agenda:criar')") public AppointmentView appointment(@AuthenticationPrincipal Session s,@Valid @RequestBody CreateAppointmentRequest x){
+  if(!x.fim().isAfter(x.inicio()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Fim deve ser posterior ao início.");
+  if(!x.unidadeId().equals(s.identity().unidadeId()))throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Unidade diferente da unidade ativa da sessão.");
+  try{return tx.inTenant(s.identity().tenantId(),()->{
+    if(!repo.referencesAreValid(x.unidadeId(),x.profissionalId(),x.pacienteId(),x.procedimentoId()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Paciente, profissional, procedimento ou unidade inválidos.");
+    if(repo.hasConflict(x.profissionalId(),x.inicio(),x.fim()))throw new ResponseStatusException(HttpStatus.CONFLICT,"Horário ocupado para este profissional.");
+    return repo.createAppointment(x,s.identity().tenantId(),s.identity().usuarioId());});
+  }catch(DataIntegrityViolationException e){
+    // Corrida entre duas requisições: a constraint do banco é a última palavra.
+    if(String.valueOf(e.getMostSpecificCause().getMessage()).contains("agendamento_profissional_sem_conflito"))throw new ResponseStatusException(HttpStatus.CONFLICT,"Horário ocupado para este profissional.");
+    throw e;}}
 }
