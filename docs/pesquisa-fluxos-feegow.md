@@ -49,3 +49,19 @@ Fontes: somente Central de Ajuda pública (https://ajuda.feegow.com) e normas p�
 
 ## Lacunas explícitas
 Não encontrei: no-show/falta detalhado, overbooking formal, triagem de enfermagem, auditoria/log de acesso ao prontuário, prioridade na fila, preços/planos atuais.
+
+
+## Complemento: permissões de prontuário (fontes públicas, a pedido)
+
+Consulta feita só na Central de Ajuda pública; nada de conta logada. O guia de permissões do prontuário tem cerca de
+3,5 anos e pode não refletir a interface atual.
+
+- **Permissões por recurso** com quatro ações (visualizar, inserir, alterar, excluir) e, nos formulários de
+  atendimento, variações como "visualizar dos outros", "alterar próprios", "alterar dos outros".
+  <https://ajuda.feegow.com/support/solutions/articles/67000717440-guia-de-permiss%C3%B5es-do-prontu%C3%A1rio-pacientes->
+- O grupo de pacientes cita "aceite de compartilhamento" e "delegar visualização de pacientes a outros profissionais";
+  **o trecho encontrado não descreve** o que cada uma faz. Não confirmado.
+- **Regra de Permissões:** o master da licença padroniza permissões por perfil, sem configurar usuário a usuário.
+  <https://ajuda.feegow.com/support/solutions/articles/67000741348-como-criar-regra-de-permiss%C3%B5es->
+- Em um recurso de resumos por IA, a visibilidade é escolhida pelo **profissional** (público, privado ou restrito a quem
+  ele escolher). Ou seja, ali quem decide é o autor; no nosso desenho quem decide é o Administrador.

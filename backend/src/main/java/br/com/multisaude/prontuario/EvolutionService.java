@@ -16,13 +16,15 @@ import br.com.multisaude.agenda.AgendaRepository;
 import br.com.multisaude.auditoria.AccessAudit;
 import br.com.multisaude.identidade.IdentityModels.Session;
 import br.com.multisaude.pacientes.PatientReadGuard;
+import br.com.multisaude.pacientes.PatientRepository;
 import br.com.multisaude.profissionais.ProfessionalRepository;
 import br.com.multisaude.shared.TenantTransactions;
 import static br.com.multisaude.prontuario.EvolutionModels.*;
 
 /**
- * Evolução é do médico que a escreveu: só ele a lê e só ele a corrige. Nada é alterado; a correção cria outra
- * versão. Registros inexistentes e de colegas respondem o mesmo 404.
+ * Evolução é do médico que a escreveu: só ele a corrige. Ele a lê sempre; um colega só a lê se o administrador
+ * habilitou o par e se tem vínculo com o paciente. Nada é alterado; a correção cria outra versão.
+ * Registros inexistentes e de colegas respondem o mesmo 404.
  */
 @Service
 public class EvolutionService {
@@ -34,10 +36,12 @@ public class EvolutionService {
     private final ProfessionalRepository professionals;
     private final AccessAudit audit;
     private final PatientReadGuard guard;
+    private final PatientRepository patients;
     private final TenantTransactions tx;
 
     public EvolutionService(EvolutionRepository repo, AgendaRepository agenda, ProfessionalRepository professionals,
-                            AccessAudit audit, PatientReadGuard guard, TenantTransactions tx) {
+                            AccessAudit audit, PatientReadGuard guard, PatientRepository patients, TenantTransactions tx) {
+        this.patients = patients;
         this.repo = repo;
         this.agenda = agenda;
         this.professionals = professionals;
@@ -81,11 +85,15 @@ public class EvolutionService {
         guard.request(tenant, s.identity().usuarioId(), false);
         return tx.inTenant(tenant, () -> {
             if (!repo.patientExists(patientId)) return List.<EvolutionView>of();
-            List<EvolutionView> mine = repo.byAuthor(patientId, own);
+            // Evolução de colega só aparece com habilitação do administrador E vínculo do leitor com o paciente.
+            boolean connected = patients.findConnected(patientId, own).isPresent();
+            List<EvolutionView> visible = repo.visibleTo(patientId, own, connected);
+            int shared = (int) visible.stream().filter(e -> !e.propria()).count();
             // Dentro da transação: se o orçamento recusar, nada é entregue nem registrado.
-            guard.records(tenant, s.identity().usuarioId(), false, mine.size());
-            audit.one(tenant, s.identity().usuarioId(), patientId, "ver_evolucoes", mine.size());
-            return mine;
+            guard.records(tenant, s.identity().usuarioId(), false, visible.size());
+            audit.one(tenant, s.identity().usuarioId(), patientId, "ver_evolucoes", visible.size() - shared);
+            if (shared > 0) audit.one(tenant, s.identity().usuarioId(), patientId, "ver_evolucoes_compartilhadas", shared);
+            return visible;
         });
     }
 

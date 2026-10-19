@@ -48,6 +48,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/pacientes/*/evolucoes").hasAuthority("prontuario:ler")
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/evolucoes", "/api/v1/evolucoes/*/corrigir").hasAuthority("prontuario:escrever")
                 .requestMatchers(HttpMethod.GET, "/api/v1/auditoria/acessos").hasAuthority("auditoria:ler")
+                .requestMatchers("/api/v1/prontuario/compartilhamentos", "/api/v1/prontuario/compartilhamentos/*").hasAuthority("prontuario:compartilhar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/pacientes/**").hasAnyAuthority("pacientes:ler", "pacientes:ler_vinculados")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/pacientes/**").hasAuthority("pacientes:editar")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/pacientes/**").hasAuthority("pacientes:inativar")

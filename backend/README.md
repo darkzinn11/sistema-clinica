@@ -280,11 +280,19 @@ UPDATE/DELETE e um gatilho (`bloquear_alteracao`) recusa alteração ou exclusã
 | POST | `/api/v1/evolucoes/{id}/corrigir` | `prontuario:escrever` |
 | GET | `/api/v1/pacientes/{id}/evolucoes` | `prontuario:ler` |
 | GET | `/api/v1/auditoria/acessos?pacienteId=&usuarioId=&de=&ate=&limite=` | `auditoria:ler` (Administrador) |
+| GET/POST | `/api/v1/prontuario/compartilhamentos` | `prontuario:compartilhar` (Administrador) |
+| DELETE | `/api/v1/prontuario/compartilhamentos/{id}` | `prontuario:compartilhar` (revoga) |
 
-- **Evolução é do autor.** Só o médico que a escreveu a lê e a corrige. Evolução de colega, inexistente ou de outra
-  unidade respondem o mesmo 404. O Administrador e a Recepção não têm `prontuario:ler`.
+- **Evolução é do autor.** Só o médico que a escreveu a corrige. Ele a lê sempre; um colega só a lê se o administrador
+  **habilitou o par leitor → autor** (abaixo). Corrigir, em qualquer caso, é só do autor: para os outros responde 404,
+  igual a inexistente. O Administrador e a Recepção não têm `prontuario:ler`.
 - **Só se escreve em atendimento iniciado:** o agendamento precisa ser do próprio médico, da unidade da sessão e estar
   `em_atendimento` ou `atendido` (sem prazo para anotar depois de concluído: decisão provisória).
+- **Habilitação leitor → autor (decisão do dono da clínica):** João pode ver o histórico de José sem que José veja o
+  de Maria. Tem direção (João→José não dá nada a José) e **não é transitiva**. Mesmo habilitado, o leitor só vê
+  evolução de colega dos pacientes com os quais **tem vínculo**. Só o Administrador habilita e revoga; o histórico
+  de habilitações é imutável (só se revoga) e ler evolução de colega é registrado à parte na auditoria
+  (`ver_evolucoes_compartilhadas`). A resposta indica o autor (`profissionalNome`) e se é própria (`propria`).
 - **Correção = nova versão.** A original permanece (`vigente` fica falso) e só a versão mais recente pode ser
   corrigida de novo. O `hash` (SHA-256) permite detectar adulteração direta no banco; **não é assinatura digital**.
 - **Auditoria gravada na mesma transação da leitura**: se falhar, a leitura falha; se o limite de volume recusar a

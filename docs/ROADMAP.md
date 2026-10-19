@@ -13,7 +13,9 @@ Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrá
   encaminha o paciente à recepção, que informa valores e tira dúvidas. Sem acesso de emergência por exceção.
 - Cada unidade vê só a sua agenda. Há rodízio de médicos e médicos em várias clínicas: proteger a clínica de vazamento
   é requisito, incluindo contenção de varredura em volume.
-- Prontuário: **o médico não vê as evoluções dos colegas** daquele paciente, só as que ele escreveu.
+- Prontuário: por padrão o médico só vê as evoluções que ele escreveu. O dono da clínica quer poder **habilitar** que
+  um médico veja as de outro (João vê as de José, sem José ver as de Maria): habilitação por par, com direção,
+  não transitiva, feita pelo Administrador e limitada a pacientes com vínculo.
 - Laboratório é **externo** (Lacmar, no mesmo prédio). Sem módulo de laboratório.
   Exame = pedido emitido pelo médico (documento). Resultado = anexo no prontuário,
   trazido pelo paciente. Integração com o Lacmar fica fora do escopo até haver demanda.
