@@ -156,7 +156,7 @@ agendamento antes, a resposta é 409 e o cliente deve recarregar.
 | GET | `/api/v1/agendamentos/{id}/historico` | `agenda:ler` |
 | POST | `/api/v1/agendamentos/{id}/status` | `agenda:editar` |
 | POST | `/api/v1/agendamentos/{id}/cancelar` | `agenda:cancelar` |
-| POST | `/api/v1/agendamentos/{id}/remarcar` | `agenda:editar` |
+| POST | `/api/v1/agendamentos/{id}/remarcar` | `agenda:remarcar` |
 
 Fluxo manual de status: `agendado` → `confirmado` → `check_in` → `em_atendimento` → `atendido`
 (de `agendado`/`confirmado` também para `nao_compareceu`). Cancelar vale até `check_in`;
@@ -210,8 +210,8 @@ A V13 liga `profissionais.usuario_id` ao usuário que faz login (um usuário por
 | Papel | Permissões |
 | --- | --- |
 | Administrador | tudo o que existe hoje (inclui `agenda:configurar`); **sem** acesso clínico |
-| Recepção | `agenda:ler/criar/editar/cancelar`, `pacientes:ler/criar/editar`, `profissionais:ler` |
-| Médico | `agenda:ler/editar`, `pacientes:ler_vinculados` |
+| Recepção | `agenda:ler/criar/editar/cancelar/remarcar`, `pacientes:ler/criar/editar`, `profissionais:ler` |
+| Médico | `agenda:ler/editar`, `pacientes:ler_vinculados` (**não remarca**: só a recepção tem `agenda:remarcar`) |
 
 `pacientes:ler` libera todos os pacientes da clínica. `pacientes:ler_vinculados` libera só os pacientes com
 **vínculo** com o profissional do usuário logado:

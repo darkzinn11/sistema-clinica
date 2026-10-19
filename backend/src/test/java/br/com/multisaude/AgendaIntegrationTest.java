@@ -264,7 +264,15 @@ class AgendaIntegrationTest extends AgendaTestBase {
         transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.papeis SET permissoes = ARRAY['agenda:ler','agenda:editar'] WHERE id = ?", role));
         mvc.perform(post("/api/v1/agendamentos/" + id(created) + "/cancelar").header("Authorization", "Bearer " + token).contentType("application/json")
             .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0)))).andExpect(status().isForbidden());
-        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.papeis SET permissoes = ARRAY['agenda:ler','agenda:cancelar'] WHERE id = ?", role));
-        changeStatus(token, "/api/v1/agendamentos/" + id(created) + "/status", "confirmado", 0).andExpect(status().isForbidden());
+        // Perfil do médico: muda status, mas não remarca.
+        mvc.perform(post("/api/v1/agendamentos/" + id(created) + "/remarcar").header("Authorization", "Bearer " + token).contentType("application/json")
+            .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0,
+                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(4).toString())))).andExpect(status().isForbidden());
+        changeStatus(token, "/api/v1/agendamentos/" + id(created) + "/status", "confirmado", 0).andExpect(status().isOk());
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.papeis SET permissoes = ARRAY['agenda:ler','agenda:cancelar','agenda:remarcar'] WHERE id = ?", role));
+        changeStatus(token, "/api/v1/agendamentos/" + id(created) + "/status", "check_in", 1).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/agendamentos/" + id(created) + "/remarcar").header("Authorization", "Bearer " + token).contentType("application/json")
+            .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 1,
+                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(4).toString())))).andExpect(status().isCreated());
     }
 }
