@@ -166,3 +166,38 @@ agendamento com `remarcadoDe` apontando para ele. `retorno_de` (consulta de reto
 é outro conceito e ainda não existe. Cancelado, não compareceu e remarcado liberam o horário.
 Rotas novas precisam de regra explícita em `SecurityConfig`: o padrão é negar.
 O `BootstrapAdmin` já cria o Administrador com todas as permissões atuais.
+
+## Agenda: grades, bloqueios e disponibilidade
+
+Regra da clínica: **só se agenda dentro da grade do profissional**. Não há encaixe fora da grade
+nem sobre bloqueio. A V12 criou `bloqueios` e impede grades sobrepostas do mesmo profissional.
+Criar e remarcar passam pela mesma validação (`AppointmentService.requireFreeSlot`).
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| GET | `/api/v1/grades?profissionalId=` | `agenda:ler` |
+| POST | `/api/v1/grades` | `agenda:configurar` |
+| DELETE | `/api/v1/grades/{id}` | `agenda:configurar` (desativa; agendamentos existentes ficam) |
+| GET | `/api/v1/bloqueios?de=&ate=` | `agenda:ler` |
+| POST | `/api/v1/bloqueios` | `agenda:configurar` (`profissionalId` omitido bloqueia a unidade toda) |
+| DELETE | `/api/v1/bloqueios/{id}` | `agenda:configurar` (revoga; o registro permanece) |
+| GET | `/api/v1/agenda/disponibilidade?profissionalId=&procedimentoId=&de=&ate=` | `agenda:ler` (datas `AAAA-MM-DD`, até 31 dias) |
+
+- `diaSemana`: 0 = domingo ... 6 = sábado. Horários da grade são **locais da unidade** (`unidades.fuso`);
+  o offset enviado pelo cliente não decide nada. O agendamento precisa caber inteiro em uma única janela da
+  grade e não pode atravessar a meia-noite. Duas janelas coladas (08–12 e 12–18) não somam: cada
+  agendamento precisa caber em uma delas.
+- Respostas de reserva: `422` horário inválido para a agenda (fora da grade, bloqueado); `409` horário válido
+  porém ocupado; `400` dados/referências inválidos; `403` unidade diferente da sessão.
+- `vigenciaFim` da grade é inclusiva e opcional. `intervaloMin` só afeta os horários sugeridos pela
+  disponibilidade (passo = duração do procedimento + intervalo); a reserva não o exige.
+- Criar bloqueio sobre agendamentos ativos é recusado (409): cancele ou remarque antes.
+- Desativar uma grade não cancela agendamentos já feitos nela.
+- O default de `grades.vigencia` da V9 tinha o literal `'[\)'` (inválido); a V12 o corrigiu.
+
+### Testes
+
+`AgendaTestBase` cria as sessões direto no banco (mesmo formato e hash do login) porque o limite de
+tentativas de login por IP é compartilhado entre as classes de teste. O endpoint de login continua
+coberto em `IdentityIntegrationTest`. A suíte leva alguns minutos porque o banco de desenvolvimento
+fica na VPS, atrás do túnel SSH: o custo é a latência de cada comando.

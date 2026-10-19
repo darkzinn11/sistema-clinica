@@ -1,5 +1,8 @@
 package br.com.multisaude.agenda;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -26,11 +29,59 @@ public class AppointmentService {
     private static final Set<String> CAN_RESCHEDULE = Set.of("agendado", "confirmado");
 
     private final AgendaRepository repo;
+    private final ScheduleRepository schedule;
     private final TenantTransactions tx;
 
-    public AppointmentService(AgendaRepository repo, TenantTransactions tx) {
+    public AppointmentService(AgendaRepository repo, ScheduleRepository schedule, TenantTransactions tx) {
         this.repo = repo;
+        this.schedule = schedule;
         this.tx = tx;
+    }
+
+    public AppointmentView create(Session s, CreateAppointmentRequest x) {
+        if (!x.fim().isAfter(x.inicio())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fim deve ser posterior ao início.");
+        if (!x.unidadeId().equals(s.identity().unidadeId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unidade diferente da unidade ativa da sessão.");
+        }
+        try {
+            return tx.inTenant(s.identity().tenantId(), () -> {
+                if (!repo.referencesAreValid(x.unidadeId(), x.profissionalId(), x.pacienteId(), x.procedimentoId())) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Paciente, profissional, procedimento ou unidade inválidos.");
+                }
+                requireFreeSlot(x.unidadeId(), x.profissionalId(), x.inicio(), x.fim(), null);
+                AppointmentView created = repo.createAppointment(x, s.identity().tenantId(), s.identity().usuarioId(), null);
+                repo.addHistory(s.identity().tenantId(), created.id(), null, created.status(), null, null, s.identity().usuarioId());
+                return created;
+            });
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // Corrida entre duas requisições: a constraint do banco é a última palavra.
+            if (String.valueOf(e.getMostSpecificCause().getMessage()).contains("agendamento_profissional_sem_conflito")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário ocupado para este profissional.");
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Regra da clínica: só se agenda dentro da grade do profissional. Não há encaixe fora dela nem sobre bloqueio.
+     * 422 = o horário pedido é inválido para esta agenda; 409 = o horário é válido mas já está ocupado.
+     */
+    private void requireFreeSlot(UUID unit, UUID professional, OffsetDateTime from, OffsetDateTime to, UUID ignoring) {
+        ZoneId zone = schedule.unitZone(unit);
+        ZonedDateTime localStart = from.atZoneSameInstant(zone);
+        ZonedDateTime localEnd = to.atZoneSameInstant(zone);
+        if (!localEnd.toLocalDate().equals(localStart.toLocalDate())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O agendamento não pode atravessar a meia-noite.");
+        }
+        if (!schedule.fitsInGrade(professional, unit, localStart.toLocalDate(), localStart.toLocalTime(), localEnd.toLocalTime())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Horário fora da grade do profissional.");
+        }
+        schedule.blockReason(unit, professional, from, to).ifPresent(reason -> {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Horário bloqueado: " + reason);
+        });
+        if (repo.hasConflict(professional, from, to, ignoring)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário ocupado para este profissional.");
+        }
     }
 
     public AppointmentView updateStatus(Session s, UUID id, StatusRequest request) {
@@ -71,9 +122,7 @@ public class AppointmentService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Agendamento em estado " + current.status() + " não pode ser remarcado.");
             }
             // O próprio agendamento fica fora da checagem: remarcar 15 minutos adiante sobrepõe o horário antigo.
-            if (repo.hasConflict(current.profissionalId(), request.inicio(), request.fim(), current.id())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário ocupado para este profissional.");
-            }
+            requireFreeSlot(current.unidadeId(), current.profissionalId(), request.inicio(), request.fim(), current.id());
             // O antigo precisa liberar o horário antes do insert, por causa da constraint de exclusão.
             apply(s, current, request.versao(), "remarcado", request.motivoId(), request.observacao());
             AppointmentView created = repo.createAppointment(new CreateAppointmentRequest(current.unidadeId(), current.profissionalId(),
