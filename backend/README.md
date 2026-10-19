@@ -241,13 +241,42 @@ agenda pode ir parar em outra. Por isso o médico só enxerga e opera **a própr
 Já estava bem: o banco isola clínicas por RLS; `server.error.include-message: never`; só `/actuator/health` e sem
 detalhes; logs só com IDs (sem nome, CPF ou e-mail); login com hash falso para tempo constante.
 
+### Cada unidade vê só a sua agenda
+
+Listar agendamentos e ler o histórico filtram pela unidade ativa da sessão, para todos os papéis. Agendamento de
+outra unidade, de outra clínica ou inexistente respondem o mesmo 404. Uma exceção deliberada: a **disponibilidade**
+continua tratando agendamentos do profissional em outras unidades como horário ocupado (ele não está em dois lugares
+ao mesmo tempo), sem revelar quem nem onde. Pacientes são cadastro da clínica inteira, não da unidade.
+
+### Preços
+
+`agenda:ver_valores` (Administrador e Recepção) libera `valorCentavos` em `/procedimentos`; sem ela o valor sai nulo.
+O médico encaminha o paciente à recepção, que informa valores e tira dúvidas.
+
+### Contenção de varredura de dados de pacientes
+
+Quem tem acesso legítimo poderia varrer o cadastro em volume. `PatientReadGuard` aplica, por usuário, em
+`GET /pacientes` e `GET /pacientes/{id}`:
+
+| Perfil | Requisições por minuto | Registros entregues por hora |
+| --- | --- | --- |
+| Completo (`pacientes:ler`, recepção) | 120 | 3000 |
+| Restrito (`pacientes:ler_vinculados`, médico) | 30 | 300 |
+
+Os registros são cobrados **antes** de devolver a resposta: o que passaria do orçamento não é entregue (429 com
+`Retry-After`). Ajustável por `app.limits.patients.{full,restricted}.{requests-per-minute,records-per-hour}`.
+Os contadores ficam em memória (`VolumeLimiter`): reiniciar zera, e com mais de uma instância precisam ir para
+armazenamento compartilhado. Os limites são ponto de partida e devem ser calibrados com o uso real da clínica.
+Excesso gera log de aviso com tenant e usuário (sem dados do paciente).
+
 ### Lacunas conhecidas (ainda não tratadas)
 
 - **Sem auditoria de leitura.** Quem consultou qual paciente não fica registrado: é o que dissuade e permite
   investigar cópia manual por quem tem acesso legítimo. Entra junto com o prontuário.
-- **Leituras por profissional não filtram pela unidade da sessão:** a recepção da unidade A vê agendamentos da B.
-  Depende de decisão da clínica.
-- **`GET /procedimentos` mostra preços** a qualquer papel de agenda, inclusive ao médico.
 - **O médico recebe CPF, e-mail e celular completos** dos pacientes com vínculo. Pode-se mascarar.
-- **Sem limite de taxa fora do login:** quem tem acesso legítimo poderia varrer dados em volume.
+- **Limite de volume só em pacientes.** Agenda, grades e bloqueios não têm teto por usuário (não expõem dados
+  pessoais além de IDs, mas permitem mapear a operação).
+- **`LoginRateLimiter` recusa todos os logins com 10 mil chaves distintas:** um ataque distribuído pode travar
+  o login da clínica inteira por 15 minutos.
+- **`agenda:criar` serve a agendamento e a cadastro de procedimento** (que carrega preço): a recepção cria ambos.
 - Um médico que copia dados manualmente não é impedido por software; só a auditoria e o contrato o desencorajam.

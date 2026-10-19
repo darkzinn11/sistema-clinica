@@ -7,6 +7,13 @@ papel envolvido, testes (inclusive isolamento de tenant) e uma demonstração po
 Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrária.
 
 ## Decisões já tomadas
+- Agenda: só se agenda dentro da grade do profissional; não há encaixe fora dela nem sobre bloqueio.
+- Remarcar mantém histórico (o antigo vira `remarcado`, o novo aponta para ele) e só a recepção remarca.
+- Médico só vê pacientes com vínculo (já atendeu ou tem agendamento futuro), só a própria agenda e **não vê preços**:
+  encaminha o paciente à recepção, que informa valores e tira dúvidas. Sem acesso de emergência por exceção.
+- Cada unidade vê só a sua agenda. Há rodízio de médicos e médicos em várias clínicas: proteger a clínica de vazamento
+  é requisito, incluindo contenção de varredura em volume.
+- Prontuário: **o médico não vê as evoluções dos colegas** daquele paciente, só as que ele escreveu.
 - Laboratório é **externo** (Lacmar, no mesmo prédio). Sem módulo de laboratório.
   Exame = pedido emitido pelo médico (documento). Resultado = anexo no prontuário,
   trazido pelo paciente. Integração com o Lacmar fica fora do escopo até haver demanda.
@@ -31,6 +38,10 @@ Fluxo: recepção agenda → paciente chega (check-in) → médico atende e regi
 - Prontuário mínimo: evolução imutável (versão que substitui, hash, assinatura).
 - Papéis: Recepção com permissões reais; novo papel Médico (só os próprios atendimentos).
 - Auditoria de leitura do prontuário.
+
+### Pendências da Fatia 1 (decididas, ainda não construídas)
+- Prontuário mínimo com evolução imutável, visível só ao autor, com auditoria de leitura embutida.
+- Encaminhamento do médico à recepção ao fim do atendimento (hoje não há registro dessa passagem).
 
 ## Fatia 2 — Prescrição, pedido de exame e documentos
 Fluxo: médico prescreve, pede exames (para o Lacmar), emite atestado; paciente volta com
