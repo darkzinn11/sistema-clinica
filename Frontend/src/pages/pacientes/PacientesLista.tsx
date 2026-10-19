@@ -17,7 +17,6 @@ import {
   TagUser,
   UserAdd,
   UserRemove,
-  Whatsapp,
 } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardBody } from "@/components/ui/card";
@@ -35,6 +34,7 @@ import { patients, insurances, insuranceName, TODAY, appointmentsForPatient } fr
 import type { Patient } from "@/lib/mock/core";
 import { age, brl, dateBR, dateShort } from "@/lib/format";
 import { normalizeName, onlyDigits } from "@/lib/mock/pacientes";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import { FilterDropdown, TogglePill } from "@/components/pacientes/filters";
 
 type ViewMode = "tabela" | "cartoes";
@@ -335,11 +335,12 @@ export default function Page() {
                       </TD>
                       <TD className="tabular whitespace-nowrap">{p.cpf}</TD>
                       <TD className="whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-2">
                           <span className="tabular">{p.phone}</span>
                           <Tooltip content="WhatsApp">
-                            <span className="inline-flex text-success">
-                              <Whatsapp size={15} variant="Bold" aria-hidden />
+                            {/* Figma 11009:1188: círculo verde de 19,6px (padding 4,6px) com o ícone do WhatsApp em branco. */}
+                            <span className="inline-flex size-[19.6px] shrink-0 items-center justify-center rounded-full bg-accent">
+                              <WhatsappIcon size={10.41} className="text-white" aria-hidden />
                             </span>
                           </Tooltip>
                         </div>

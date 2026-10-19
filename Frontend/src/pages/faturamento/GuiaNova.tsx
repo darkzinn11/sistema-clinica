@@ -226,7 +226,7 @@ export default function GuiaNova() {
           </Card>
         </div>
 
-        <div className="flex flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
           <Card>
             <CardHeader title={pendencias.length === 0 ? "Pronta para enviar" : `${pendencias.length} pendência${pendencias.length === 1 ? "" : "s"} antes de enviar`} />
             <CardBody className="flex flex-col gap-4">

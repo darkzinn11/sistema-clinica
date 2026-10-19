@@ -27,7 +27,7 @@ export default function Page() {
         breadcrumbs={[{ label: "Administração" }, { label: "Configurações" }]}
       />
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <nav aria-label="Seções de configurações" className="shrink-0 lg:sticky lg:top-6 lg:w-64">
+        <nav aria-label="Seções de configurações" className="shrink-0 lg:sticky lg:top-24 lg:w-64">
           <ul className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
             {children.map((c) => (
               <li key={c.href} className="shrink-0 lg:shrink">

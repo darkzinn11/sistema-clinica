@@ -10,8 +10,8 @@ import {
   Printer,
   ReceiptAdd,
   UserRemove,
-  Whatsapp,
 } from "iconsax-reactjs";
+import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -70,7 +70,7 @@ export function PerfilHeader({ patient, onAction }: { patient: Patient; onAction
               <Button size="xs" variant="subtle" icon={Call} onClick={() => onAction("Discando para o paciente…")}>
                 Ligar
               </Button>
-              <Button size="xs" variant="subtle" icon={Whatsapp} onClick={() => onAction("Abrindo conversa no WhatsApp…")}>
+              <Button size="xs" variant="subtle" icon={WhatsappIcon} onClick={() => onAction("Abrindo conversa no WhatsApp…")}>
                 WhatsApp
               </Button>
             </div>

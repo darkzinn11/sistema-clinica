@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/ui/page-header";
+import { Card as CardIcon, CardRemove, CardTick } from "iconsax-reactjs";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Tabs } from "@/components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -32,9 +33,9 @@ export default function Cartoes() {
               active === 0 ? (
                 <div className="flex flex-col gap-5">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 ui-stat-strip" data-columns="3">
-                    <StatCard label="Bruto no período" value={brl(totalBruto)} />
-                    <StatCard label="Líquido no período" value={brl(totalLiquido)} />
-                    <StatCard label="Não conciliadas" value={String(naoConciliadas)} />
+                    <StatCard icon={<CardIcon />} label="Bruto no período" value={brl(totalBruto)} />
+                    <StatCard icon={<CardTick />} label="Líquido no período" value={brl(totalLiquido)} />
+                    <StatCard icon={<CardRemove />} label="Não conciliadas" value={String(naoConciliadas)} />
                   </div>
 
                   <Card>

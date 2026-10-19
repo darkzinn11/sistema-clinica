@@ -436,12 +436,32 @@ body { -webkit-font-smoothing: antialiased; }
 .ui-nav-toggle-active:hover { background: color-mix(in srgb, var(--ui-navigation-active-text) 10%, transparent) !important; }
 .ui-topbar-control { border-radius: 9999px; transition: background-color 200ms ease, transform 200ms var(--ui-ease-out); }
 .ui-topbar-control:hover { background: var(--c-surface); }
+/* Sombra das pílulas da topbar: discreta no topo da página e reforçada durante o scroll,
+   quando o conteúdo passa por baixo da topbar (que não tem fundo). */
+:root {
+  --ms-topbar-shadow: 0 2px 9px rgb(27 54 35 / .055);
+  --ms-topbar-shadow-hover: 0 5px 18px rgb(27 54 35 / .09);
+  --ms-topbar-shadow-scrolled: 0 6px 20px rgb(27 54 35 / .14), 0 1px 3px rgb(27 54 35 / .08), 0 0 0 1px rgb(27 54 35 / .04);
+}
+:root[data-theme="dark"] {
+  --ms-topbar-shadow: 0 3px 12px rgb(0 0 0 / .16);
+  --ms-topbar-shadow-hover: 0 5px 18px rgb(0 0 0 / .26);
+  --ms-topbar-shadow-scrolled: 0 6px 20px rgb(0 0 0 / .4), 0 0 0 1px rgb(255 255 255 / .05);
+}
+.ms-topbar[data-scrolled="true"] {
+  --ms-topbar-shadow: var(--ms-topbar-shadow-scrolled);
+  --ms-topbar-shadow-hover: var(--ms-topbar-shadow-scrolled);
+}
+.ms-topbar .ui-topbar-pill, .ms-topbar .ui-search-trigger { transition: box-shadow 220ms ease-out, background-color 200ms ease, transform 200ms var(--ui-ease-out) !important; }
 /* Botões elevados da topbar: pílulas com superfície branca no tema claro. */
 .ui-topbar-control.ui-topbar-pill {
   border-radius: 9999px;
   background: var(--c-surface-raised);
+  /* A topbar não tem fundo: a sombra separa as pílulas dos cartões que passam por baixo. */
+  box-shadow: var(--ms-topbar-shadow);
 }
 .ui-topbar-control.ui-topbar-pill:hover {
+  box-shadow: var(--ms-topbar-shadow-hover);
   background: color-mix(in srgb, var(--c-surface-raised) 86%, var(--c-surface));
 }
 .ui-topbar-control:active { transform: scale(.97); }
@@ -507,16 +527,17 @@ body { -webkit-font-smoothing: antialiased; }
   border: 1px solid transparent !important;
   background: var(--c-surface-raised) !important;
   color: var(--c-text-muted);
-  box-shadow: 0 2px 9px rgb(27 54 35 / .055) !important;
+  box-shadow: var(--ms-topbar-shadow) !important;
 }
-.ui-search-trigger:hover { box-shadow: 0 5px 18px rgb(27 54 35 / .09) !important; }
+.ui-search-trigger:hover { box-shadow: var(--ms-topbar-shadow-hover) !important; }
 .ui-search-trigger:focus-visible {
   border-color: var(--c-accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-accent) 20%, transparent) !important;
 }
 .ui-search-shortcut {
   border-radius: 999px;
-  background: var(--c-accent);
+  /* Mesmo degradê verde dos botões primários e do cartão em destaque da Início. */
+  background: var(--c-accent) var(--ms-brand-gradient);
   color: #EFEEF4;
   min-height: 28px;
   padding: 0 9px;
@@ -579,40 +600,60 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-agenda-slot:hover,.ms-agenda-slot:focus-visible {
   background: color-mix(in srgb, var(--c-accent-muted) 82%, transparent);
 }
-/* Bloco de agendamento: fundo pastel + borda no tom do tipo (--appt-ink) para destacar do fundo da grade;
+/* Bloco de agendamento: fundo pastel no tom do tipo (--appt-ink), sem contorno;
    textos secundários usam .ms-appointment__meta, mais escuro que text-muted para ler bem sobre o pastel. */
 .ms-appointment {
   --appt-ink: var(--c-text-muted);
-  border: 1px solid color-mix(in srgb, var(--appt-ink) 32%, transparent);
+  --appt-bg: var(--c-surface);
+  background: var(--appt-bg);
+  border: 1px solid transparent;
   box-shadow: 0 1px 4px rgb(27 54 35 / .055);
   transition: transform 170ms cubic-bezier(.22,1,.36,1), box-shadow 170ms ease, filter 170ms ease;
 }
 .ms-appointment__meta { color: color-mix(in srgb, var(--c-text) 74%, var(--appt-ink)); }
-.ms-appointment[data-kind="consulta"] { --appt-ink: var(--c-aux); background: var(--c-aux-bg); }
-.ms-appointment[data-kind="exame"] { --appt-ink: var(--c-info); background: var(--c-info-bg); }
-.ms-appointment[data-kind="procedimento"] { --appt-ink: var(--c-danger); background: var(--c-danger-bg); }
-.ms-appointment[data-kind="sessao"] { --appt-ink: var(--c-success); background: var(--c-success-bg); }
-.ms-appointment[data-return="true"] { --appt-ink: var(--c-warning); background: var(--c-warning-bg); }
+.ms-appointment[data-kind="consulta"] { --appt-ink: var(--c-aux); --appt-bg: var(--c-aux-bg); }
+.ms-appointment[data-kind="exame"] { --appt-ink: var(--c-info); --appt-bg: var(--c-info-bg); }
+.ms-appointment[data-kind="procedimento"] { --appt-ink: var(--c-danger); --appt-bg: var(--c-danger-bg); }
+.ms-appointment[data-kind="sessao"] { --appt-ink: var(--c-success); --appt-bg: var(--c-success-bg); }
+.ms-appointment[data-return="true"] { --appt-ink: var(--c-warning); --appt-bg: var(--c-warning-bg); }
 /* Cancelado: neutro e tracejado, mas ainda legível (antes: opacidade .67 deixava o texto apagado). */
-.ms-appointment[data-cancelled="true"] { --appt-ink: var(--c-text-subtle); background: var(--c-surface); border-style: dashed; }
+.ms-appointment[data-cancelled="true"] { --appt-ink: var(--c-text-subtle); --appt-bg: var(--c-surface); border: 1px dashed color-mix(in srgb, var(--appt-ink) 45%, transparent); }
 .ms-appointment[data-cancelled="true"] .ms-appointment__name { color: var(--c-text-muted); text-decoration: line-through; }
-:root[data-theme="dark"] .ms-appointment[data-kind="consulta"] { background: #342f4b; }
-:root[data-theme="dark"] .ms-appointment[data-kind="exame"] { background: #213753; }
-:root[data-theme="dark"] .ms-appointment[data-kind="procedimento"] { background: #4a3040; }
-:root[data-theme="dark"] .ms-appointment[data-kind="sessao"] { background: #1d4037; }
-:root[data-theme="dark"] .ms-appointment[data-return="true"] { background: #453827; }
-:root[data-theme="dark"] .ms-appointment[data-cancelled="true"] { background: #2b2b31; }
+:root[data-theme="dark"] .ms-appointment[data-kind="consulta"] { --appt-bg: #342f4b; }
+:root[data-theme="dark"] .ms-appointment[data-kind="exame"] { --appt-bg: #213753; }
+:root[data-theme="dark"] .ms-appointment[data-kind="procedimento"] { --appt-bg: #4a3040; }
+:root[data-theme="dark"] .ms-appointment[data-kind="sessao"] { --appt-bg: #1d4037; }
+:root[data-theme="dark"] .ms-appointment[data-return="true"] { --appt-bg: #453827; }
+:root[data-theme="dark"] .ms-appointment[data-cancelled="true"] { --appt-bg: #2b2b31; }
+/* Hover: o fundo fica mais saturado no mesmo tom para indicar que é clicável (camada ::before em OKLCH); o z-index:-1 a deixa acima do fundo e abaixo do texto (o bloco já é um stacking context). */
+.ms-appointment::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in oklch, var(--appt-bg) 80%, var(--appt-ink));
+  /* Onde houver suporte: mesmo tom do fundo, um pouco mais escuro e com bem mais croma (cor mais viva). */
+  background: oklch(from var(--appt-bg) calc(l - .035) calc(c + .055) h);
+  opacity: 0;
+  transition: opacity 170ms ease;
+  pointer-events: none;
+}
+.ms-appointment:hover::before { opacity: 1; }
+/* Sombra com spread negativo: fica embaixo do bloco e não vaza para os lados, onde seria cortada pela
+   coluna de horários fixa e pelas bordas da grade rolável. */
 .ms-appointment:hover {
   z-index: 30 !important;
   transform: translateY(-1px) scale(1.008);
-  box-shadow: 0 6px 15px rgb(27 54 35 / .13);
+  box-shadow: 0 8px 14px -6px rgb(27 54 35 / .22);
 }
+:root[data-theme="dark"] .ms-appointment:hover { box-shadow: 0 8px 14px -6px rgb(0 0 0 / .45); }
 .ms-appointment:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
 .ms-appointment[data-selected="true"] {
   z-index: 31 !important;
   outline: 2px solid var(--c-accent);
   outline-offset: 1px;
-  box-shadow: 0 6px 18px color-mix(in srgb, var(--c-accent) 15%, transparent);
+  box-shadow: 0 8px 16px -6px color-mix(in srgb, var(--c-accent) 30%, transparent);
 }
 .ms-agenda-panel { animation: ui-menu-reveal 240ms var(--ui-ease-out) both; }
 @media (prefers-reduced-motion: reduce) {
@@ -708,44 +749,6 @@ body { -webkit-font-smoothing: antialiased; }
 
 /* Select integrado à pílula: evita fundo branco duplo e recorte em hover. */
 
-
-/* Scrim contínuo: a barra fica opaca durante o scroll, e o gradiente
-   começa dentro dela (2px de sobreposição), evitando uma linha de junção. */
-.ms-topbar-scroll-fade {
-  transition: background-color 220ms ease-out;
-}
-.ms-topbar-scroll-fade[data-scrolled="true"] {
-  background-color: var(--c-bg);
-}
-.ms-topbar-scroll-fade::after {
-  content: "";
-  position: absolute;
-  top: calc(100% - 2px);
-  left: 0;
-  right: 0;
-  height: 108px;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    var(--c-bg) 0%,
-    var(--c-bg) 9%,
-    color-mix(in srgb, var(--c-bg) 97%, transparent) 26%,
-    color-mix(in srgb, var(--c-bg) 85%, transparent) 42%,
-    color-mix(in srgb, var(--c-bg) 63%, transparent) 59%,
-    color-mix(in srgb, var(--c-bg) 37%, transparent) 75%,
-    color-mix(in srgb, var(--c-bg) 14%, transparent) 89%,
-    color-mix(in srgb, var(--c-bg) 4%, transparent) 96%,
-    transparent 100%
-  );
-  opacity: 0;
-  transition: opacity 220ms ease-out;
-}
-.ms-topbar-scroll-fade[data-scrolled="true"]::after { opacity: 1; }
-@media (prefers-reduced-motion: reduce) {
-  .ms-topbar-scroll-fade,
-  .ms-topbar-scroll-fade::after { transition: none; }
-}
 
 /* KPIs da Home: reprodução proporcional da referência com a identidade MultiSaúde.
    Cartões individuais de 144px, ícone absoluto, número e delta na mesma linha. */

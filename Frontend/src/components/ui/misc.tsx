@@ -99,7 +99,7 @@ export function FilterButton({ label, value, icon: Icon, active }: { label: stri
     <button
       type="button"
       className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors",
+        "inline-flex h-11 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors",
         active ? "border-accent/40 bg-accent-muted text-accent" : "border-border-strong bg-surface-raised text-text-muted hover:text-text",
       )}
     >
