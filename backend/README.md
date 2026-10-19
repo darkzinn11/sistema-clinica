@@ -142,3 +142,27 @@ para escolher o tenant de uma operação administrativa: ele vem da sessão vali
 pendentes antes dos testes. Os dados temporários dos testes são revertidos por rollback.
 Os testes cobrem login/logout, sessão expirada, alteração de permissões, vínculo
 desativado, validação, duplicidade, isolamento de tenant e chaves estrangeiras compostas.
+
+## Agenda: ciclo de vida do agendamento
+
+A V9 criou `agendamentos`; a V11 acrescentou histórico, motivos, canal e remarcação.
+Cada mudança de estado grava uma linha em `agendamento_historico` (somente inserção).
+Ações de ciclo de vida exigem `versao` (a lida pelo cliente): se outra pessoa alterou o
+agendamento antes, a resposta é 409 e o cliente deve recarregar.
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| GET | `/api/v1/agendamento-motivos` | `agenda:ler` |
+| GET | `/api/v1/agendamentos/{id}/historico` | `agenda:ler` |
+| POST | `/api/v1/agendamentos/{id}/status` | `agenda:editar` |
+| POST | `/api/v1/agendamentos/{id}/cancelar` | `agenda:cancelar` |
+| POST | `/api/v1/agendamentos/{id}/remarcar` | `agenda:editar` |
+
+Fluxo manual de status: `agendado` → `confirmado` → `check_in` → `em_atendimento` → `atendido`
+(de `agendado`/`confirmado` também para `nao_compareceu`). Cancelar vale até `check_in`;
+remarcar só em `agendado`/`confirmado`. Estados finais não mudam.
+Remarcar **não move** o agendamento: o original vira `remarcado` e a resposta é um novo
+agendamento com `remarcadoDe` apontando para ele. `retorno_de` (consulta de retorno)
+é outro conceito e ainda não existe. Cancelado, não compareceu e remarcado liberam o horário.
+Rotas novas precisam de regra explícita em `SecurityConfig`: o padrão é negar.
+O `BootstrapAdmin` já cria o Administrador com todas as permissões atuais.
