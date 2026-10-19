@@ -132,6 +132,57 @@ class AgendaPrivacyIntegrationTest extends AgendaTestBase {
         setStatus(token, foreign, "em_atendimento", 0).andExpect(status().isNotFound());
     }
 
+    // ---- cada unidade só conhece a própria agenda ----
+
+    @Test
+    void anotherUnitsAppointmentsNeverAppearAndRespondLikeUnknownOnes() throws Exception {
+        UUID elsewhere = insertAppointmentFor(tenant, otherUnit, professional, patient, procedure, "agendado", start.plusHours(3), start.plusHours(3).plusMinutes(30));
+        for (String token : new String[] {tokenFor(doctorUser), login()}) {
+            list(token, professional).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
+                .andExpect(content().string(Matchers.not(Matchers.containsString(elsewhere.toString()))));
+            String history = mvc.perform(get("/api/v1/agendamentos/" + elsewhere + "/historico").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound()).andReturn().getResponse().getContentAsString();
+            assertEquals(mvc.perform(get("/api/v1/agendamentos/" + UUID.randomUUID() + "/historico").header("Authorization", "Bearer " + token))
+                .andReturn().getResponse().getContentAsString(), history);
+        }
+        mvc.perform(post("/api/v1/agendamentos/" + elsewhere + "/cancelar").header("Authorization", "Bearer " + login()).contentType("application/json")
+            .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0)))).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void aSessionInTheOtherUnitSeesOnlyThatUnitsAgenda() throws Exception {
+        UUID receptionB = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> {
+            UUID roleB = UUID.randomUUID();
+            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Recepção B', ARRAY['agenda:ler'])", roleB, tenant);
+            jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash) VALUES (?, ?, 'Recepção B', ?, 'x')", receptionB, tenant, "b-" + email);
+            jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, receptionB, otherUnit, roleB);
+            return null;
+        });
+        UUID inB = insertAppointmentFor(tenant, otherUnit, professional, patient, procedure, "agendado", start.plusHours(3), start.plusHours(3).plusMinutes(30));
+        String token = tokenFor(receptionB, otherUnit);
+        list(token, professional).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].id").value(inB.toString()));
+        mvc.perform(get("/api/v1/agendamentos/" + ownAppointment + "/historico").header("Authorization", "Bearer " + token)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void availabilityStillTreatsOtherUnitAppointmentsAsBusyBecauseTheDoctorCannotBeInTwoPlaces() throws Exception {
+        insertAppointmentFor(tenant, otherUnit, professional, patient, procedure, "agendado", start.plusHours(1), start.plusHours(1).plusMinutes(30));
+        // 28 horários na grade, menos o agendamento daqui (10:00) e o da outra unidade (11:00).
+        availability(login(), professional, start.toLocalDate().toString()).andExpect(jsonPath("$.length()").value(26));
+    }
+
+    // ---- preços ----
+
+    @Test
+    void doctorNeverSeesPricesButReceptionDoes() throws Exception {
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.procedimentos SET valor_centavos = 15000 WHERE id = ?", procedure));
+        mvc.perform(get("/api/v1/procedimentos").header("Authorization", "Bearer " + tokenFor(doctorUser)))
+            .andExpect(status().isOk()).andExpect(jsonPath("$[0].nome").value("Consulta teste")).andExpect(jsonPath("$[0].duracaoMin").value(30))
+            .andExpect(jsonPath("$[0].valorCentavos").value(Matchers.nullValue())).andExpect(content().string(Matchers.not(Matchers.containsString("15000"))));
+        mvc.perform(get("/api/v1/procedimentos").header("Authorization", "Bearer " + login())).andExpect(jsonPath("$[0].valorCentavos").value(15000));
+    }
+
     // ---- escrita ----
 
     @Test

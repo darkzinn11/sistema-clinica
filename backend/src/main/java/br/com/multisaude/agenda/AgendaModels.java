@@ -11,6 +11,7 @@ public final class AgendaModels { private AgendaModels() {}
    @Pattern(regexp="clinica|online|telefone|whatsapp") String canal) {}
  public record AppointmentView(UUID id,UUID unidadeId,UUID profissionalId,UUID pacienteId,UUID procedimentoId,
    OffsetDateTime inicio,OffsetDateTime fim,String status,String observacao,int versao,String canal,UUID remarcadoDe) {}
+ public record AppointmentOwner(UUID profissionalId,UUID unidadeId) {}
  public record MotiveView(int id,String nome,String origem) {}
  public record HistoryView(UUID agendamentoId,String de,String para,Integer motivoId,String observacao,UUID usuarioId,OffsetDateTime em) {}
  // versao evita sobrescrever uma alteração feita por outra pessoa entre a leitura e a ação.

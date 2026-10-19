@@ -250,7 +250,7 @@ class AgendaIntegrationTest extends AgendaTestBase {
         UUID inOtherUnit = insertAppointmentFor(tenant, otherUnit, professional, patient, procedure, "agendado", start, start.plusMinutes(30));
         UUID inOtherTenant = insertAppointmentFor(otherTenant, otherUnitOfOtherTenant, otherProfessional, otherPatient, otherProcedure, "agendado", start, start.plusMinutes(30));
         for (UUID target : java.util.List.of(inOtherUnit, inOtherTenant)) {
-            int expected = target.equals(inOtherUnit) ? 403 : 404;
+            int expected = 404; // outra unidade e outra clínica respondem igual a inexistente
             mvc.perform(post("/api/v1/agendamentos/" + target + "/cancelar").header("Authorization", "Bearer " + token).contentType("application/json")
                 .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0)))).andExpect(status().is(expected));
             changeStatus(token, "/api/v1/agendamentos/" + target + "/status", "confirmado", 0).andExpect(status().is(expected));

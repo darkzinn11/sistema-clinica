@@ -60,7 +60,7 @@ abstract class AgendaTestBase {
             jdbc.update("INSERT INTO clinica.tenants (id, nome) VALUES (?, 'Teste agenda')", tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, 'Unidade A')", unit, tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, 'Unidade B')", otherUnit, tenant);
-            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Agenda teste', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:atender','agenda:configurar'])", role, tenant);
+            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Agenda teste', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:atender','agenda:configurar','agenda:ver_valores'])", role, tenant);
             jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash) VALUES (?, ?, 'Usuário teste', ?, ?)", user, tenant, email, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv");
             jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, user, unit, role);
             jdbc.update("INSERT INTO clinica.pacientes (id, tenant_id, nome) VALUES (?, ?, 'Paciente Ficticio')", patient, tenant);
@@ -136,13 +136,17 @@ abstract class AgendaTestBase {
     }
 
     protected String tokenFor(UUID userId) throws Exception {
+        return tokenFor(userId, unit);
+    }
+
+    protected String tokenFor(UUID userId, UUID unitId) throws Exception {
         byte[] random = new byte[32];
         new java.security.SecureRandom().nextBytes(random);
         String token = tenant + "." + java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(random);
         byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(token.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         transactions.inTenant(tenant, () -> jdbc.update(
             "INSERT INTO clinica.sessoes (tenant_id, usuario_id, unidade_id, token_hash, expira_em) VALUES (?, ?, ?, ?, now() + interval '1 hour')",
-            tenant, userId, unit, hash));
+            tenant, userId, unitId, hash));
         return token;
     }
 }

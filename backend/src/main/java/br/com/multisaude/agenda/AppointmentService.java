@@ -151,10 +151,9 @@ public class AppointmentService {
     private AppointmentView load(Session s, UUID id, int expectedVersion, UUID ownOnly) {
         AppointmentView current = repo.lockAppointment(id)
             .filter(a -> ownOnly == null || a.profissionalId().equals(ownOnly))
+            // Outra unidade responde 404, igual a inexistente: cada unidade só conhece a própria agenda.
+            .filter(a -> a.unidadeId().equals(s.identity().unidadeId()))
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Agendamento não encontrado."));
-        if (!current.unidadeId().equals(s.identity().unidadeId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Agendamento pertence a outra unidade.");
-        }
         if (current.versao() != expectedVersion) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Agendamento foi alterado por outra pessoa. Recarregue e tente de novo.");
         }
