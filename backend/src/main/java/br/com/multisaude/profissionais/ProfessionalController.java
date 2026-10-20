@@ -20,8 +20,6 @@ public class ProfessionalController {
     public List<ProfessionalView> list(@AuthenticationPrincipal Session s,@RequestParam(defaultValue="") String busca,@RequestParam(defaultValue="50") int limite){
         return transactions.inTenant(s.identity().tenantId(),()->repository.list(busca,Math.max(1,Math.min(limite,100))));
     }
-    @GetMapping("/especialidades") @PreAuthorize("hasAuthority('profissionais:ler')")
-    public List<SpecialtyView> specialties(@AuthenticationPrincipal Session s){return transactions.inTenant(s.identity().tenantId(),repository::specialties);}
     @PostMapping("/profissionais") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('profissionais:criar')")
     public ProfessionalView create(@AuthenticationPrincipal Session s,@Valid @RequestBody CreateProfessionalRequest req){
         return transactions.inTenant(s.identity().tenantId(),()->{if(!repository.destinationsBelongToTenant(req,s.identity().tenantId()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Unidade ou especialidade inválida.");return repository.create(req,s.identity().tenantId());});

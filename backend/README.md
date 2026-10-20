@@ -349,6 +349,28 @@ configuração do Administrador (a MultiSaúde usa Consulta, Exames, Laboratóri
 - Painel de TV, tempo de espera e relatórios. Senhas `aguardando` de dias anteriores ficam no banco, fora da fila.
 - Não há teste de concorrência real (duas requisições simultâneas): a garantia é do índice único e do `SKIP LOCKED`.
 
+## Especialidades: catálogo e cadastro da clínica
+
+O sistema oferece um **catálogo de sugestões** (`catalogo_especialidades`, global, somente leitura para a aplicação) e cada clínica
+tem o **seu próprio cadastro** (`especialidades`, por clínica, V21). A clínica adiciona uma sugestão com um clique (copia nome,
+código e CBOS) ou cria manualmente, e desativa o que não deve aparecer. Nome único por clínica, sem diferenciar maiúsculas.
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| GET | `/api/v1/especialidades?busca=&ativo=&letra=` e `/{id}` | `especialidades:ler` ou `profissionais:ler` |
+| POST | `/api/v1/especialidades` (`catalogoId` ou cadastro manual) | `especialidades:criar` |
+| PUT | `/api/v1/especialidades/{id}` (inclui `ativo`) | `especialidades:editar` |
+| GET | `/api/v1/catalogo/especialidades?busca=` (com `jaAdicionada`) | `especialidades:criar` |
+
+- O vínculo profissional-especialidade usa **chave composta** `(tenant_id, especialidade_id)`: o banco recusa ligar um profissional
+  à especialidade de outra clínica. Só especialidade ativa pode ser vinculada a um profissional novo.
+- Desativar nunca apaga e não mexe em vínculos existentes.
+- **O catálogo tem só as 4 linhas antigas.** A lista oficial (CBO e códigos TISS) será carregada de fonte pública verificável, em
+  tarefa à parte: um código errado em cadastro clínico é pior que catálogo vazio. Até lá, o cadastro manual funciona.
+- Descoberto ao testar: `POST /profissionais` **nunca funcionou** (a consulta que validava unidades e especialidades passava a lista
+  como argumentos soltos). Corrigido na V21 e agora coberto por teste.
+- O Administrador recebe `especialidades:ler/criar/editar`; a Recepção, `especialidades:ler`. O Médico não vê o cadastro.
+
 ### Lacunas conhecidas (ainda não tratadas)
 
 - **Sem assinatura digital.** O CFM exige ICP-Brasil para documento médico eletrônico. O hash só detecta adulteração.

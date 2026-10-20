@@ -18,10 +18,6 @@ public class ProfessionalRepository {
     public Optional<UUID> idOfUser(UUID userId) {
         return jdbc.query("SELECT id FROM clinica.profissionais WHERE usuario_id = ? AND ativo", (rs, row) -> rs.getObject(1, UUID.class), userId).stream().findFirst();
     }
-    public List<SpecialtyView> specialties() {
-        return jdbc.query("SELECT id,nome,cbo FROM clinica.especialidades ORDER BY nome", (rs,row) ->
-            new SpecialtyView(rs.getObject("id",UUID.class), rs.getString("nome"), rs.getString("cbo")));
-    }
     public ProfessionalView create(CreateProfessionalRequest req, UUID tenant) {
         UUID id=UUID.randomUUID();
         jdbc.update("INSERT INTO clinica.profissionais(id,tenant_id,nome,conselho,conselho_num,conselho_uf,cbo,usuario_id) VALUES(?,?,?,?,?,?,?,?)",
@@ -34,14 +30,14 @@ public class ProfessionalRepository {
         return jdbc.queryForObject("SELECT id,nome,conselho,conselho_num,conselho_uf,cbo,ativo FROM clinica.profissionais WHERE id=?",(rs,row)->view(rs),id);
     }
     public boolean destinationsBelongToTenant(CreateProfessionalRequest req, UUID tenant) {
-        Integer units=jdbc.queryForObject("SELECT count(*) FROM clinica.unidades WHERE tenant_id=? AND ativo AND id=ANY(?)",Integer.class,tenant,req.unidadeIds().toArray(new UUID[0]));
-        Integer specialties=jdbc.queryForObject("SELECT count(*) FROM clinica.especialidades WHERE id=ANY(?)",Integer.class,req.especialidadeIds().toArray(new UUID[0]));
+        Integer units=jdbc.queryForObject("SELECT count(*) FROM clinica.unidades WHERE tenant_id=? AND ativo AND id=ANY(?)",Integer.class,tenant,(Object) req.unidadeIds().toArray(new UUID[0]));
+        Integer specialties=jdbc.queryForObject("SELECT count(*) FROM clinica.especialidades WHERE ativo AND id=ANY(?)",Integer.class,(Object) req.especialidadeIds().toArray(new UUID[0]));
         boolean userOk = req.usuarioId() == null || Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS(SELECT 1 FROM clinica.usuarios WHERE tenant_id=? AND id=? AND ativo)",Boolean.class,tenant,req.usuarioId()));
         return userOk && units != null && units == req.unidadeIds().size() && specialties != null && specialties == req.especialidadeIds().size();
     }
     private ProfessionalView view(java.sql.ResultSet rs) throws java.sql.SQLException {
         UUID id=rs.getObject("id",UUID.class);
-        var specialties=jdbc.query("SELECT e.id,e.nome,e.cbo FROM clinica.especialidades e JOIN clinica.profissional_especialidades pe ON pe.especialidade_id=e.id WHERE pe.profissional_id=? ORDER BY e.nome",(r,x)->new SpecialtyView(r.getObject("id",UUID.class),r.getString("nome"),r.getString("cbo")),id);
+        var specialties=jdbc.query("SELECT e.id,e.nome,e.cbos FROM clinica.especialidades e JOIN clinica.profissional_especialidades pe ON pe.especialidade_id=e.id WHERE pe.profissional_id=? ORDER BY e.nome",(r,x)->new SpecialtyView(r.getObject("id",UUID.class),r.getString("nome"),r.getString("cbos")),id);
         return new ProfessionalView(id,rs.getString("nome"),rs.getString("conselho"),rs.getString("conselho_num"),rs.getString("conselho_uf"),rs.getString("cbo"),rs.getBoolean("ativo"),specialties);
     }
     private static String blank(String x){return x==null||x.isBlank()?null:x.trim();}
