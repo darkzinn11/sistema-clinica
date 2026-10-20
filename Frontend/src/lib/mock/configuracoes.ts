@@ -6,7 +6,8 @@ import { Cpu, Gallery, Global, Microscope, ReceiptText, Verify } from "iconsax-r
 import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import type { Icon as IconType } from "iconsax-reactjs";
 import type { Tone } from "@/components/ui/badge";
-import { locations, professionals } from "@/lib/mock/core";
+import { locations, professionals, rng } from "@/lib/mock/core";
+import { USERS } from "@/lib/mock/cadastros";
 
 export const WEEKDAYS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"] as const;
 
@@ -99,6 +100,55 @@ export const connectedSessions: ConnectedSession[] = [
   { id: "s4", user: "Dr. Henrique Lacerda", device: "iPad Air", browser: "Safari · iPadOS", ip: "177.54.201.3", location: "São José de Ribamar, MA", lastActivity: "há 2 h" },
   { id: "s5", user: "Recepção — Totem", device: "Totem recepção 01", browser: "Navegador dedicado", ip: "10.0.0.14", location: "Unidade Centro", lastActivity: "há 5 h" },
 ];
+
+/** Linha do painel de auditoria "Usuários conectados": todo usuário da clínica, online ou não. */
+export interface UserAccessRow {
+  id: string;
+  name: string;
+  role: string;
+  online: boolean;
+  lastLogin: string;
+  ip: string;
+  device?: string;
+  browser?: string;
+  location?: string;
+  sessionId?: string;
+}
+
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h || 1;
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+/** Todos os usuários da clínica, com status de acesso — para auditoria, diferente de connectedSessions (só as sessões abertas agora). */
+export function userAccessRoster(): UserAccessRow[] {
+  return USERS.map((u) => {
+    const r = rng(hashStr(u.id) + 777);
+    const session = connectedSessions.find((s) => s.user === u.name);
+    const online = Boolean(session) || r() < 0.08;
+    const day = 1 + Math.floor(r() * 28);
+    const month = 1 + Math.floor(r() * 10);
+    const hour = 6 + Math.floor(r() * 14);
+    const minute = Math.floor(r() * 60);
+    return {
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      online,
+      lastLogin: `${pad2(day)}/${pad2(month)}/2026 ${pad2(hour)}:${pad2(minute)}`,
+      ip: session?.ip ?? `45.190.${100 + Math.floor(r() * 30)}.${10 + Math.floor(r() * 240)}`,
+      device: session?.device,
+      browser: session?.browser,
+      location: session?.location,
+      sessionId: session?.id,
+    };
+  });
+}
 
 export interface RiskLevel {
   id: string;

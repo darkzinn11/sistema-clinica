@@ -8,6 +8,7 @@
 
 import {
   type Professional,
+  currentUser,
   equipment,
   insurances,
   leadSources,
@@ -29,6 +30,7 @@ import {
   DocumentText,
   Health,
   Location,
+  Microscope,
   Monitor,
   People,
   Profile2User,
@@ -553,6 +555,7 @@ export interface SystemUser {
 function makeUsers(): SystemUser[] {
   const r = rng(555);
   const staff: { name: string; role: string; profileId: string }[] = [
+    { name: currentUser.name, role: currentUser.role, profileId: "recepcao" },
     { name: "Ana Ribeiro", role: "Recepcionista", profileId: "recepcao" },
     { name: "Carla Dias", role: "Recepcionista", profileId: "recepcao" },
     { name: "Marcos Vieira", role: "Analista financeiro", profileId: "financeiro" },
@@ -886,6 +889,33 @@ const profissionaisExternosRows: EntityRow[] = (() => {
   });
 })();
 
+// Cartões de benefícios — planos de desconto oferecidos a grupos de pacientes (empresas parceiras, etc.).
+const cartoesDeBeneficioRows: EntityRow[] = [
+  { id: "cb-1", nome: "Cartão Família Vida Plena", descricao: "Desconto para dependentes do titular.", descontoPercentual: 15, validadeMeses: 12, status: "Ativo" },
+  { id: "cb-2", nome: "Convênio Empresarial — Prefeitura", descricao: "Benefício para servidores municipais conveniados.", descontoPercentual: 20, validadeMeses: 24, status: "Ativo" },
+  { id: "cb-3", nome: "Cartão Terceira Idade", descricao: "Desconto para pacientes acima de 60 anos.", descontoPercentual: 10, validadeMeses: 12, status: "Ativo" },
+  { id: "cb-4", nome: "Programa Indica e Ganha", descricao: "Desconto por indicação de novos pacientes.", descontoPercentual: 5, validadeMeses: 6, status: "Inativo" },
+];
+
+// Variações de preço — regras de acréscimo/desconto aplicadas sobre a tabela base.
+const variacoesDePrecoRows: EntityRow[] = [
+  { id: "var-1", nome: "Fora do horário comercial", tipo: "Acréscimo", percentual: 20, aplicavelA: "Todos os procedimentos", status: "Ativo" },
+  { id: "var-2", nome: "Pagamento à vista", tipo: "Desconto", percentual: 10, aplicavelA: "Todos os procedimentos", status: "Ativo" },
+  { id: "var-3", nome: "Atendimento domiciliar", tipo: "Acréscimo", percentual: 35, aplicavelA: "Consultas", status: "Ativo" },
+  { id: "var-4", nome: "Pacote de check-up", tipo: "Desconto", percentual: 15, aplicavelA: "Exames", status: "Ativo" },
+  { id: "var-5", nome: "Feriados e fins de semana", tipo: "Acréscimo", percentual: 25, aplicavelA: "Todos os procedimentos", status: "Inativo" },
+];
+
+// Cadastro de exames (laboratório parceiro) — mapeia o nome interno ao código do laboratório de apoio.
+const examesLabRows: EntityRow[] = [
+  { id: "lab-1", nome: "Hemograma completo", codigoLaboratorio: "HC001", amostra: "Sangue total (EDTA)", prazoDias: 1, status: "Ativo" },
+  { id: "lab-2", nome: "Glicemia de jejum", codigoLaboratorio: "GJ014", amostra: "Soro", prazoDias: 1, status: "Ativo" },
+  { id: "lab-3", nome: "TSH", codigoLaboratorio: "TSH220", amostra: "Soro", prazoDias: 2, status: "Ativo" },
+  { id: "lab-4", nome: "Colesterol total e frações", codigoLaboratorio: "LIP305", amostra: "Soro (jejum 12h)", prazoDias: 1, status: "Ativo" },
+  { id: "lab-5", nome: "Urina tipo I", codigoLaboratorio: "URI008", amostra: "Urina", prazoDias: 1, status: "Ativo" },
+  { id: "lab-6", nome: "PCR (proteína C reativa)", codigoLaboratorio: "PCR119", amostra: "Soro", prazoDias: 2, status: "Inativo" },
+];
+
 export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
   locais: {
     title: "Locais e salas",
@@ -1171,6 +1201,71 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     rows: profissionaisExternosRows,
     searchKeys: ["nome", "especialidade"],
   },
+  "cartoes-de-beneficio": {
+    title: "Cartões de benefício",
+    description: "Planos de desconto oferecidos a grupos de pacientes (empresas parceiras, convênios de desconto).",
+    icon: Card,
+    newLabel: "Novo cartão",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "descontoPercentual", label: "Desconto", numeric: true },
+      { key: "validadeMeses", label: "Validade (meses)", numeric: true },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome do cartão", type: "text", required: true },
+      { key: "descricao", label: "Descrição", type: "textarea" },
+      { key: "descontoPercentual", label: "Desconto", type: "number", suffix: "%" },
+      { key: "validadeMeses", label: "Validade", type: "number", suffix: "meses" },
+      STATUS_FIELD,
+    ],
+    rows: cartoesDeBeneficioRows,
+    searchKeys: ["nome"],
+  },
+  "variacoes-de-preco": {
+    title: "Variações de preço",
+    description: "Regras de acréscimo ou desconto aplicadas sobre a tabela de preços base.",
+    icon: TicketDiscount,
+    newLabel: "Nova variação",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "tipo", label: "Tipo" },
+      { key: "percentual", label: "Percentual", numeric: true },
+      { key: "aplicavelA", label: "Aplicável a" },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome da variação", type: "text", required: true },
+      { key: "tipo", label: "Tipo", type: "select", options: [{ value: "Acréscimo", label: "Acréscimo" }, { value: "Desconto", label: "Desconto" }] },
+      { key: "percentual", label: "Percentual", type: "number", suffix: "%" },
+      { key: "aplicavelA", label: "Aplicável a", type: "select", options: ["Todos os procedimentos", "Consultas", "Exames"].map((v) => ({ value: v, label: v })) },
+      STATUS_FIELD,
+    ],
+    rows: variacoesDePrecoRows,
+    searchKeys: ["nome", "aplicavelA"],
+  },
+  "exames-laboratorio": {
+    title: "Exames (laboratório)",
+    description: "Catálogo de exames mapeados ao código do laboratório de apoio, usado na integração de pedidos e resultados.",
+    icon: Microscope,
+    newLabel: "Novo exame",
+    columns: [
+      { key: "nome", label: "Exame" },
+      { key: "codigoLaboratorio", label: "Código no laboratório" },
+      { key: "amostra", label: "Amostra" },
+      { key: "prazoDias", label: "Prazo (dias)", numeric: true },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome do exame", type: "text", required: true },
+      { key: "codigoLaboratorio", label: "Código no laboratório", type: "text", required: true },
+      { key: "amostra", label: "Amostra", type: "text" },
+      { key: "prazoDias", label: "Prazo de entrega", type: "number", suffix: "dias" },
+      STATUS_FIELD,
+    ],
+    rows: examesLabRows,
+    searchKeys: ["nome", "codigoLaboratorio"],
+  },
 };
 
 export const ENTITY_GROUPS: { id: string; label: string; description: string; icon: IconType; items: { entity: string; href: string }[] }[] = [
@@ -1197,6 +1292,7 @@ export const ENTITY_GROUPS: { id: string; label: string; description: string; ic
     items: [
       { entity: "procedimentos", href: "/cadastros/procedimentos" },
       { entity: "convenios", href: "/cadastros/convenios" },
+      { entity: "exames-laboratorio", href: "/cadastros/exames-laboratorio" },
       { entity: "locais", href: "/cadastros/locais" },
       { entity: "equipamentos", href: "/cadastros/equipamentos" },
       { entity: "feriados", href: "/cadastros/feriados" },
@@ -1210,6 +1306,8 @@ export const ENTITY_GROUPS: { id: string; label: string; description: string; ic
     icon: Wallet2,
     items: [
       { entity: "tabelas-de-preco", href: "/cadastros/tabelas-de-preco" },
+      { entity: "variacoes-de-preco", href: "/cadastros/variacoes-de-preco" },
+      { entity: "cartoes-de-beneficio", href: "/cadastros/cartoes-de-beneficio" },
       { entity: "formas-de-recebimento", href: "/cadastros/formas-de-recebimento" },
       { entity: "regras-de-repasse", href: "/cadastros/regras-de-repasse" },
       { entity: "contas-correntes", href: "/cadastros/contas-correntes" },
