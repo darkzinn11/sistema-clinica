@@ -21,6 +21,12 @@ Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrá
   um médico veja as de outro (João vê as de José, sem José ver as de Maria): habilitação por par, com direção,
   não transitiva, feita pelo Administrador e limitada a pacientes com vínculo. **Sem prazo de validade**: vale até
   ser revogada (decisão do dono do projeto).
+- **Doctoralia: sem integração por ora** (decisão do dono do projeto, 20/10/2026). Dos ~352 agendamentos do mês, só 2 vieram
+  do agendamento online da Doctoralia; o valor para a clínica está nas avaliações, que vivem no perfil e não dependem do
+  nosso sistema. A Doctoralia é dona do Feegow (reportagens, não confirmado em fonte primária) e não achei API pública
+  para terceiros. Na troca de sistema: desligar o agendamento online da Doctoralia ou mantê-lo no Feegow durante a
+  transição, para não gerar horário duplicado. Quando voltar ao assunto: contato oficial antes de qualquer código, base
+  legal/contrato pela LGPD, e a origem do agendamento ganha o valor `doctoralia`.
 - Laboratório é **externo** (Lacmar, no mesmo prédio). Sem módulo de laboratório.
   Exame = pedido emitido pelo médico (documento). Resultado = anexo no prontuário,
   trazido pelo paciente. Integração com o Lacmar fica fora do escopo até haver demanda.
