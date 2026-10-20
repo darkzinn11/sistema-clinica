@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { procedureById } from "@/lib/mock/core";
 import { type Kit, kits, produtoById } from "@/lib/mock/estoque";
@@ -64,7 +64,7 @@ export default function Kits() {
         ))}
       </div>
 
-      <Drawer
+      <Modal
         open={Boolean(editing)}
         onClose={() => setEditing(null)}
         title="Editar kit"
@@ -91,7 +91,7 @@ export default function Kits() {
             </div>
           </div>
         )}
-      </Drawer>
+      </Modal>
 
       <Modal open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Kit atualizado" description={confirm ?? undefined} footer={<Button variant="primary" onClick={() => setConfirm(null)}>Entendi</Button>} />
     </div>

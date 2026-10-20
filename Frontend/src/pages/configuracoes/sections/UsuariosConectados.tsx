@@ -1,78 +1,92 @@
-import { useState } from "react";
-import { LogoutCurve } from "iconsax-reactjs";
+import { useMemo, useState } from "react";
+import { LogoutCurve, SearchNormal1 } from "iconsax-reactjs";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/overlay";
 import { EmptyState } from "@/components/ui/empty-state";
-import { connectedSessions as initialSessions, type ConnectedSession } from "@/lib/mock/configuracoes";
+import { userAccessRoster, type UserAccessRow } from "@/lib/mock/configuracoes";
 
 export default function UsuariosConectados() {
-  const [sessions, setSessions] = useState<ConnectedSession[]>(initialSessions);
-  const [toEnd, setToEnd] = useState<ConnectedSession | null>(null);
+  const [roster, setRoster] = useState<UserAccessRow[]>(() => userAccessRoster());
+  const [search, setSearch] = useState("");
+  const [toEnd, setToEnd] = useState<UserAccessRow | null>(null);
   const [confirmAll, setConfirmAll] = useState(false);
+
+  const query = search.trim().toLowerCase();
+  const filtered = useMemo(() => roster.filter((u) => query === "" || u.name.toLowerCase().includes(query)), [roster, query]);
+  const onlineCount = roster.filter((u) => u.online).length;
+
+  function disconnect(id: string) {
+    setRoster((prev) => prev.map((u) => (u.id === id ? { ...u, online: false, device: undefined, browser: undefined, location: undefined } : u)));
+  }
 
   return (
     <div>
       <Card>
         <CardHeader
           title="Usuários conectados"
-          description="Sessões ativas no sistema, no app e nos dispositivos de recepção."
+          description={`${roster.length} usuários da clínica · ${onlineCount} on-line agora.`}
           actions={
-            sessions.some((s) => !s.current) && (
+            onlineCount > 0 && (
               <Button variant="danger" size="sm" icon={LogoutCurve} onClick={() => setConfirmAll(true)}>
-                Encerrar todas
+                Desconectar todos
               </Button>
             )
           }
         />
-        <CardBody className="p-0">
-          {sessions.length === 0 ? (
-            <EmptyState title="Nenhuma sessão ativa" />
+        <CardBody className="flex flex-col gap-4">
+          <Input placeholder="Buscar usuário…" icon={SearchNormal1} value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Buscar usuário" wrapperClassName="max-w-sm" />
+          {filtered.length === 0 ? (
+            <EmptyState title="Nenhum usuário encontrado" description="Ajuste a busca acima." />
           ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Usuário</TH>
-                  <TH>Dispositivo / navegador</TH>
-                  <TH>IP</TH>
-                  <TH>Local</TH>
-                  <TH>Última atividade</TH>
-                  <TH align="right">Ação</TH>
-                </TR>
-              </THead>
-              <TBody>
-                {sessions.map((sess) => (
-                  <TR key={sess.id}>
-                    <TD>
-                      <div className="flex items-center gap-2.5">
-                        <Avatar name={sess.user} size="sm" />
-                        <span className="font-medium">{sess.user}</span>
-                        {sess.current && <Badge tone="accent" size="sm">Esta sessão</Badge>}
-                      </div>
-                    </TD>
-                    <TD>
-                      <div>
-                        <p>{sess.device}</p>
-                        <p className="text-sm text-text-muted">{sess.browser}</p>
-                      </div>
-                    </TD>
-                    <TD className="font-mono text-sm">{sess.ip}</TD>
-                    <TD>{sess.location}</TD>
-                    <TD>{sess.lastActivity}</TD>
-                    <TD align="right">
-                      {!sess.current && (
-                        <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg" onClick={() => setToEnd(sess)}>
-                          Encerrar sessão
-                        </Button>
-                      )}
-                    </TD>
+            <>
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Usuário</TH>
+                    <TH>Status</TH>
+                    <TH>Último login</TH>
+                    <TH>IP de acesso</TH>
+                    <TH align="right">Ação</TH>
                   </TR>
-                ))}
-              </TBody>
-            </Table>
+                </THead>
+                <TBody>
+                  {filtered.map((u) => (
+                    <TR key={u.id}>
+                      <TD>
+                        <div className="flex items-center gap-2.5">
+                          <Avatar name={u.name} size="sm" />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-text">{u.name}</p>
+                            <p className="truncate text-sm text-text-muted">{u.role}</p>
+                          </div>
+                        </div>
+                      </TD>
+                      <TD>
+                        <Badge tone={u.online ? "success" : "neutral"} dot>
+                          {u.online ? "Online" : "Offline"}
+                        </Badge>
+                        {u.online && u.device && <p className="mt-1 text-xs text-text-subtle">{u.device} · {u.browser}</p>}
+                      </TD>
+                      <TD className="text-text-muted">{u.lastLogin}</TD>
+                      <TD className="font-mono text-sm text-text-muted">{u.ip}</TD>
+                      <TD align="right">
+                        {u.online && (
+                          <Button variant="ghost" size="sm" className="text-danger hover:bg-danger-bg" onClick={() => setToEnd(u)}>
+                            Desconectar
+                          </Button>
+                        )}
+                      </TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+              <TableFooter total={filtered.length} pageSize={Math.max(filtered.length, 1)} label="usuários" />
+            </>
           )}
         </CardBody>
       </Card>
@@ -80,8 +94,8 @@ export default function UsuariosConectados() {
       <Modal
         open={!!toEnd}
         onClose={() => setToEnd(null)}
-        title="Encerrar sessão?"
-        description={toEnd ? `${toEnd.user} vai precisar entrar novamente em ${toEnd.device}.` : undefined}
+        title="Desconectar usuário?"
+        description={toEnd ? `${toEnd.name} vai precisar entrar novamente.` : undefined}
         icon={LogoutCurve}
         tone="danger"
         footer={
@@ -90,11 +104,11 @@ export default function UsuariosConectados() {
             <Button
               variant="danger"
               onClick={() => {
-                setSessions((prev) => prev.filter((s) => s.id !== toEnd?.id));
+                if (toEnd) disconnect(toEnd.id);
                 setToEnd(null);
               }}
             >
-              Encerrar sessão
+              Desconectar
             </Button>
           </>
         }
@@ -103,8 +117,8 @@ export default function UsuariosConectados() {
       <Modal
         open={confirmAll}
         onClose={() => setConfirmAll(false)}
-        title="Encerrar todas as sessões?"
-        description="Todos os outros dispositivos conectados vão precisar entrar novamente. Esta sessão continua ativa."
+        title="Desconectar todos os usuários online?"
+        description="Todos vão precisar entrar novamente para continuar usando o sistema."
         icon={LogoutCurve}
         tone="danger"
         footer={
@@ -113,11 +127,11 @@ export default function UsuariosConectados() {
             <Button
               variant="danger"
               onClick={() => {
-                setSessions((prev) => prev.filter((s) => s.current));
+                setRoster((prev) => prev.map((u) => (u.online ? { ...u, online: false, device: undefined, browser: undefined, location: undefined } : u)));
                 setConfirmAll(false);
               }}
             >
-              Encerrar todas
+              Desconectar todos
             </Button>
           </>
         }

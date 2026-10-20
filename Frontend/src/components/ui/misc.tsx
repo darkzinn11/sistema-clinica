@@ -1,7 +1,7 @@
 import { IconCircle } from "@/components/ui/icon-circle";
 import { ArrowDown2 } from "iconsax-reactjs";
 import type { Icon as IconType } from "iconsax-reactjs";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/cn";
 
@@ -19,10 +19,15 @@ export function Tooltip({
   content,
   children,
   side = "top",
+  className,
+  style,
 }: {
   content: string;
   children: ReactNode;
   side?: "top" | "right" | "bottom";
+  /** Classes/estilo do elemento âncora (ex.: posicioná-lo absolutamente numa linha do tempo). */
+  className?: string;
+  style?: CSSProperties;
 }) {
   const anchorRef = useRef<HTMLSpanElement>(null);
   const [visible, setVisible] = useState(false);
@@ -61,7 +66,8 @@ export function Tooltip({
   return (
     <span
       ref={anchorRef}
-      className="inline-flex w-full"
+      className={cn("inline-flex w-full", className)}
+      style={style}
       onMouseEnter={show}
       onMouseLeave={() => setVisible(false)}
       onFocusCapture={show}

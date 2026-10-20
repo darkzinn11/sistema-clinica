@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CardTick, DocumentText, MoneyTick, Receipt21 } from "iconsax-reactjs";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/input";
@@ -45,7 +45,7 @@ export function LancamentoDetailDrawer({
     : [];
 
   return (
-    <Drawer open={open} onClose={onClose} width="lg" title={l.descricao} description={l.contraparteNome}>
+    <Modal open={open} onClose={onClose} size="lg" title={l.descricao} description={l.contraparteNome}>
       <div className="flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <Badge tone={STATUS_TONE[l.status]} dot>
@@ -126,6 +126,6 @@ export function LancamentoDetailDrawer({
           </FormSection>
         )}
       </div>
-    </Drawer>
+    </Modal>
   );
 }

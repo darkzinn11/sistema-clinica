@@ -38,6 +38,11 @@ export function addDaysIso(dateIso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Diferença em dias inteiros entre duas datas ISO (to − from). */
+export function daysBetweenIso(fromIso: string, toIso: string): number {
+  return Math.round((Date.parse(`${toIso}T12:00:00Z`) - Date.parse(`${fromIso}T12:00:00Z`)) / 86_400_000);
+}
+
 export function weekdayShort(iso: string): string {
   return new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short", timeZone: TZ }).replace(".", "");
 }

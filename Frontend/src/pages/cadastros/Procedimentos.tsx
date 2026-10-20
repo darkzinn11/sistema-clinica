@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Table, TBody, TD, THead, TH, TR, TableFooter } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { brl } from "@/lib/format";
@@ -110,12 +110,12 @@ export default function Procedimentos() {
         </Card>
       </div>
 
-      <Drawer
+      <Modal
         open={selected !== null}
         onClose={() => setSelected(null)}
         title={selected?.name ?? ""}
         description={selected ? `${selected.specialty} · TUSS ${selected.tuss}` : undefined}
-        width="lg"
+        size="lg"
         footer={
           <>
             <Button variant="ghost" onClick={() => setSelected(null)}>
@@ -159,7 +159,7 @@ export default function Procedimentos() {
             </div>
           </div>
         )}
-      </Drawer>
+      </Modal>
     </div>
   );
 }

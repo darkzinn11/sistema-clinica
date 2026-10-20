@@ -4,7 +4,7 @@ import { DocumentText, Refresh, TickCircle } from "iconsax-reactjs";
 import { Card, CardBody } from "@/components/ui/card";
 import { Badge, type Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Drawer, Switch } from "@/components/ui/overlay";
+import { Modal, Switch } from "@/components/ui/overlay";
 import { Input } from "@/components/ui/input";
 import { integrations, type Integration, type IntegrationStatus } from "@/lib/mock/configuracoes";
 
@@ -50,7 +50,7 @@ function IntegrationDrawer({ integration, onClose }: { integration: Integration;
   const [active, setActive] = useState(integration.status === "conectado");
   const status = STATUS_LABEL[integration.status];
   return (
-    <Drawer
+    <Modal
       open
       onClose={onClose}
       title={integration.name}
@@ -74,7 +74,7 @@ function IntegrationDrawer({ integration, onClose }: { integration: Integration;
         {integration.id === "lab" && <p className="text-sm text-danger">Última sincronização falhou: tempo de resposta excedido. Verifique a conexão do laboratório parceiro.</p>}
         {integration.lastSync && <p className="text-sm text-text-muted">Última sincronização: {integration.lastSync}</p>}
       </div>
-    </Drawer>
+    </Modal>
   );
 }
 

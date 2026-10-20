@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import type { DocumentoGerado } from "@/components/atendimento/types";
 import { atestadoTemplate, declaracaoComparecimentoTemplate, encaminhamentoTemplate, relatorioTemplate } from "@/lib/mock/atendimento";
 import type { Patient } from "@/lib/mock/core";
@@ -90,12 +90,12 @@ export function DocumentosTab({
         })}
       </div>
 
-      <Drawer
+      <Modal
         open={open !== null}
         onClose={() => setOpen(null)}
         title={open ? TEMPLATE_META[open].label : ""}
         description="Revise os dados, gere o texto e edite antes de concluir."
-        width="lg"
+        size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setOpen(null)}>
@@ -131,7 +131,7 @@ export function DocumentosTab({
             <Textarea label="Texto do documento" rows={10} value={texto} onChange={(e) => setTexto(e.target.value)} />
           </div>
         )}
-      </Drawer>
+      </Modal>
     </div>
   );
 }

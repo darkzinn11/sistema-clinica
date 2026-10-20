@@ -7,7 +7,7 @@ import { StatCard } from "@/components/ui/charts";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Textarea } from "@/components/ui/input";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { brl, dateBR } from "@/lib/format";
@@ -140,7 +140,7 @@ export default function Retorno() {
 
       {toast && <div className="fixed bottom-6 right-6 z-50 rounded-xl bg-text px-4 py-2.5 text-sm font-medium text-bg shadow-pop">{toast}</div>}
 
-      <Drawer
+      <Modal
         open={Boolean(recursoRow)}
         onClose={() => setRecursoRow(null)}
         title="Recurso de glosa"
@@ -157,7 +157,7 @@ export default function Retorno() {
           <Input type="number" min={0} step="0.01" label="Valor recursado" suffix="R$" value={valorRecursado} onChange={(e) => setValorRecursado(e.target.value)} />
           <p className="text-sm text-text-muted">Anexos simulados: guia de autorização, relatório de atendimento.</p>
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal
         open={importModal}
