@@ -51,9 +51,17 @@ Fluxo: recepção agenda → paciente chega (check-in) → médico atende e regi
   acesso por vínculo, privacidade entre médicos e unidades, contenção de varredura.
 - Prontuário mínimo: evolução imutável, só do autor, correção por nova versão, auditoria de acesso a pacientes.
 
+### Implantação da clínica (ordem descrita pelo dono, a construir)
+Antes do primeiro agendamento a clínica configura, nesta ordem: **especialidades** → **procedimentos** → **profissionais**
+(dados e conselho, especialidade, procedimentos habilitados na agenda, horários de atendimento, acesso).
+Já existem: unidades, usuários, grades, tipos de senha e guichês. Faltam o cadastro completo de procedimentos e
+profissionais, o vínculo profissional↔procedimento e especialidades por clínica. Ver README e a conversa de 20/10/2026.
+**Dúvida aberta que condiciona a grade:** o horário é um bloco fixo da grade (ex.: de 20 em 20 min) ou o procedimento
+ocupa o tempo dele? As telas sugerem bloco fixo, o que obriga a rever `grades.intervalo_min` e o cálculo de horários.
+
 ### Pendências da Fatia 1
 - Encaminhamento do médico à recepção ao fim do atendimento (hoje não há registro dessa passagem).
-- Check-in com fila/senha (hoje só a mudança de status).
+- Fila de senhas e guichês: **feita** (ver README). Faltam a credencial do totem, o perfil da Lacmar e o painel de TV.
 - Assinatura digital ICP-Brasil e política de acesso a prontuário de quem saiu da clínica (requisitos legais).
 
 ## Fatia 2 — Prescrição, pedido de exame e documentos

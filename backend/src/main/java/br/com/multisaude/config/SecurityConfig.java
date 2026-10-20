@@ -63,6 +63,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/grades", "/api/v1/bloqueios", "/api/v1/agenda/disponibilidade").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
                 .requestMatchers(HttpMethod.POST, "/api/v1/grades", "/api/v1/bloqueios").hasAuthority("agenda:configurar")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/grades/*", "/api/v1/bloqueios/*").hasAuthority("agenda:configurar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/tipos-senha", "/api/v1/guiches", "/api/v1/guiches/*/atual", "/api/v1/senhas/fila").hasAuthority("fila:ler")
+                .requestMatchers(HttpMethod.POST, "/api/v1/tipos-senha", "/api/v1/guiches").hasAuthority("fila:configurar")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/tipos-senha/*", "/api/v1/guiches/*").hasAuthority("fila:configurar")
+                .requestMatchers(HttpMethod.POST, "/api/v1/senhas").hasAuthority("fila:gerar")
+                .requestMatchers(HttpMethod.POST, "/api/v1/guiches/*/chamar-proxima", "/api/v1/senhas/*/chamar", "/api/v1/senhas/*/rechamar", "/api/v1/senhas/*/identificar",
+                    "/api/v1/senhas/*/cadastrar-paciente", "/api/v1/senhas/*/finalizar", "/api/v1/senhas/*/ausente", "/api/v1/senhas/*/cancelar").hasAuthority("fila:chamar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/usuarios", "/api/v1/papeis").hasAuthority("usuarios:ler")
                 .requestMatchers(HttpMethod.POST, "/api/v1/usuarios").hasAuthority("usuarios:criar")
                 .anyRequest().denyAll())

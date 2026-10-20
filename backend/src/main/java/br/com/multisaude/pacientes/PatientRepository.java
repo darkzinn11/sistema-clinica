@@ -59,6 +59,12 @@ public class PatientRepository {
         return find(id);
     }
 
+    /** Busca exata, só entre pacientes ativos: o CPF é a chave confiável, ao contrário de nome e celular. */
+    public Optional<PatientView> findByCpf(String cpf) {
+        return jdbc.query("SELECT id, nome, nome_social, cpf, nascimento, celular, email, ativo FROM clinica.pacientes WHERE cpf = ? AND ativo",
+            (rs, row) -> view(rs), cpf).stream().findFirst();
+    }
+
     public PatientView find(UUID id) {
         return jdbc.queryForObject("SELECT id, nome, nome_social, cpf, nascimento, celular, email, ativo FROM clinica.pacientes WHERE id = ?",
             (rs, row) -> view(rs), id);

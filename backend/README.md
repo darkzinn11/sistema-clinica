@@ -300,6 +300,47 @@ UPDATE/DELETE e um gatilho (`bloquear_alteracao`) recusa alteração ou exclusã
   resposta, nada é registrado. Registra listagem e consulta de pacientes (uma linha por paciente entregue), leitura de
   evoluções, criação e correção. Quem consulta a auditoria não é registrado.
 
+## Fila de senhas e guichês
+
+Fluxo: o paciente pega a senha **sem se identificar** e espera; a recepção chama no guichê; o paciente apresenta os
+documentos e a recepção liga a senha a ele **por CPF** (cadastrando antes, se for novo). Tipos de senha e guichês são
+configuração do Administrador (a MultiSaúde usa Consulta, Exames, Laboratório, Retorno e a versão Preferencial de cada).
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| GET/POST/PUT | `/api/v1/tipos-senha`, `/api/v1/guiches` | ler: `fila:ler`; criar/alterar: `fila:configurar` |
+| POST | `/api/v1/senhas` (`{tipoId}`) | `fila:gerar` |
+| GET | `/api/v1/senhas/fila?tipoId=&guicheId=` | `fila:ler` (sem dado pessoal) |
+| GET | `/api/v1/guiches/{id}/atual` | `fila:ler` (204 se o guichê está livre) |
+| POST | `/api/v1/guiches/{id}/chamar-proxima` | `fila:chamar` |
+| POST | `/api/v1/senhas/{id}/chamar`, `/rechamar`, `/finalizar`, `/ausente`, `/cancelar` | `fila:chamar` |
+| POST | `/api/v1/senhas/{id}/identificar` (`{cpf}`) | `fila:chamar` + `pacientes:ler` |
+| POST | `/api/v1/senhas/{id}/cadastrar-paciente` | `fila:chamar` + `pacientes:criar` |
+
+- **Guichê define o que chama:** cada guichê lista os tipos que atende e a ordem entre eles. Guichê só de preferencial
+  lista só tipos preferenciais; dentro da ordem, vale a chegada. Ordem entre tipos é configuração, não regra fixa.
+- **Numeração** por unidade, tipo e dia (dia no fuso da unidade), incremento atômico. Código = prefixo + número
+  (`CON P2`); o prefixo só aceita letras e espaço para o código nunca ser ambíguo.
+- **Um guichê, uma senha ativa:** garantido por índice único no banco, mesmo com cliques simultâneos. Dois guichês nunca
+  pegam a mesma senha (`FOR UPDATE SKIP LOCKED`). Senha ativa esquecida de um dia anterior é encerrada ao chamar.
+- **Identificar por CPF só vale para senha já chamada.** Isso limita a consulta por CPF ao número de senhas atendidas e
+  impede testar CPFs para descobrir quem é paciente. Cada identificação é auditada (`ver_paciente`) e conta no limite de
+  volume. O CPF é validado pelos dígitos verificadores (também no cadastro de paciente): um erro de digitação vira 400,
+  não "paciente novo". Corrigir um CPF errado é permitido e fica registrado.
+- **Cadastrar e ligar é uma transação só:** se um falhar, nenhum acontece.
+- **Senha nunca é apagada:** cancelar exige motivo e responsável (o Feegow tem lixeira; aqui não). Estados:
+  `aguardando` → `chamada` → `em_atendimento` → `finalizada`, ou `ausente`/`cancelada`. O banco recusa status que não
+  combina com os dados (ninguém "em atendimento" sem guichê e sem paciente).
+- A fila e a TV não carregam nome nem CPF; só o código e o guichê. O médico não tem acesso à fila.
+- Cada resposta de erro 404 de `/identificar` significa "paciente não cadastrado com este CPF" (a senha já foi
+  validada pela lista); a interface deve oferecer o cadastro.
+
+### Ainda não construído na fila
+- **Credencial do totem** (aparelho sem usuário logado): hoje quem gera senha é um usuário com `fila:gerar`.
+- **Perfil do Laboratório da Lacmar** (chamar só senhas de laboratório, sem ver paciente nenhum da clínica).
+- Painel de TV, tempo de espera e relatórios. Senhas `aguardando` de dias anteriores ficam no banco, fora da fila.
+- Não há teste de concorrência real (duas requisições simultâneas): a garantia é do índice único e do `SKIP LOCKED`.
+
 ### Lacunas conhecidas (ainda não tratadas)
 
 - **Sem assinatura digital.** O CFM exige ICP-Brasil para documento médico eletrônico. O hash só detecta adulteração.
