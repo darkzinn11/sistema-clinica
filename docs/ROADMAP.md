@@ -72,7 +72,7 @@ obrigatórios no cadastro do paciente (com "sem CPF" explícito) e **prioridade 
 
 ### Pendências da Fatia 1
 - Encaminhamento do médico à recepção ao fim do atendimento (hoje não há registro dessa passagem).
-- Fila de senhas e guichês: **feita** (ver README). Faltam a credencial do totem, o perfil da Lacmar e o painel de TV.
+- Fila de senhas e guichês: **feita** (ver README). Totem com CPF e credencial de dispositivo: **feito** (V27). Faltam o perfil da Lacmar e o painel de TV.
 - Assinatura digital ICP-Brasil e política de acesso a prontuário de quem saiu da clínica (requisitos legais).
 
 ## Fatia 2 — Prescrição, pedido de exame e documentos

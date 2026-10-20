@@ -56,6 +56,15 @@ public class IdentityService {
         return new LoginResponse(token, "Bearer", expires, identity);
     }
 
+    /** Abre uma sessão de longa duração para um dispositivo. Chamar dentro de TenantTransactions.inTenant; o token só existe aqui e no retorno. */
+    public String openDeviceSession(Identity device, java.time.Duration validFor) {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        String token = device.tenantId() + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        repository.createSession(device, hash(token), Instant.now().plus(validFor));
+        return token;
+    }
+
     public Optional<Session> authenticate(String token) {
         if (token == null || !token.matches("[0-9a-fA-F-]{36}\\.[A-Za-z0-9_-]{43}")) return Optional.empty();
         UUID tenant;

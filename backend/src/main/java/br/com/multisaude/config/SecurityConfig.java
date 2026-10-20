@@ -78,6 +78,12 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/tipos-senha", "/api/v1/guiches").hasAuthority("fila:configurar")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/tipos-senha/*", "/api/v1/guiches/*").hasAuthority("fila:configurar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/senhas").hasAuthority("fila:gerar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/totem/tipos").hasAuthority("totem:usar")
+                .requestMatchers(HttpMethod.POST, "/api/v1/totem/senhas").hasAuthority("totem:usar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/dispositivos").hasAuthority("fila:configurar")
+                .requestMatchers(HttpMethod.POST, "/api/v1/dispositivos").hasAuthority("fila:configurar")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/dispositivos/*").hasAuthority("fila:configurar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/senhas/*/identificacao").hasAuthority("fila:chamar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/guiches/*/chamar-proxima", "/api/v1/senhas/*/chamar", "/api/v1/senhas/*/rechamar", "/api/v1/senhas/*/identificar",
                     "/api/v1/senhas/*/cadastrar-paciente", "/api/v1/senhas/*/finalizar", "/api/v1/senhas/*/ausente", "/api/v1/senhas/*/cancelar").hasAuthority("fila:chamar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/usuarios", "/api/v1/papeis").hasAuthority("usuarios:ler")

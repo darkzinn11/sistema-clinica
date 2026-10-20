@@ -344,7 +344,7 @@ configuração do Administrador (a MultiSaúde usa Consulta, Exames, Laboratóri
   validada pela lista); a interface deve oferecer o cadastro.
 
 ### Ainda não construído na fila
-- **Credencial do totem** (aparelho sem usuário logado): hoje quem gera senha é um usuário com `fila:gerar`.
+- **Credencial do totem:** resolvida na V27 (ver "Totem com CPF e dispositivos").
 - **Perfil do Laboratório da Lacmar** (chamar só senhas de laboratório, sem ver paciente nenhum da clínica).
 - Painel de TV, tempo de espera e relatórios. Senhas `aguardando` de dias anteriores ficam no banco, fora da fila.
 - Não há teste de concorrência real (duas requisições simultâneas): a garantia é do índice único e do `SKIP LOCKED`.
@@ -426,6 +426,22 @@ descrição e código TUSS para o cadastro da própria clínica; preço e tempo 
 - **Copiar grade:** `POST /grades/copiar` (`agenda:configurar`) copia todas as grades ativas da origem para o destino, na unidade da sessão. Tudo ou nada: se o
   destino já tem grade sobreposta, nada é copiado (409 listando os horários). Bloqueios não são copiados.
 - Permissões: Administrador ganha `profissionais:editar`. Médico não vê o cadastro de colegas.
+
+## Totem com CPF e dispositivos (V27)
+
+- **Fluxo:** o paciente digita o CPF de quem será atendido (ou "Sem CPF"), escolhe o objetivo e o preferencial, e recebe a senha. O totem **não consulta o cadastro**:
+  só confere os dígitos do CPF e nunca mostra nome, nem se é cadastrado, nem se há agendamento. A resposta de `POST /totem/senhas` tem só `codigo`, `tipoNome` e `preferencial`.
+- **Dispositivo:** o Administrador (`fila:configurar`) cadastra o totem em `POST /dispositivos` (`{nome}`) e recebe o token **uma única vez** (365 dias). `GET /dispositivos`
+  lista sem token; `DELETE /dispositivos/{id}` desativa e derruba o token na hora. O dispositivo é um usuário sem login (senha inutilizável, fora de `GET /usuarios`) com o
+  papel `Totem` e a única permissão `totem:usar`, regravada a cada cadastro. Alcança só `GET /totem/tipos` (tipos ativos: id, nome, preferencial) e `POST /totem/senhas`.
+  Usuários com `fila:gerar` (recepção) não usam os endpoints do totem, e o totem não usa nada da recepção. Limite: 30 senhas por minuto por totem (429 com `Retry-After`).
+- **Senha:** guarda `cpf_informado` (11 dígitos, `CHECK` no banco), `origem` (`recepcao`/`totem`) e `gerada_por`. O CPF **nunca** aparece na fila, na chamada nem no painel.
+- **Recepção:** depois de chamar a senha, `GET /senhas/{id}/identificacao` (`fila:chamar` + `pacientes:ler`) devolve `situacao` (`cadastrado`, `nao_cadastrado`, `sem_cpf`), o CPF digitado
+  e, se cadastrado, o paciente e os agendamentos de hoje **desta unidade** (sem valores; só vêm para quem também tem `agenda:ler`). Antes da chamada é 409. A leitura é auditada
+  (`ver_paciente`) e conta no limite de volume. O CPF pode ser do responsável: a recepção confirma "é este paciente?" e liga com `identificar` (ou troca o CPF, ou cadastra).
+- **Minimização:** o CPF é apagado da senha ao ligar o paciente; nas senhas nunca ligadas, a limpeza roda ao gerar a primeira senha de um dia posterior (sem tarefa agendada).
+  **Limite conhecido:** se ninguém gerar senha depois, o CPF digitado continua guardado.
+- **Para o frontend:** o aviso "CPF de quem será atendido" fica na tela do totem; o token do dispositivo vai no `Authorization: Bearer`, como o das pessoas.
 
 ### CORS e navegador
 

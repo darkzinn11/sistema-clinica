@@ -61,6 +61,34 @@ public class IdentityController {
         return transactions.inTenant(session.identity().tenantId(), repository::roles);
     }
 
+    // ---- dispositivos (totem) ----
+
+    @PostMapping("/dispositivos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public DeviceCreated createDevice(@AuthenticationPrincipal Session session, @Valid @RequestBody CreateDeviceRequest request) {
+        java.time.Duration validFor = java.time.Duration.ofDays(365);
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            Identity device = repository.createDevice(session.identity().tenantId(), session.identity().unidadeId(), repository.totemRole(session.identity().tenantId()), request.nome());
+            String token = service.openDeviceSession(device, validFor);
+            return new DeviceCreated(new DeviceView(device.usuarioId(), device.nome(), true), token, java.time.Instant.now().plus(validFor));
+        });
+    }
+
+    @GetMapping("/dispositivos")
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public List<DeviceView> devices(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> repository.devices(session.identity().unidadeId()));
+    }
+
+    @DeleteMapping("/dispositivos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public void revokeDevice(@AuthenticationPrincipal Session session, @PathVariable java.util.UUID id) {
+        boolean revoked = transactions.inTenant(session.identity().tenantId(), () -> repository.revokeDevice(id, session.identity().unidadeId()));
+        if (!revoked) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispositivo não encontrado.");
+    }
+
     @PostMapping("/usuarios")
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAuthority('usuarios:criar')")

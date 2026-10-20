@@ -54,7 +54,7 @@ public class IdentityRepository {
     }
 
     public List<UserView> users() {
-        return jdbc.query("SELECT id, nome, email, ativo FROM clinica.usuarios ORDER BY nome, id LIMIT 200",
+        return jdbc.query("SELECT id, nome, email, ativo FROM clinica.usuarios WHERE NOT dispositivo ORDER BY nome, id LIMIT 200",
             (rs, row) -> new UserView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getString("email"), rs.getBoolean("ativo")));
     }
 
@@ -86,6 +86,37 @@ public class IdentityRepository {
         jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)",
             tenant, id, request.unidadeId(), request.papelId());
         return new UserView(id, request.nome().trim(), email, true);
+    }
+
+    // ---- dispositivos (totem) ----
+
+    /** Papel do totem: uma única permissão. É regravado a cada cadastro para ninguém ampliar o que um totem alcança. */
+    public UUID totemRole(UUID tenant) {
+        return jdbc.queryForObject("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Totem', ARRAY['totem:usar']) "
+            + "ON CONFLICT (tenant_id, nome) DO UPDATE SET permissoes = ARRAY['totem:usar'] RETURNING id", UUID.class, UUID.randomUUID(), tenant);
+    }
+
+    public Identity createDevice(UUID tenant, UUID unit, UUID role, String name) {
+        UUID id = UUID.randomUUID();
+        // Senha inutilizável: não é um hash válido, então nenhum login com este usuário passa.
+        jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash, dispositivo) VALUES (?, ?, ?, ?, '!', true)",
+            id, tenant, name.trim(), "totem-" + id + "@dispositivo.invalid");
+        jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, id, unit, role);
+        return new Identity(id, tenant, unit, name.trim(), "totem-" + id + "@dispositivo.invalid", "Totem", List.of("totem:usar"));
+    }
+
+    public List<DeviceView> devices(UUID unit) {
+        return jdbc.query("SELECT u.id, u.nome, u.ativo FROM clinica.usuarios u JOIN clinica.vinculos v ON v.tenant_id = u.tenant_id AND v.usuario_id = u.id "
+            + "WHERE u.dispositivo AND v.unidade_id = ? ORDER BY u.nome, u.id LIMIT 200",
+            (rs, row) -> new DeviceView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getBoolean("ativo")), unit);
+    }
+
+    /** Desativa o dispositivo e derruba os tokens. Só dispositivos da unidade da sessão. */
+    public boolean revokeDevice(UUID id, UUID unit) {
+        int changed = jdbc.update("UPDATE clinica.usuarios SET ativo = false WHERE id = ? AND dispositivo AND EXISTS "
+            + "(SELECT 1 FROM clinica.vinculos v WHERE v.tenant_id = clinica.usuarios.tenant_id AND v.usuario_id = clinica.usuarios.id AND v.unidade_id = ?)", id, unit);
+        if (changed == 1) jdbc.update("UPDATE clinica.sessoes SET revogada_em = now() WHERE usuario_id = ? AND revogada_em IS NULL", id);
+        return changed == 1;
     }
 
     private static Identity identity(ResultSet rs) throws SQLException {

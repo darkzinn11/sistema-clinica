@@ -118,6 +118,25 @@ prioridade especial para maiores de 80 anos.
 doador), não atributos permanentes: um campo no cadastro envelhece e fica errado. E as demais são **dado de saúde** (LGPD), que não
 precisamos reter para chamar uma senha. O tipo de senha preferencial, que já existe, basta. Se a clínica quiser registrar, decide-se à parte.
 
+### 4b. Totem com CPF na entrada (V27)
+
+Ideia do dono do projeto (20/10/2026): o totem pede o CPF **antes** do objetivo, para a recepção já receber o CPF junto com a senha.
+
+- **Totem:** o paciente digita o CPF de quem será atendido (aviso na tela, porque criança costuma vir com CPF do responsável) ou toca em "Sem CPF". Depois
+  escolhe o objetivo e se é preferencial, e recebe a senha. O totem **só confere os dígitos do CPF**; não consulta o banco e **nunca mostra** nome,
+  se é cadastrado ou se há agendamento. A resposta traz só código, tipo e preferencial.
+- **Credencial do totem:** o Administrador cadastra o totem como **dispositivo** (`POST /dispositivos`, `fila:configurar`). O dispositivo é um usuário sem login
+  (senha inutilizável) com papel `Totem` e a única permissão `totem:usar`, e recebe um token de longa duração (365 dias) mostrado **uma única vez**. Revogar
+  (`DELETE /dispositivos/{id}`) derruba o acesso na hora. O token só alcança `GET /totem/tipos` e `POST /totem/senhas`. Limite: 30 senhas por minuto por totem.
+- **Senha:** guarda `cpf_informado` (11 dígitos), `origem` (`recepcao`/`totem`) e `gerada_por`. O CPF **não** aparece na lista de espera, no painel nem em
+  nenhuma resposta de senha: só em `GET /senhas/{id}/identificacao`.
+- **Recepção:** depois de **chamar** a senha, `GET /senhas/{id}/identificacao` (`fila:chamar` + `pacientes:ler`) devolve a situação (`cadastrado`,
+  `nao_cadastrado` ou `sem_cpf`), o CPF digitado e, se cadastrado, o paciente e os agendamentos de hoje **nesta unidade** (sem valores). A consulta é auditada e
+  entra no limite de volume. Quem decide é a recepção: confirma "é este paciente?" e liga pelo `identificar` de sempre, ou troca o CPF, ou cadastra.
+- **Minimização:** o CPF é apagado da senha quando ela é ligada a um paciente e, nas senhas que nunca foram ligadas, no primeiro uso da fila em dia posterior
+  (limpeza ao gerar senha, sem tarefa agendada). Fica registrado como limite conhecido: sem nenhum uso da fila, o CPF não é limpo.
+- Fora desta fatia: tela do totem (frontend), voz/painel de TV, impressora.
+
 ### 5. Peças seguintes (desenho próprio quando chegar a vez)
 
 - **Paciente no guichê:** CPF e celular obrigatórios (com "sem CPF" marcado de propósito), nascimento, sexo, **número de prontuário

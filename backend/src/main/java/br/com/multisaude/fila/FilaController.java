@@ -97,6 +97,11 @@ public class FilaController {
         return service.registerAndAttach(s, id, x);
     }
 
+    @GetMapping("/senhas/{id}/identificacao") @PreAuthorize("hasAuthority('fila:chamar') and hasAuthority('pacientes:ler')")
+    public Identification identification(@AuthenticationPrincipal Session s, @PathVariable UUID id) {
+        return service.identification(s, id);
+    }
+
     @PostMapping("/senhas/{id}/finalizar") @PreAuthorize("hasAuthority('fila:chamar')")
     public TicketView finish(@AuthenticationPrincipal Session s, @PathVariable UUID id) {
         return service.finish(s, id);

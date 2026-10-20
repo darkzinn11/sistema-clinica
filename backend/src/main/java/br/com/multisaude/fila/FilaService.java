@@ -85,13 +85,69 @@ public class FilaService {
     // ---- operação ----
 
     public TicketView generate(Session s, UUID typeId) {
+        return issue(s, typeId, null, "recepcao");
+    }
+
+    // ---- totem ----
+
+    private static final int TOTEM_TICKETS_PER_MINUTE = 30;
+
+    public List<TotemTypeView> totemTypes(Session s) {
+        return tx.inTenant(s.identity().tenantId(), () -> repo.types().stream().filter(TicketTypeView::ativo)
+            .map(t -> new TotemTypeView(t.id(), t.nome(), t.preferencial())).toList());
+    }
+
+    /** O totem digita o CPF (ou não) e recebe só o código da senha. O CPF só se confere por dígitos: nunca se consulta o cadastro. */
+    public TotemTicketView generateAtTotem(Session s, TotemTicketRequest x) {
+        String cpf = x.cpf() == null ? "" : x.cpf().replaceAll("\\D", "");
+        if (!cpf.isEmpty() && !CpfValidator.isValid(cpf)) throw bad("CPF inválido. Confira os números ou escolha \"Sem CPF\".");
+        return tx.inTenant(s.identity().tenantId(), () -> {
+            if (repo.generatedSince(s.identity().usuarioId(), java.time.Duration.ofMinutes(1)) >= TOTEM_TICKETS_PER_MINUTE) {
+                throw new br.com.multisaude.shared.RateLimitExceededException(60);
+            }
+            TicketView ticket = issueInTenant(s, x.tipoId(), cpf.isEmpty() ? null : cpf, "totem");
+            return new TotemTicketView(ticket.codigo(), ticket.tipoNome(), ticket.preferencial());
+        });
+    }
+
+    private TicketView issue(Session s, UUID typeId, String cpf, String origin) {
+        return tx.inTenant(s.identity().tenantId(), () -> issueInTenant(s, typeId, cpf, origin));
+    }
+
+    private TicketView issueInTenant(Session s, UUID typeId, String cpf, String origin) {
         UUID tenant = s.identity().tenantId();
         UUID unit = s.identity().unidadeId();
+        TicketTypeView type = repo.type(typeId).filter(TicketTypeView::ativo).orElseThrow(() -> bad("Tipo de senha inválido ou inativo."));
+        LocalDate day = today(unit);
+        repo.purgeStaleCpf(unit, day);
+        int number = repo.nextNumber(tenant, unit, type.id(), day);
+        return repo.ticket(repo.insertTicket(tenant, unit, type.id(), day, number, type.prefixo() + number, cpf, origin, s.identity().usuarioId()), unit).orElseThrow();
+    }
+
+    /**
+     * O que a recepção vê depois de chamar a senha: o CPF digitado no totem, se já é paciente e o que tem marcado hoje nesta unidade.
+     * Só vale para senha já chamada (mesma regra de identificar) e conta no limite de volume e na auditoria, como qualquer leitura de paciente.
+     */
+    public Identification identification(Session s, UUID ticketId) {
+        UUID tenant = s.identity().tenantId();
+        UUID unit = s.identity().unidadeId();
+        guard.request(tenant, s.identity().usuarioId(), true);
         return tx.inTenant(tenant, () -> {
-            TicketTypeView type = repo.type(typeId).filter(TicketTypeView::ativo).orElseThrow(() -> bad("Tipo de senha inválido ou inativo."));
-            LocalDate day = today(unit);
-            int number = repo.nextNumber(tenant, unit, type.id(), day);
-            return repo.ticket(repo.insertTicket(tenant, unit, type.id(), day, number, type.prefixo() + number), unit).orElseThrow();
+            TicketView ticket = repo.ticket(ticketId, unit).orElseThrow(() -> notFound("Senha não encontrada."));
+            if (!ACTIVE.contains(ticket.status())) throw conflict("Só se vê a identificação de uma senha já chamada.");
+            String cpf = repo.cpfInformado(ticketId).orElse(null);
+            if (cpf == null) return new Identification(ticket, "sem_cpf", null, null, List.of());
+            PatientView patient = patients.findByCpf(cpf).orElse(null);
+            if (patient == null) return new Identification(ticket, "nao_cadastrado", cpf, null, List.of());
+            guard.records(tenant, s.identity().usuarioId(), true, 1);
+            audit.patients(tenant, s.identity().usuarioId(), List.of(patient.id()), "ver_paciente");
+            List<AppointmentToday> today = List.of();
+            if (s.identity().permissoes().contains("agenda:ler")) {
+                java.time.ZoneId zone = schedule.unitZone(unit);
+                java.time.LocalDate day = LocalDate.now(zone);
+                today = repo.appointmentsToday(patient.id(), unit, day.atStartOfDay(zone).toOffsetDateTime(), day.plusDays(1).atStartOfDay(zone).toOffsetDateTime());
+            }
+            return new Identification(ticket, "cadastrado", cpf, patient, today);
         });
     }
 

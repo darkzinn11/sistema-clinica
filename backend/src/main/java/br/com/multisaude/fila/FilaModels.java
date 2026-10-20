@@ -23,6 +23,13 @@ public final class FilaModels {
     public record CounterView(UUID id, String nome, boolean ativo, List<CounterTypeView> tipos) {}
 
     public record GenerateTicketRequest(@NotNull UUID tipoId) {}
+
+    // Totem: o CPF é opcional ("Sem CPF"). A resposta não devolve nada além do que o paciente precisa ver na senha.
+    public record TotemTicketRequest(@NotNull UUID tipoId, @Size(max = 20) String cpf) {
+        @Override public String toString() { return "TotemTicketRequest[tipoId=" + tipoId + "]"; }
+    }
+    public record TotemTypeView(UUID id, String nome, boolean preferencial) {}
+    public record TotemTicketView(String codigo, String tipoNome, boolean preferencial) {}
     public record CallRequest(@NotNull UUID guicheId) {}
     public record IdentifyRequest(@NotBlank String cpf) {}
     public record CancelTicketRequest(@NotBlank @Size(max = 200) String motivo) {}
@@ -33,5 +40,10 @@ public final class FilaModels {
 
     // Resposta de identificar/cadastrar: único ponto da fila que devolve dado de paciente, e é registrado na auditoria.
     public record IdentifiedTicket(TicketView senha, PatientView paciente) {}
+    public record AppointmentToday(UUID id, OffsetDateTime inicio, OffsetDateTime fim, String profissional, String procedimento, String status) {}
+
+    // situacao: cadastrado | nao_cadastrado | sem_cpf. O CPF é o digitado no totem, que pode ser o do responsável.
+    // agendamentosHoje só vem para quem também lê agenda; nunca traz valores.
+    public record Identification(TicketView senha, String situacao, String cpfInformado, PatientView paciente, List<AppointmentToday> agendamentosHoje) {}
     public record QueueView(List<TicketView> aguardando, int total, List<TicketView> ultimasChamadas) {}
 }

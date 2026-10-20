@@ -30,4 +30,11 @@ public final class IdentityModels {
     public record UserView(UUID id, String nome, String email, boolean ativo) {}
     public record RoleView(UUID id, String nome, List<String> permissoes) {}
     public record UnitView(UUID id, String nome) {}
+
+    // Dispositivo (ex.: totem): usuário sem login, com token de longa duração mostrado uma única vez.
+    public record CreateDeviceRequest(@NotBlank @Size(max = 60) String nome) {}
+    public record DeviceView(UUID id, String nome, boolean ativo) {}
+    public record DeviceCreated(DeviceView dispositivo, String token, Instant expiraEm) {
+        @Override public String toString() { return "DeviceCreated[token omitido]"; }
+    }
 }

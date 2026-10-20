@@ -91,10 +91,35 @@ public class FilaRepository {
             Integer.class, tenant, unit, type, day);
     }
 
-    public UUID insertTicket(UUID tenant, UUID unit, UUID type, LocalDate day, int number, String code) {
+    public UUID insertTicket(UUID tenant, UUID unit, UUID type, LocalDate day, int number, String code, String cpf, String origin, UUID generatedBy) {
         UUID id = UUID.randomUUID();
-        jdbc.update("INSERT INTO clinica.senhas(id, tenant_id, unidade_id, tipo_id, dia, numero, codigo) VALUES (?, ?, ?, ?, ?, ?, ?)", id, tenant, unit, type, day, number, code);
+        jdbc.update("INSERT INTO clinica.senhas(id, tenant_id, unidade_id, tipo_id, dia, numero, codigo, cpf_informado, origem, gerada_por) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            id, tenant, unit, type, day, number, code, cpf, origin, generatedBy);
         return id;
+    }
+
+    public int generatedSince(UUID device, java.time.Duration window) {
+        return jdbc.queryForObject("SELECT count(*) FROM clinica.senhas WHERE gerada_por = ? AND criada_em > clock_timestamp() - make_interval(secs => ?)",
+            Integer.class, device, (double) window.toSeconds());
+    }
+
+    /** O CPF digitado no totem só vale no dia: o que sobrou de senha que nunca virou atendimento é apagado. */
+    public void purgeStaleCpf(UUID unit, LocalDate today) {
+        jdbc.update("UPDATE clinica.senhas SET cpf_informado = NULL WHERE unidade_id = ? AND dia < ? AND cpf_informado IS NOT NULL AND paciente_id IS NULL", unit, today);
+    }
+
+    public Optional<String> cpfInformado(UUID ticket) {
+        return jdbc.queryForList("SELECT cpf_informado FROM clinica.senhas WHERE id = ? AND cpf_informado IS NOT NULL", String.class, ticket).stream().findFirst();
+    }
+
+    public List<AppointmentToday> appointmentsToday(UUID patient, UUID unit, java.time.OffsetDateTime from, java.time.OffsetDateTime to) {
+        return jdbc.query("SELECT a.id, lower(a.periodo) inicio, upper(a.periodo) fim, p.nome profissional, pr.nome procedimento, a.status FROM clinica.agendamentos a "
+            + "JOIN clinica.profissionais p ON p.tenant_id = a.tenant_id AND p.id = a.profissional_id "
+            + "JOIN clinica.procedimentos pr ON pr.tenant_id = a.tenant_id AND pr.id = a.procedimento_id "
+            + "WHERE a.paciente_id = ? AND a.unidade_id = ? AND a.periodo && tstzrange(?, ?, '[)') AND a.status NOT IN ('cancelado', 'nao_compareceu', 'remarcado') ORDER BY lower(a.periodo)",
+            (r, n) -> new AppointmentToday(r.getObject("id", UUID.class), r.getObject("inicio", OffsetDateTime.class), r.getObject("fim", OffsetDateTime.class),
+                r.getString("profissional"), r.getString("procedimento"), r.getString("status")),
+            patient, unit, java.sql.Timestamp.from(from.toInstant()), java.sql.Timestamp.from(to.toInstant()));
     }
 
     public Optional<TicketView> ticket(UUID id, UUID unit) {
@@ -148,7 +173,7 @@ public class FilaRepository {
     }
 
     public void attachPatient(UUID id, UUID patient) {
-        jdbc.update("UPDATE clinica.senhas SET status = 'em_atendimento', paciente_id = ?, identificada_em = clock_timestamp() WHERE id = ?", patient, id);
+        jdbc.update("UPDATE clinica.senhas SET status = 'em_atendimento', paciente_id = ?, cpf_informado = NULL, identificada_em = clock_timestamp() WHERE id = ?", patient, id);
     }
 
     public void close(UUID id, String status) {
