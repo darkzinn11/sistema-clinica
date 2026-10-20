@@ -411,6 +411,22 @@ descrição e código TUSS para o cadastro da própria clínica; preço e tempo 
   escrito da ANS resolve; trocar a lista é só gerar outra migração.
 - Atualizar a lista: `python3 -I scripts/gerar_catalogo_ans.py procedimentos --saida <migração>` e aplicar (atualiza por código TUSS).
 
+## Profissionais: cadastro completo e procedimentos habilitados (V26)
+
+- **Cadastro:** nome, nome social, CPF (validado, único por clínica), nascimento, sexo, conselho/UF/número (único por clínica), RQE, CBO, telefones,
+  e-mail, cor da agenda (`#RRGGBB`), **mensagem da agenda** (aviso à recepção; é onde fica o limite de idade informado pelo médico, **sem validação**),
+  observações internas, oculto na agenda, ativo e usuário ligado (um usuário por profissional). Nunca se apaga: desativa-se (não cancela agendamentos futuros).
+- **Especialidades:** a lista da clínica, com exatamente uma **principal** (a informada ou a primeira). O banco garante uma principal por profissional.
+- **API:** `GET/POST /profissionais`, `GET/PUT /profissionais/{id}`. A lista aceita `busca` (sem acento, todas as palavras), `especialidadeId`, `ativo`, `letra`,
+  `naAgenda`, `pagina`/`tamanho` e devolve `X-Total-Count`. `PUT` substitui os campos (campo omitido limpa), exceto `ativo` omitido, que mantém.
+- **Dado de RH:** CPF, nascimento e observações só aparecem para quem tem `profissionais:editar`; a recepção lê o resto.
+- **A lista manda:** `GET/PUT /profissionais/{id}/procedimentos`. Sem o procedimento habilitado, a reserva e a consulta de horários livres são recusadas (422
+  "Este profissional não realiza este procedimento."). O `PUT` substitui a lista; itens novos precisam existir e estar ativos; os já habilitados e depois
+  desativados podem ficar (voltam com `ativo=false`). Remarcar **não** reavalia a lista.
+- **Copiar grade:** `POST /grades/copiar` (`agenda:configurar`) copia todas as grades ativas da origem para o destino, na unidade da sessão. Tudo ou nada: se o
+  destino já tem grade sobreposta, nada é copiado (409 listando os horários). Bloqueios não são copiados.
+- Permissões: Administrador ganha `profissionais:editar`. Médico não vê o cadastro de colegas.
+
 ### CORS e navegador
 
 O CORS liberava só `GET`, `POST` e `OPTIONS`: qualquer `PUT` ou `DELETE` feito pelo navegador seria bloqueado (editar paciente, desativar grade, editar

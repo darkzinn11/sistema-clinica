@@ -184,6 +184,7 @@ class AgendaIntegrationTest extends AgendaTestBase {
         // Procedimento de 60 min = dois blocos de 30: remarcar um bloco adiante sobrepõe o próprio horário.
         UUID longProcedure = UUID.randomUUID();
         transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Consulta longa', 60)", longProcedure, tenant));
+        enableProcedure(professional, longProcedure);
         JsonNode original = created(book(token, unit, professional, patient, longProcedure, start, start.plusMinutes(60)));
         OffsetDateTime newStart = start.plusMinutes(30);
         JsonNode moved = created(mvc.perform(post("/api/v1/agendamentos/" + id(original) + "/remarcar").header("Authorization", "Bearer " + token)

@@ -89,7 +89,7 @@ e remarcar, fila de senhas e guichês, prontuário, auditoria. `profissionais` t
 - Permissões novas: `procedimentos:ler`, `procedimentos:criar`, `procedimentos:editar`. Separam o cadastro da permissão de agendar
   (hoje `agenda:criar` serve aos dois, e a recepção cria procedimento com preço sem querer).
 
-### 3. Profissionais completos e procedimentos habilitados (V23)
+### 3. Profissionais completos e procedimentos habilitados (V26) — implementado
 
 - Campos novos em `profissionais`: `nome_social`, `cpf` (opcional, validado, único por clínica), `nascimento`, `sexo`, `rqe`,
   `telefone`, `celular`, `email`, `cor_agenda` (`#RRGGBB`), `mensagem_agenda` (texto à recepção ao agendar com este profissional;

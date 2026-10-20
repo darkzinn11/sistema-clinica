@@ -259,13 +259,16 @@ class ScheduleIntegrationTest extends AgendaTestBase {
         // Procedimento sem tempo medido (nulo) ocupa um bloco: 6 horários de 20 min entre 08:00 e 10:00.
         UUID unmeasured = UUID.randomUUID();
         transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Sem tempo medido', NULL)", unmeasured, tenant));
+        enableProcedure(fresh, unmeasured);
         availability(token, fresh, unmeasured, day, day).andExpect(jsonPath("$.length()").value(6))
             .andExpect(jsonPath("$[1].inicio").value(Matchers.containsString("T08:20"))).andExpect(jsonPath("$[5].fim").value(Matchers.containsString("T10:00")));
         // O procedimento padrão da fixture (30 min) num bloco de 20 também ocupa dois blocos: 5 horários.
+        enableProcedure(fresh, procedure);
         availability(token, fresh, procedure, day, day).andExpect(jsonPath("$.length()").value(5));
         // Com tempo medido de 40 min são dois blocos seguidos: início de 20 em 20 min, até 09:20 (termina às 10:00).
         UUID measured = UUID.randomUUID();
         transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Exame de 40 min', 40)", measured, tenant));
+        enableProcedure(fresh, measured);
         availability(token, fresh, measured, day, day).andExpect(jsonPath("$.length()").value(5))
             .andExpect(jsonPath("$[4].inicio").value(Matchers.containsString("T09:20"))).andExpect(jsonPath("$[4].fim").value(Matchers.containsString("T10:00")));
     }
@@ -276,6 +279,7 @@ class ScheduleIntegrationTest extends AgendaTestBase {
         UUID fresh = freshProfessional();
         createGrade(token, fresh, (weekday() + 1) % 7, "08:00", "12:00", null, null, null).andExpect(status().isCreated());
         String day = start.toLocalDate().toString();
+        enableProcedure(fresh, procedure);
         availability(token, fresh, procedure, day, day).andExpect(jsonPath("$.length()").value(0));
     }
 

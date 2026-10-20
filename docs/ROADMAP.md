@@ -33,8 +33,9 @@ Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrá
 - Monólito modular, sem microserviços. Sem deploy em produção por enquanto.
 
 ## Estado atual (base)
-Pronto: identidade/sessões/permissões, pacientes (CRUD), profissionais (criar/listar),
-procedimentos (criar/listar), agendamento (criar/listar, com conflito por profissional).
+Pronto: identidade/sessões/permissões, pacientes (CRUD), profissionais completos (cadastro, especialidade principal,
+procedimentos habilitados, cópia de grade), procedimentos e especialidades com catálogo ANS, fila de senhas, prontuário,
+agendamento (com conflito por profissional e lista de procedimentos habilitados).
 Sem API: grades, salas, convênios, check-in, prontuário, financeiro, estoque.
 Papéis existentes: Administrador, Recepção (sem permissões de negócio).
 

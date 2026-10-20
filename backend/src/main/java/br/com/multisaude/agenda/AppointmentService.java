@@ -54,6 +54,9 @@ public class AppointmentService {
                 if (!repo.referencesAreValid(x.unidadeId(), x.profissionalId(), x.pacienteId(), x.procedimentoId())) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Paciente, profissional, procedimento ou unidade inválidos.");
                 }
+                if (!professionals.isEnabled(x.profissionalId(), x.procedimentoId())) {
+                    throw unprocessable("Este profissional não realiza este procedimento.");
+                }
                 OffsetDateTime end = requireFreeSlot(x.unidadeId(), x.profissionalId(), x.procedimentoId(), x.inicio(), x.fim(), null);
                 AppointmentView created = repo.createAppointment(new CreateAppointmentRequest(x.unidadeId(), x.profissionalId(), x.pacienteId(),
                     x.procedimentoId(), x.inicio(), end, x.observacao(), x.canal()), s.identity().tenantId(), s.identity().usuarioId(), null);

@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import br.com.multisaude.identidade.IdentityModels.Session;
+import br.com.multisaude.profissionais.ProfessionalRepository;
 import br.com.multisaude.shared.TenantTransactions;
 import static br.com.multisaude.agenda.ScheduleModels.*;
 
@@ -24,11 +25,40 @@ public class ScheduleService {
     private final ScheduleRepository repo;
     private final TenantTransactions tx;
     private final AgendaAccess access;
+    private final ProfessionalRepository professionals;
 
-    public ScheduleService(ScheduleRepository repo, TenantTransactions tx, AgendaAccess access) {
+    public ScheduleService(ScheduleRepository repo, TenantTransactions tx, AgendaAccess access, ProfessionalRepository professionals) {
         this.repo = repo;
         this.tx = tx;
         this.access = access;
+        this.professionals = professionals;
+    }
+
+    private static final String[] WEEKDAYS = {"domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"};
+
+    /**
+     * Copia as grades ativas de um profissional (na unidade da sessão) para outro. Tudo ou nada: se alguma conflitar com a grade
+     * que o destino já tem, nada é copiado e a resposta lista os conflitos. Bloqueios não são copiados.
+     */
+    public List<GradeView> copyGrades(Session s, CopyGradesRequest x) {
+        if (x.origemProfissionalId().equals(x.destinoProfissionalId())) throw bad("Origem e destino devem ser profissionais diferentes.");
+        UUID unit = s.identity().unidadeId();
+        UUID tenant = s.identity().tenantId();
+        return tx.inTenant(tenant, () -> {
+            if (!repo.professionalServesUnit(x.origemProfissionalId(), unit) || !repo.professionalServesUnit(x.destinoProfissionalId(), unit)) {
+                throw bad("Profissional inválido, inativo ou que não atende nesta unidade.");
+            }
+            List<GradeView> source = repo.grades(unit, x.origemProfissionalId());
+            if (source.isEmpty()) throw bad("O profissional de origem não tem grade ativa nesta unidade.");
+            List<String> conflicts = source.stream()
+                .filter(g -> repo.gradeOverlaps(x.destinoProfissionalId(), g.diaSemana(), g.inicio(), g.fim(), g.vigenciaInicio(), g.vigenciaFim()))
+                .map(g -> WEEKDAYS[g.diaSemana()] + " " + g.inicio() + "-" + g.fim()).toList();
+            if (!conflicts.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "O destino já tem grade nestes horários: " + String.join(", ", conflicts) + ". Nada foi copiado.");
+            }
+            return source.stream().map(g -> repo.createGrade(tenant, unit, new CreateGradeRequest(x.destinoProfissionalId(), g.diaSemana(), g.inicio(), g.fim(),
+                g.duracaoBlocoMin(), g.vigenciaInicio(), g.vigenciaFim()), g.vigenciaInicio())).toList();
+        });
     }
 
     public GradeView createGrade(Session s, CreateGradeRequest x) {
@@ -117,6 +147,10 @@ public class ScheduleService {
             access.scope(s).requireCanSee(professional);
             ScheduleRepository.ProcedureTime procedureTime = repo.procedureTime(procedure).orElseThrow(() -> bad("Procedimento inválido."));
             if (!repo.professionalServesUnit(professional, unit)) throw bad("Profissional inválido ou não atende nesta unidade.");
+            // Os horários oferecidos precisam ser os que a reserva aceita: sem o procedimento na lista dele, não há o que oferecer.
+            if (!professionals.isEnabled(professional, procedure)) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Este profissional não realiza este procedimento.");
+            }
             ZoneId zone = repo.unitZone(unit);
             OffsetDateTime rangeStart = from.atStartOfDay(zone).toOffsetDateTime();
             OffsetDateTime rangeEnd = to.plusDays(1).atStartOfDay(zone).toOffsetDateTime();

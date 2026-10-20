@@ -39,6 +39,7 @@ class AgendaPrivacyIntegrationTest extends AgendaTestBase {
             jdbc.update("UPDATE clinica.profissionais SET usuario_id = ? WHERE id = ?", doctorUser, professional);
             insertProfessional(colleague, tenant, "Dr. Colega", "7777", unit);
             jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min) SELECT ?, ?, ?, d, '08:00', '12:00', 30 FROM generate_series(0, 6) d", tenant, colleague, unit);
+            jdbc.update("INSERT INTO clinica.profissional_procedimentos (tenant_id, profissional_id, procedimento_id) VALUES (?, ?, ?)", tenant, colleague, procedure);
             return null;
         });
         ownAppointment = insertAppointmentFor(tenant, unit, professional, patient, procedure, "agendado", start, start.plusMinutes(30));

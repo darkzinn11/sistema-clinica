@@ -71,6 +71,8 @@ abstract class AgendaTestBase {
             // Sem vigencia: usa o DEFAULT da coluna, que a V12 corrigiu.
             jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min) SELECT ?, ?, ?, d, '06:00', '20:00', 30 FROM generate_series(0, 6) d", tenant, professional, unit);
             jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Consulta teste', 30)", procedure, tenant);
+            // A lista manda: o profissional só recebe agendamento do que está habilitado para ele.
+            jdbc.update("INSERT INTO clinica.profissional_procedimentos (tenant_id, profissional_id, procedimento_id) VALUES (?, ?, ?)", tenant, professional, procedure);
             return null;
         });
         transactions.inTenant(otherTenant, () -> {
@@ -81,6 +83,12 @@ abstract class AgendaTestBase {
             jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Consulta outra', 30)", otherProcedure, otherTenant);
             return null;
         });
+    }
+
+    /** Habilita o procedimento para o profissional (sem isso a reserva é recusada). */
+    protected void enableProcedure(UUID professionalId, UUID procedureId) {
+        transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.profissional_procedimentos (tenant_id, profissional_id, procedimento_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+            tenant, professionalId, procedureId));
     }
 
     protected void insertProfessional(UUID id, UUID owner, String name, String councilNumber, UUID linkedUnit) {

@@ -49,6 +49,7 @@ class BlocosDeHorarioIntegrationTest extends AgendaTestBase {
             .content(json.writeValueAsString(Map.of("nome", "Sem tempo medido", "tipo", "consulta", "duracaoMin", 0))))
             .andExpect(status().isCreated()).andExpect(jsonPath("duracaoMin").value(Matchers.nullValue()));
         UUID unmeasured = UUID.fromString(jdbc.queryForObject("SELECT id::text FROM clinica.procedimentos WHERE nome = 'Sem tempo medido'", String.class));
+        enableProcedure(professional, unmeasured);
         JsonNode booked = created(bookAt(token, professional, unmeasured, start, null).andExpect(status().isCreated()));
         assertEquals(start.plusMinutes(30).toInstant(), OffsetDateTime.parse(booked.get("fim").asString()).toInstant());
     }
@@ -81,6 +82,7 @@ class BlocosDeHorarioIntegrationTest extends AgendaTestBase {
         String token = login();
         UUID fresh = freshProfessional();
         UUID oneBlock = procedureWithMinutes(null);
+        enableProcedure(fresh, oneBlock);
         createGrade(token, fresh, "14:30", "17:00", 15).andExpect(status().isCreated());
         bookAt(token, fresh, oneBlock, at(14, 45), null).andExpect(status().isCreated());
         bookAt(token, fresh, oneBlock, at(14, 40), null).andExpect(status().isUnprocessableEntity());
@@ -118,6 +120,7 @@ class BlocosDeHorarioIntegrationTest extends AgendaTestBase {
         String token = login();
         UUID fresh = freshProfessional();
         UUID oneBlock = procedureWithMinutes(null);
+        enableProcedure(fresh, oneBlock);
         createGrade(token, fresh, "09:00", "12:00", 20).andExpect(status().isCreated()); // 9 horários
         createGrade(token, fresh, "14:30", "17:00", 15).andExpect(status().isCreated()); // 10 horários
         String day = start.toLocalDate().toString();
@@ -208,6 +211,7 @@ class BlocosDeHorarioIntegrationTest extends AgendaTestBase {
     private UUID procedureWithMinutes(String name, Integer minutes) {
         UUID id = UUID.randomUUID();
         transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, ?, ?)", id, tenant, name, minutes));
+        enableProcedure(professional, id);
         return id;
     }
 }

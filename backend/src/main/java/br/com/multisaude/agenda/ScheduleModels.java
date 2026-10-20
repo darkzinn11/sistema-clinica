@@ -25,4 +25,6 @@ public final class ScheduleModels {
     public record BlockView(UUID id, UUID unidadeId, UUID profissionalId, OffsetDateTime inicio, OffsetDateTime fim, String motivo) {}
 
     public record SlotView(OffsetDateTime inicio, OffsetDateTime fim) {}
+
+    public record CopyGradesRequest(@NotNull UUID origemProfissionalId, @NotNull UUID destinoProfissionalId) {}
 }

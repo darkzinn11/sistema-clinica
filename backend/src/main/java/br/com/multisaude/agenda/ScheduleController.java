@@ -31,6 +31,11 @@ public class ScheduleController {
         return schedule.createGrade(s, x);
     }
 
+    @PostMapping("/grades/copiar") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('agenda:configurar')")
+    public List<GradeView> copyGrades(@AuthenticationPrincipal Session s, @Valid @RequestBody CopyGradesRequest x) {
+        return schedule.copyGrades(s, x);
+    }
+
     @DeleteMapping("/grades/{id}") @ResponseStatus(HttpStatus.NO_CONTENT) @PreAuthorize("hasAuthority('agenda:configurar')")
     public void deactivateGrade(@AuthenticationPrincipal Session s, @PathVariable UUID id) {
         schedule.deactivateGrade(s, id);
