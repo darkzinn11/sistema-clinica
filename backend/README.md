@@ -379,6 +379,43 @@ código e CBOS) ou cria manualmente, e desativa o que não deve aparecer. Nome �
   como argumentos soltos). Corrigido na V21 e agora coberto por teste.
 - O Administrador recebe `especialidades:ler/criar/editar`; a Recepção, `especialidades:ler`. O Médico não vê o cadastro.
 
+## Procedimentos: catálogo oficial e cadastro da clínica
+
+Duas formas de cadastrar, como a clínica pediu: **à mão** ou **escolhendo das sugestões**. As sugestões são a Tabela 22 da TUSS da ANS
+(5.967 procedimentos vigentes, versão 202607, `catalogo_procedimentos`, somente leitura para a aplicação). Adicionar uma sugestão copia
+descrição e código TUSS para o cadastro da própria clínica; preço e tempo ficam em branco para ela preencher. Cada clínica só vê o que é seu.
+
+| Método | Rota | Permissão |
+| --- | --- | --- |
+| GET | `/api/v1/procedimentos?busca=&tipo=&ativo=&letra=&pagina=&tamanho=` e `/{id}` | `procedimentos:ler`, `agenda:ler` ou `agenda:ler_proprios` |
+| POST | `/api/v1/procedimentos` (`catalogoId` ou cadastro manual) | `procedimentos:criar` |
+| PUT | `/api/v1/procedimentos/{id}` (inclui `ativo`) | `procedimentos:editar` |
+| GET | `/api/v1/procedimentos/{id}/historico` | `procedimentos:editar` |
+| GET | `/api/v1/catalogo/procedimentos?busca=&naoAdicionados=&pagina=&tamanho=` | `procedimentos:criar` |
+
+- A lista devolve o total no cabeçalho `X-Total-Count`. Sem `ativo`, vêm todos (ativos e inativos); as telas de agenda devem passar `ativo=true`.
+- **Busca sem acento e sem diferenciar maiúsculas (V25):** "biopsia" acha "Biópsia"; todas as palavras precisam aparecer (nome, sigla ou código).
+- **Tipo fechado:** `consulta`, `exame` ou `procedimento` (o texto livre antigo foi mapeado; o que não era consulta nem exame virou procedimento).
+- **Tempo opcional:** vazio ou `0` = ainda não medido (nulo); de 1 a 4 minutos é recusado (ver grade em blocos).
+- **Campos:** nome (único na clínica, sem diferenciar caixa), código TUSS, sigla, tempo, valor, dias para retorno, **aviso ao agendar** (mostrado à
+  recepção), **preparo** (instrução ao paciente) e observações internas. Nunca se apaga: desativa-se. Procedimento inativo não é agendável.
+- **Preço:** só vê e só altera quem tem `agenda:ver_valores`. Quem edita sem essa permissão mantém o preço atual, mesmo que o corpo traga outro valor.
+- **Histórico (somente inserção, o banco recusa alteração e exclusão):** registra valor, tempo, tipo e situação (quem, quando, de, para). As linhas de
+  `valor` só aparecem para quem tem `agenda:ver_valores`.
+- Permissões: Administrador `procedimentos:ler/criar/editar`; Recepção `procedimentos:ler`. Criar procedimento deixou de depender de `agenda:criar`.
+  O Médico continua lendo o catálogo, sem preço.
+- **Atribuição da fonte** (o frontend deve exibir junto das sugestões): *Terminologia Unificada da Saúde Suplementar (TUSS), Tabela 22, versão 202607.
+  Fonte: Agência Nacional de Saúde Suplementar (ANS).* Copiamos só código e termo, sem alterar. **Não importamos as colunas de CBHPM nem de AMB-92.**
+- **Risco de licença aceito pelo dono do projeto (20/10/2026):** o site da ANS publica o conteúdo sob Creative Commons Atribuição-SemDerivações 3.0 (CC BY-ND) e a
+  Tabela 22 se baseia na CBHPM (AMB). Não encontramos aviso de direitos específico da TUSS e nenhum jurista revisou. Se for preciso, uma confirmação por
+  escrito da ANS resolve; trocar a lista é só gerar outra migração.
+- Atualizar a lista: `python3 -I scripts/gerar_catalogo_ans.py procedimentos --saida <migração>` e aplicar (atualiza por código TUSS).
+
+### CORS e navegador
+
+O CORS liberava só `GET`, `POST` e `OPTIONS`: qualquer `PUT` ou `DELETE` feito pelo navegador seria bloqueado (editar paciente, desativar grade, editar
+guichê, editar procedimento). Agora libera `PUT` e `DELETE` e expõe `X-Total-Count` e `Retry-After` ao JavaScript. Continua só a origem `APP_CORS_ORIGIN`.
+
 ### Lacunas conhecidas (ainda não tratadas)
 
 - **Sem assinatura digital.** O CFM exige ICP-Brasil para documento médico eletrônico. O hash só detecta adulteração.

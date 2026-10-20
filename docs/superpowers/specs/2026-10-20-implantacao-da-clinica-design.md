@@ -72,16 +72,16 @@ e remarcar, fila de senhas e guichês, prontuário, auditoria. `profissionais` t
 
 - Nova **`catalogo_procedimentos`** (global, somente leitura): `descricao`, `codigo_tuss`. Base: **Tabela 22 da TUSS da ANS**
   (5.967 termos vigentes na versão 202607, já validados). O mesmo script gera a migração. **Sem CBHPM nem AMB-92.**
-  **Pendente de decisão do responsável:** o site da ANS publica o conteúdo sob Creative Commons Atribuição-SemDerivações 3.0
-  (CC BY-ND) e a Tabela 22 se baseia na CBHPM (AMB). Não achei aviso de direitos específico da TUSS. Copiar só código e termo, sem
-  alterar e com atribuição, é compatível com a letra da licença, mas não sou advogado: aplicar só depois de confirmação.
+  **Decidido pelo dono em 20/10/2026: usar a lista oficial.** O site da ANS publica o conteúdo sob Creative Commons
+  Atribuição-SemDerivações 3.0 (CC BY-ND) e a Tabela 22 se baseia na CBHPM (AMB). Não achei aviso de direitos específico da TUSS. Copiamos só
+  código e termo, sem alterar e com atribuição (compatível com a letra da licença); nenhum jurista revisou, e o risco foi aceito.
 - Campos novos em `procedimentos`, além dos atuais: `sigla`, `dias_retorno` (inteiro, nulo = sem regra), `aviso_agendamento` (texto
   mostrado à recepção ao agendar), `preparo` (instrução ao paciente), `observacoes` (internas), `catalogo_id` (opcional),
   `atualizado_em`, `atualizado_por`.
 - `tipo` passa a ser fechado: `consulta`, `exame`, `procedimento`. O texto livre atual é normalizado e mapeado; qualquer outro valor
   vira `procedimento`. A migração nunca aborta por isso.
 - Regras: nome único por clínica; tempo vazio/0 = não medido (V20); valor em centavos, nulo = sem preço definido.
-- **Histórico de alterações** (`alteracoes_cadastro`, somente inserção, com gatilho de imutabilidade como na V17): registra `valor`,
+- **Histórico de alterações** (`procedimento_historico`, somente inserção, com gatilho de imutabilidade como na V17): registra `valor`,
   `tempo`, `ativo` e `tipo` (entidade, id, campo, de, para, usuário, quando). Linhas de `valor` só aparecem com `agenda:ver_valores`.
 - API: `GET /catalogo/procedimentos?busca&naoAdicionados` (sugestões, paginado), `POST /procedimentos` aceita `catalogoId` (copia
   descrição e TUSS; preço e tempo ficam em branco) ou cadastro manual, `GET /procedimentos` ganha `busca`, `tipo`, `ativo`, `letra` e
@@ -148,7 +148,7 @@ precisamos reter para chamar uma senha. O tipo de senha preferencial, que já ex
 
 ## Perguntas ainda abertas
 
-1. **Tipos de procedimento:** consulta, exame e procedimento bastam? (O Feegow tem um campo "Tipo"; não vimos as opções.)
+1. **Tipos de procedimento:** assumimos consulta, exame e procedimento (o Feegow tem um campo "Tipo" e não vimos as opções). Fácil de ampliar.
 2. **Quem adiciona do catálogo e quem cria manualmente:** só o Administrador? (Assumo que sim.)
 
 ## Como fica pronto

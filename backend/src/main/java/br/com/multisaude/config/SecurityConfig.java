@@ -29,7 +29,8 @@ public class SecurityConfig {
         @Value("${app.cors-origin:http://localhost:5173}") String corsOrigin) throws Exception {
         var cors = new CorsConfiguration();
         cors.setAllowedOrigins(List.of(corsOrigin));
-        cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cors.setExposedHeaders(List.of("X-Total-Count", "Retry-After"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", cors);
@@ -58,8 +59,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/catalogo/especialidades").hasAuthority("especialidades:criar")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/especialidades/*").hasAuthority("especialidades:editar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/profissionais").hasAuthority("profissionais:criar")
-                .requestMatchers(HttpMethod.GET, "/api/v1/procedimentos", "/api/v1/agendamentos").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
-                .requestMatchers(HttpMethod.POST, "/api/v1/procedimentos", "/api/v1/agendamentos").hasAuthority("agenda:criar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/procedimentos", "/api/v1/procedimentos/*").hasAnyAuthority("procedimentos:ler", "agenda:ler", "agenda:ler_proprios")
+                .requestMatchers(HttpMethod.GET, "/api/v1/agendamentos").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
+                .requestMatchers(HttpMethod.POST, "/api/v1/procedimentos").hasAuthority("procedimentos:criar")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/procedimentos/*").hasAuthority("procedimentos:editar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/procedimentos/*/historico").hasAuthority("procedimentos:editar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/catalogo/procedimentos").hasAuthority("procedimentos:criar")
+                .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos").hasAuthority("agenda:criar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/agendamento-motivos", "/api/v1/agendamentos/*/historico").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/status").hasAnyAuthority("agenda:editar", "agenda:atender")
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/remarcar").hasAuthority("agenda:remarcar")

@@ -65,6 +65,8 @@ class EspecialidadeIntegrationTest extends AgendaTestBase {
         mvc.perform(put("/api/v1/especialidades/" + id(derm)).header("Authorization", "Bearer " + admin).contentType("application/json")
             .content(json.writeValueAsString(Map.of("nome", "Dermatologia", "ativo", false)))).andExpect(status().isOk());
         list(admin, "busca", "cardio").andExpect(jsonPath("$.length()").value(1));
+        list(admin, "busca", "CIRÚRGIA").andExpect(jsonPath("$.length()").value(1));   // acento e caixa não importam
+        list(admin, "busca", "cirurgia").andExpect(jsonPath("$.length()").value(1));
         list(admin, "letra", "c").andExpect(jsonPath("$.length()").value(2));
         list(admin, "letra", "D").andExpect(jsonPath("$.length()").value(1));
         list(admin, "ativo", "false").andExpect(jsonPath("$[0].nome").value("Dermatologia"));
@@ -83,6 +85,12 @@ class EspecialidadeIntegrationTest extends AgendaTestBase {
         assertEquals(catalog.get(0).get("nome").asString(), added.get("nome").asString());
         mvc.perform(get("/api/v1/catalogo/especialidades").header("Authorization", "Bearer " + admin).param("busca", "cardio")).andExpect(jsonPath("$[0].jaAdicionada").value(true));
         create(Map.of("catalogoId", cardiology)).andExpect(status().isConflict());
+    }
+
+    @Test
+    void theCatalogSearchIgnoresAccents() throws Exception {
+        mvc.perform(get("/api/v1/catalogo/especialidades").header("Authorization", "Bearer " + admin).param("busca", "medico cardiologista")).andExpect(jsonPath("$[0].cbos").value("225120"));
+        mvc.perform(get("/api/v1/catalogo/especialidades").header("Authorization", "Bearer " + admin).param("busca", "MÉDICO CARDIOLOGISTA")).andExpect(jsonPath("$[0].cbos").value("225120"));
     }
 
     @Test

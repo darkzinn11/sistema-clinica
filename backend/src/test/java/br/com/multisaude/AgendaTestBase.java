@@ -60,7 +60,7 @@ abstract class AgendaTestBase {
             jdbc.update("INSERT INTO clinica.tenants (id, nome) VALUES (?, 'Teste agenda')", tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, 'Unidade A')", unit, tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, 'Unidade B')", otherUnit, tenant);
-            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Agenda teste', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:atender','agenda:configurar','agenda:ver_valores','auditoria:ler','prontuario:compartilhar'])", role, tenant);
+            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Agenda teste', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:atender','agenda:configurar','agenda:ver_valores','auditoria:ler','prontuario:compartilhar','procedimentos:ler','procedimentos:criar','procedimentos:editar'])", role, tenant);
             jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash) VALUES (?, ?, 'Usuário teste', ?, ?)", user, tenant, email, "$2a$12$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv");
             jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, user, unit, role);
             jdbc.update("INSERT INTO clinica.pacientes (id, tenant_id, nome) VALUES (?, ?, 'Paciente Ficticio')", patient, tenant);

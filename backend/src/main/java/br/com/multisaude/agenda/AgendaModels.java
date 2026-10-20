@@ -3,10 +3,6 @@ package br.com.multisaude.agenda;
 import java.time.*; import java.util.UUID; import jakarta.validation.constraints.*;
 
 public final class AgendaModels { private AgendaModels() {}
- public record CreateProcedureRequest(@NotBlank @Size(max=160) String nome,@Size(max=40) String codigoTuss,
-   @NotBlank @Size(max=40) String tipo,// duracaoMin vazio ou 0 = ainda não medido: ocupa um bloco da grade. De 1 a 4 é recusado no controller.
-   @Min(0) @Max(1440) Integer duracaoMin,@Min(0) Long valorCentavos) {}
- public record ProcedureView(UUID id,String nome,String codigoTuss,String tipo,Integer duracaoMin,Long valorCentavos,boolean ativo) {}
  public record CreateAppointmentRequest(@NotNull UUID unidadeId,@NotNull UUID profissionalId,@NotNull UUID pacienteId,
    @NotNull UUID procedimentoId,@NotNull @FutureOrPresent OffsetDateTime inicio,// fim é opcional: o sistema calcula pelos blocos da grade e, se vier, precisa bater com o cálculo.
    OffsetDateTime fim,@Size(max=1000) String observacao,

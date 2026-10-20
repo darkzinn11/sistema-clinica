@@ -18,7 +18,7 @@ public class SpecialtyRepository {
     }
 
     public List<SpecialtyView> list(String search, Boolean active, String letter) {
-        return jdbc.query("SELECT " + COLUMNS + " FROM clinica.especialidades WHERE (?::boolean IS NULL OR ativo = ?) AND lower(nome) LIKE ? "
+        return jdbc.query("SELECT " + COLUMNS + " FROM clinica.especialidades WHERE (?::boolean IS NULL OR ativo = ?) AND clinica.unaccent(lower(nome)) LIKE clinica.unaccent(?) "
             + "AND (?::text IS NULL OR upper(left(nome, 1)) = ?) ORDER BY nome LIMIT 300", (r, n) -> view(r),
             active, active, "%" + search.trim().toLowerCase() + "%", letter, letter);
     }
@@ -40,7 +40,7 @@ public class SpecialtyRepository {
 
     public List<CatalogSpecialtyView> catalog(String search) {
         return jdbc.query("SELECT c.id, c.nome, c.nome_resumido, c.codigo, c.cbos, EXISTS(SELECT 1 FROM clinica.especialidades e WHERE e.catalogo_id = c.id) "
-            + "FROM clinica.catalogo_especialidades c WHERE lower(c.nome) LIKE ? ORDER BY c.nome LIMIT 300", (r, n) -> catalogView(r),
+            + "FROM clinica.catalogo_especialidades c WHERE clinica.unaccent(lower(c.nome)) LIKE clinica.unaccent(?) ORDER BY c.nome LIMIT 300", (r, n) -> catalogView(r),
             "%" + search.trim().toLowerCase() + "%");
     }
 
