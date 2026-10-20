@@ -1,7 +1,7 @@
 import { IconCircle } from "@/components/ui/icon-circle";
 import { useEffect, useRef, useState } from "react";
 import { DocumentUpload, TickCircle } from "iconsax-reactjs";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { Switch } from "@/components/ui/overlay";
@@ -15,7 +15,7 @@ import { CATEGORIAS_DESPESA, CATEGORIAS_RECEITA, CENTROS_CUSTO, CONTAS, FORMAS_P
 type Tipo = "receita" | "despesa";
 
 /**
- * Drawer de criação de lançamento (receita ou despesa). Protótipo sem
+ * Modal de criação de lançamento (receita ou despesa). Protótipo sem
  * backend: "Salvar" mostra uma confirmação inline e fecha.
  */
 export function LancamentoFormDrawer({ open, onClose, tipoInicial = "receita" }: { open: boolean; onClose: () => void; tipoInicial?: Tipo }) {
@@ -64,10 +64,10 @@ export function LancamentoFormDrawer({ open, onClose, tipoInicial = "receita" }:
   }
 
   return (
-    <Drawer
+    <Modal
       open={open}
       onClose={onClose}
-      width="lg"
+      size="lg"
       title={saved ? "Lançamento criado" : "Novo lançamento"}
       description={saved ? undefined : "Registre uma conta a receber ou a pagar."}
       footer={
@@ -164,6 +164,6 @@ export function LancamentoFormDrawer({ open, onClose, tipoInicial = "receita" }:
           </FormSection>
         </form>
       )}
-    </Drawer>
+    </Modal>
   );
 }

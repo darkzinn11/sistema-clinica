@@ -15,7 +15,7 @@ import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Drawer, DropdownMenu, Modal } from "@/components/ui/overlay";
+import { DropdownMenu, Modal } from "@/components/ui/overlay";
 import { Input } from "@/components/ui/input";
 import type { Patient } from "@/lib/mock/core";
 import { insuranceName, patients, TODAY } from "@/lib/mock/core";
@@ -170,12 +170,12 @@ export function PerfilHeader({ patient, onAction }: { patient: Patient; onAction
         )}
       </Modal>
 
-      <Drawer
+      <Modal
         open={showCobranca}
         onClose={() => setShowCobranca(false)}
         title="Nova cobrança"
         description={`Criar uma cobrança avulsa para ${patient.name}.`}
-        width="sm"
+        size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCobranca(false)}>
@@ -191,7 +191,7 @@ export function PerfilHeader({ patient, onAction }: { patient: Patient; onAction
           <Input label="Descrição" value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: Taxa de procedimento" />
           <Input label="Valor" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0,00" suffix="BRL" />
         </div>
-      </Drawer>
+      </Modal>
     </>
   );
 }

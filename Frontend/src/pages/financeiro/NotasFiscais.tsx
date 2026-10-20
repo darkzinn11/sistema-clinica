@@ -8,7 +8,7 @@ import { Segmented } from "@/components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/charts";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { EmptyState } from "@/components/ui/empty-state";
 import { brl, dateBR } from "@/lib/format";
 import { patients, procedures } from "@/lib/mock/core";
@@ -121,7 +121,7 @@ export default function NotasFiscais() {
         </CardBody>
       </Card>
 
-      <Drawer
+      <Modal
         open={emitirAberto}
         onClose={() => setEmitirAberto(false)}
         title="Emitir NFS-e"
@@ -152,7 +152,7 @@ export default function NotasFiscais() {
             <span className="tabular font-semibold text-text">{brl(issPreview)}</span>
           </div>
         </div>
-      </Drawer>
+      </Modal>
     </div>
   );
 }

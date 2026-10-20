@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DescriptionList, Timeline } from "@/components/ui/misc";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Input, Textarea } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -174,13 +174,13 @@ export default function GuiaDetalhe() {
         </div>
       </div>
 
-      <Drawer open={recursoOpen} onClose={() => setRecursoOpen(false)} title="Recurso de glosa" description={`Guia ${guia.numero} · ${guia.glosa?.descricao ?? ""}`} footer={<><Button variant="secondary" onClick={() => setRecursoOpen(false)}>Cancelar</Button><Button variant="primary" icon={ShieldTick} onClick={enviarRecurso} disabled={!justificativa}>Enviar recurso</Button></>}>
+      <Modal open={recursoOpen} onClose={() => setRecursoOpen(false)} title="Recurso de glosa" description={`Guia ${guia.numero} · ${guia.glosa?.descricao ?? ""}`} footer={<><Button variant="secondary" onClick={() => setRecursoOpen(false)}>Cancelar</Button><Button variant="primary" icon={ShieldTick} onClick={enviarRecurso} disabled={!justificativa}>Enviar recurso</Button></>}>
         <div className="flex flex-col gap-4">
           <Textarea label="Justificativa" required rows={5} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} placeholder="Explique por que a glosa deve ser revertida, citando a documentação anexada." />
           <Input type="number" min={0} step="0.01" label="Valor recursado" suffix="R$" value={valorRecursado} onChange={(e) => setValorRecursado(e.target.value)} placeholder={(guia.glosa ? (guia.glosa.valorCents / 100).toFixed(2) : "0,00")} />
           <p className="text-sm text-text-muted">Anexos simulados: guia de autorização, relatório de atendimento.</p>
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal open={Boolean(modal)} onClose={() => setModal(null)} title={modal?.title ?? ""} description={modal?.description} footer={<Button variant="primary" onClick={() => setModal(null)}>Entendi</Button>} />
     </div>

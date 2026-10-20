@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Select } from "@/components/ui/input";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { dateBR } from "@/lib/format";
@@ -109,7 +109,7 @@ export default function Requisicoes() {
         )}
       </Card>
 
-      <Drawer
+      <Modal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Nova requisição"
@@ -139,7 +139,7 @@ export default function Requisicoes() {
             </ul>
           )}
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Requisição enviada" description={confirm ?? undefined} footer={<Button variant="primary" onClick={() => setConfirm(null)}>Entendi</Button>} />
     </div>

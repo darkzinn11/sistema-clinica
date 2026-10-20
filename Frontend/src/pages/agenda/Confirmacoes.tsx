@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Checkbox, Select, Textarea } from "@/components/ui/input";
 import { Meter } from "@/components/ui/misc";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { addDaysIso, dateLong } from "@/lib/format";
@@ -136,12 +136,12 @@ export default function Page() {
         })}
       </div>
 
-      <Drawer
+      <Modal
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
         title="Modelo de mensagem"
         description="Editável — use as variáveis para personalizar automaticamente."
-        width="md"
+        size="md"
         footer={
           <Button variant="primary" size="sm" onClick={() => setTemplateOpen(false)}>
             Salvar modelo
@@ -165,7 +165,7 @@ export default function Page() {
             </div>
           </div>
         </div>
-      </Drawer>
+      </Modal>
     </div>
   );
 }

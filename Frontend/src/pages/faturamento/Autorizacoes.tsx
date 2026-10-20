@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { dateBR } from "@/lib/format";
@@ -117,7 +117,7 @@ export default function Autorizacoes() {
         )}
       </Card>
 
-      <Drawer
+      <Modal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Nova solicitação de autorização"
@@ -130,7 +130,7 @@ export default function Autorizacoes() {
           <Select label="Procedimento (TUSS)" required placeholder="Selecione o procedimento" value={procedureId} onChange={(e) => setProcedureId(e.target.value)} options={candidatos.map((p) => ({ value: p.id, label: `${p.tuss} — ${p.name}` }))} />
           <Textarea label="Justificativa clínica" required rows={4} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} placeholder="Descreva a indicação clínica para o procedimento." />
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Solicitação enviada" description={confirm ?? undefined} footer={<Button variant="primary" onClick={() => setConfirm(null)}>Entendi</Button>} />
     </div>

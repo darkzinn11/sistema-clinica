@@ -2,7 +2,7 @@ import { Add, CloseCircle, SearchNormal1, UserAdd } from "iconsax-reactjs";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
-import { Drawer, Switch } from "@/components/ui/overlay";
+import { Modal, Switch } from "@/components/ui/overlay";
 import { brl } from "@/lib/format";
 import { allPatients, findPatient, freeSlots, hm, norm, priceFor, registerPatient, toMin, workWindow } from "@/lib/mock/agenda";
 import { newAppointmentId, newPatientId } from "@/components/agenda/store";
@@ -24,7 +24,7 @@ interface ProcRow {
 }
 
 /**
- * Drawer de criação de agendamento — aberta pelo botão "Novo agendamento" ou
+ * Modal de criação de agendamento — aberta pelo botão "Novo agendamento" ou
  * automaticamente quando a URL da Agenda do dia tem `?novo=1`.
  */
 export function NovoAgendamentoDrawer({
@@ -160,12 +160,12 @@ export function NovoAgendamentoDrawer({
   const selectedPatient = selectedPatientId ? findPatient(selectedPatientId) : undefined;
 
   return (
-    <Drawer
+    <Modal
       open={open}
       onClose={onClose}
       title="Novo agendamento"
       description="Preencha os dados do paciente, profissional e procedimentos."
-      width="lg"
+      size="lg"
       footer={
         <div className="flex w-full items-center justify-between gap-3">
           <p className="text-sm text-text-muted">
@@ -329,6 +329,6 @@ export function NovoAgendamentoDrawer({
 
         <Textarea label="Observações" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Opcional" />
       </div>
-    </Drawer>
+    </Modal>
   );
 }

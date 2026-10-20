@@ -360,12 +360,7 @@ body {
   from { opacity: 0; transform: translateY(14px) scale(.975); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.ui-drawer-enter { animation: ui-drawer-reveal 360ms var(--ui-ease-out) both; }
 .ui-mobile-sidebar-enter { animation: ui-mobile-nav-reveal 330ms var(--ui-ease-out) both; }
-@keyframes ui-drawer-reveal {
-  from { transform: translateX(24px); }
-  to { transform: translateX(0); }
-}
 @keyframes ui-mobile-nav-reveal {
   from { transform: translateX(-24px); }
   to { transform: translateX(0); }
@@ -395,7 +390,7 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ui-page-enter, .ui-nav-active, .ui-submenu-enter, .ui-menu-enter,
-  .ui-backdrop-enter, .ui-dialog-enter, .ui-drawer-enter, .ui-mobile-sidebar-enter,
+  .ui-backdrop-enter, .ui-dialog-enter, .ui-mobile-sidebar-enter,
   .ui-stat-strip > * { animation: none !important; }
   .ui-nav-link, .ui-button, .ui-surface-card { transition: none !important; }
   .ui-nav-link:active, .ui-button:active { transform: none !important; }

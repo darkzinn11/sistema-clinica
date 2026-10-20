@@ -129,6 +129,9 @@ export const NAV: NavGroup[] = [
         childrenInPage: true,
         children: [
           { label: "Profissionais", href: "/cadastros/profissionais", keywords: "médicos horários" },
+          { label: "Profissionais externos", href: "/cadastros/profissionais-externos", keywords: "médicos solicitantes encaminhamento" },
+          { label: "Grupos de profissionais", href: "/cadastros/grupos-de-profissionais" },
+          { label: "Especialidades", href: "/cadastros/especialidades", keywords: "cbo" },
           { label: "Procedimentos", href: "/cadastros/procedimentos", keywords: "exames serviços" },
           { label: "Convênios", href: "/cadastros/convenios", keywords: "planos operadoras" },
           { label: "Funcionários e usuários", href: "/cadastros/funcionarios", keywords: "permissões acesso" },

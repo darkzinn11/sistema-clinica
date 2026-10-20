@@ -15,7 +15,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { DescriptionList } from "@/components/ui/misc";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Select } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { age, brl, dateLong } from "@/lib/format";
@@ -74,9 +74,9 @@ export function AgendamentoDrawer({
 
   if (!appointment) {
     return (
-      <Drawer open={false} onClose={onClose} title="Agendamento">
+      <Modal open={false} onClose={onClose} title="Agendamento">
         {null}
-      </Drawer>
+      </Modal>
     );
   }
 
@@ -116,12 +116,12 @@ export function AgendamentoDrawer({
 
   return (
     <>
-      <Drawer
+      <Modal
         open
         onClose={onClose}
         title="Agendamento"
         description={`${dateLong(appointment.date)} às ${appointment.start}`}
-        width="md"
+        size="md"
         footer={
           <div className="flex w-full flex-wrap items-center justify-end gap-2">
             <Button variant="danger" size="sm" icon={CloseCircle} disabled={!canCancel} onClick={() => setCancelOpen(true)}>
@@ -262,7 +262,7 @@ export function AgendamentoDrawer({
             </Button>
           </div>
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal
         open={cancelOpen}

@@ -5,7 +5,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/input";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { DescriptionList } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { dateBR, time } from "@/lib/format";
@@ -96,7 +96,7 @@ export default function Logs() {
         {filtered.length > 0 && <TableFooter total={filtered.length} pageSize={20} label="registros" />}
       </Card>
 
-      <Drawer open={!!selected} onClose={() => setSelected(null)} title="Detalhe do registro" description={selected ? `${selected.action} · ${dateBR(selected.datetime)} ${time(selected.datetime)}` : undefined}>
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Detalhe do registro" description={selected ? `${selected.action} · ${dateBR(selected.datetime)} ${time(selected.datetime)}` : undefined}>
         {selected && (
           <div className="flex flex-col gap-6">
             <DescriptionList
@@ -141,7 +141,7 @@ export default function Logs() {
             )}
           </div>
         )}
-      </Drawer>
+      </Modal>
     </div>
   );
 }
