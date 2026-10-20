@@ -101,7 +101,7 @@ export default function ChamarSenha() {
                 )}
               </>
             ) : (
-              <p className="py-6 text-base text-text-muted">Nenhuma senha chamada no momento.</p>
+              <EmptyState title="Nenhuma senha chamada no momento." illustration="recepcao/nenhuma-senha-na-fila" compact className="px-0 py-0" />
             )}
 
             <div className="mt-2 grid w-full grid-cols-2 gap-3 border-t border-border pt-5">

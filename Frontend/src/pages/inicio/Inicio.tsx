@@ -24,6 +24,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -165,7 +166,7 @@ export default function Page() {
             <CardHeader title="Próximos atendimentos" description="A partir de agora, nesta ordem" actions={<ButtonLink to="/agenda" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver agenda</ButtonLink>} />
             <CardBody className="flex flex-col gap-1">
               {proximos.length === 0 ? (
-                <p className="py-4 text-sm text-text-muted">Não há mais atendimentos previstos pra hoje.</p>
+                <EmptyState title="Não há mais atendimentos previstos pra hoje." illustration="agenda/nenhum-agendamento" compact className="py-4" />
               ) : (
                 proximos.map((a) => {
                   const patient = patientById(a.patientId);

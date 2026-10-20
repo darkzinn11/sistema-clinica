@@ -150,9 +150,10 @@ export function DayGrid({
           const slotMin = slotMinutesFor?.(col.id) ?? 20;
           return (
             <div key={col.id} className="relative flex-1" style={{ minWidth: minColWidth }}>
-              {/* px-1 = mesmo recuo lateral dos cards (inset-x-1): cabeçalhos e agendamentos ficam no mesmo grid. */}
+              {/* px-1 = mesmo recuo lateral dos cards (inset-x-1): cabeçalhos e agendamentos ficam no mesmo grid.
+                  Fundo = verde da aba selecionada da barra lateral; "hoje" (visão semanal) ganha contorno verde. */}
               <div className="ms-agenda-professional sticky top-0 z-40 px-1 py-1.5" style={{ height: HEADER_H }}>
-                <div className={cn("flex h-full flex-col items-center justify-center gap-1 rounded-lg px-3 text-center", col.highlight ? "bg-accent-muted" : "bg-surface")}>
+                <div className={cn("flex h-full flex-col items-center justify-center gap-1 rounded-lg px-3 text-center", "bg-[var(--ui-navigation-active-bg)]", col.highlight && "ring-1 ring-inset ring-accent/50")}>
                   {col.kicker && <span className={cn("text-[11px] font-medium capitalize", col.highlight ? "text-accent-ink" : "text-text-muted")}>{col.kicker}</span>}
                   <span className="flex min-w-0 max-w-full items-center gap-2">
                     {col.colorVar && <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.colorVar }} />}

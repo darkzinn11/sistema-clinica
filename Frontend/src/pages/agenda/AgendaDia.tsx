@@ -206,6 +206,7 @@ export default function Page() {
           <CardBody className="flex flex-col gap-4 px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
               <DateNav
+                date={date}
                 label={dateLong(date)}
                 prevLabel="Dia anterior"
                 nextLabel="Próximo dia"
