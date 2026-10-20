@@ -64,13 +64,17 @@ e remarcar, fila de senhas e guichês, prontuário, auditoria. `profissionais` t
 - API: `GET /catalogo/especialidades` (sugestões, com `jaAdicionada`), `POST /especialidades` (com `catalogoId` copia nome, código e
   CBOS; sem ele é cadastro manual), `GET /especialidades` (da clínica; filtros `busca`, `ativo`, `letra`), `PUT /especialidades/{id}`,
   desativar pelo `ativo`.
-- **Carga do catálogo:** a lista oficial (CBO, Ministério do Trabalho; códigos de especialidade da terminologia TISS/ANS) é uma tarefa
-  à parte, a partir da fonte oficial e verificando licença. Até lá, o catálogo tem as 4 linhas e o cadastro manual funciona.
+- **Carga do catálogo (feita, V22):** Tabela 24 da TUSS (CBO), versão 202607 da ANS, 168 ocupações vigentes, gerada por script a
+  partir do arquivo oficial. Licença CC0-1.0 declarada pela ANS para as tabelas do seu guia de terminologia. Não há fonte oficial
+  pública para o "código" de especialidade que o Feegow mostra (06117...), então ele fica vazio.
 
 ### 2. Procedimentos: catálogo + cadastro completo (V22)
 
-- Nova **`catalogo_procedimentos`** (global, somente leitura): `descricao`, `codigo_tuss`, grupo/capítulo opcional. Base: terminologia
-  **TUSS da ANS** (pública). Mesma regra: carga posterior, a partir do arquivo oficial; **sem CBHPM nem AMB-92**.
+- Nova **`catalogo_procedimentos`** (global, somente leitura): `descricao`, `codigo_tuss`. Base: **Tabela 22 da TUSS da ANS**
+  (5.967 termos vigentes na versão 202607, já validados). O mesmo script gera a migração. **Sem CBHPM nem AMB-92.**
+  **Pendente de decisão do responsável:** o site da ANS publica o conteúdo sob Creative Commons Atribuição-SemDerivações 3.0
+  (CC BY-ND) e a Tabela 22 se baseia na CBHPM (AMB). Não achei aviso de direitos específico da TUSS. Copiar só código e termo, sem
+  alterar e com atribuição, é compatível com a letra da licença, mas não sou advogado: aplicar só depois de confirmação.
 - Campos novos em `procedimentos`, além dos atuais: `sigla`, `dias_retorno` (inteiro, nulo = sem regra), `aviso_agendamento` (texto
   mostrado à recepção ao agendar), `preparo` (instrução ao paciente), `observacoes` (internas), `catalogo_id` (opcional),
   `atualizado_em`, `atualizado_por`.

@@ -93,6 +93,22 @@ class EspecialidadeIntegrationTest extends AgendaTestBase {
     }
 
     @Test
+    void theCatalogComesFromTheOfficialAnsOccupationTableAndNothingIsMadeUp() {
+        // Tabela 24 da TUSS (CBO), versão 202607, carregada pelo script gerar_catalogo_ans.py.
+        assertTrue(jdbc.queryForObject("SELECT count(*) FROM clinica.catalogo_especialidades", Integer.class) >= 150);
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM clinica.catalogo_especialidades WHERE cbos IS NULL OR cbos !~ '^[0-9]{6}$'", Integer.class));
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) - count(DISTINCT cbos) FROM clinica.catalogo_especialidades", Integer.class));
+        for (String[] known : new String[][] {{"225125", "Médico clínico"}, {"225120", "Médico cardiologista"}, {"225124", "Médico pediatra"}, {"225135", "Médico dermatologista"}}) {
+            assertEquals(known[1], jdbc.queryForObject("SELECT nome FROM clinica.catalogo_especialidades WHERE cbos = ?", String.class, known[0]));
+        }
+    }
+
+    @Test
+    void theHandTypedSeedsOfTheOldCatalogAreGone() {
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM clinica.catalogo_especialidades WHERE nome IN ('Clínica geral', 'Cardiologia', 'Dermatologia', 'Pediatria')", Integer.class));
+    }
+
+    @Test
     void theCatalogCannotBeChangedByTheApplication() {
         transactions.inTenant(tenant, () -> {
             assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbc.update("INSERT INTO clinica.catalogo_especialidades(nome) VALUES ('Inventada')"));

@@ -365,8 +365,16 @@ código e CBOS) ou cria manualmente, e desativa o que não deve aparecer. Nome �
 - O vínculo profissional-especialidade usa **chave composta** `(tenant_id, especialidade_id)`: o banco recusa ligar um profissional
   à especialidade de outra clínica. Só especialidade ativa pode ser vinculada a um profissional novo.
 - Desativar nunca apaga e não mexe em vínculos existentes.
-- **O catálogo tem só as 4 linhas antigas.** A lista oficial (CBO e códigos TISS) será carregada de fonte pública verificável, em
-  tarefa à parte: um código errado em cadastro clínico é pior que catálogo vazio. Até lá, o cadastro manual funciona.
+- **O catálogo vem do arquivo oficial da ANS (V22).** São as 168 ocupações vigentes da Tabela 24 da TUSS (Código Brasileiro de
+  Ocupações, versão 202607), com o nome oficial ("Médico cardiologista") e o CBOS de 6 dígitos. Nada foi digitado à mão: o script
+  `scripts/gerar_catalogo_ans.py` lê a planilha oficial (só as planilhas necessárias, por leitura parcial do ZIP de 413 MB),
+  valida e gera a migração com fonte, versão e data no cabeçalho. A clínica pode renomear ao adicionar ("Cardiologia").
+  Licença: a ANS declara CC0-1.0 para as tabelas do seu guia de terminologia; a CBO é do Ministério do Trabalho e Emprego.
+- As 4 linhas antigas do catálogo (V6) eram digitadas à mão, sem código oficial, e foram removidas. As especialidades que as clínicas
+  já tinham copiado continuam no cadastro delas, só sem o vínculo com o catálogo.
+- **Não há "código" de especialidade no catálogo** (o `06117` que o Feegow mostra): não achei fonte oficial pública para ele, e
+  inventar seria pior que deixar vazio. O campo existe e a clínica pode preencher.
+- Atualizar o catálogo: rodar o script com a versão nova da ANS e aplicar a migração gerada (ela atualiza por CBOS).
 - Descoberto ao testar: `POST /profissionais` **nunca funcionou** (a consulta que validava unidades e especialidades passava a lista
   como argumentos soltos). Corrigido na V21 e agora coberto por teste.
 - O Administrador recebe `especialidades:ler/criar/editar`; a Recepção, `especialidades:ler`. O Médico não vê o cadastro.
