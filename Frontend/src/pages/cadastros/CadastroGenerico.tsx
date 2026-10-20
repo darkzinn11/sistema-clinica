@@ -6,7 +6,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Textarea, Checkbox } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { FormSection } from "@/components/ui/misc";
 import { Table, TBody, TD, THead, TH, TR, TableFooter } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -253,7 +253,7 @@ function CadastroGenericoView({ entity }: { entity: string }) {
         </Card>
       </div>
 
-      <Drawer
+      <Modal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title={editingId ? "Editar registro" : config.newLabel}
@@ -282,7 +282,7 @@ function CadastroGenericoView({ entity }: { entity: string }) {
             <FieldControl key={field.key} field={field} value={formValues[field.key] ?? (field.type === "checkbox" ? false : "")} onChange={(v) => setFormValues((prev) => ({ ...prev, [field.key]: v }))} />
           ))}
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal
         open={deleteTarget !== null}

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Table, TBody, TD, THead, TH, TR, TableFooter } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { insurances } from "@/lib/mock/core";
@@ -97,7 +97,7 @@ export default function Convenios() {
         </Card>
       </div>
 
-      <Drawer
+      <Modal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Novo convênio"
@@ -121,7 +121,7 @@ export default function Convenios() {
             <Input label="Versão TISS" placeholder="4.01.00" />
           </div>
         </form>
-      </Drawer>
+      </Modal>
     </div>
   );
 }

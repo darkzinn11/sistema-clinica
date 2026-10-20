@@ -55,7 +55,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { APPOINTMENT_STATUS, type AppointmentStatus } from "@/lib/status";
 import { Avatar } from "@/components/ui/avatar";
 import { Input, Select, Textarea, Checkbox, Radio } from "@/components/ui/input";
-import { Drawer, DropdownMenu, Modal, Switch } from "@/components/ui/overlay";
+import { DropdownMenu, Modal, Switch } from "@/components/ui/overlay";
 import { Segmented, Tabs } from "@/components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -208,7 +208,6 @@ function IconSample({ name, Icon }: { name: string; Icon: IconType }) {
 
 export default function DesignSystem() {
   const { theme, density, setTheme, setDensity } = usePreferences();
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
   const sections = [
@@ -405,10 +404,9 @@ export default function DesignSystem() {
             </Card>
           </Section>
 
-          <Section id="overlays" title="Overlays" description="Drawer, Modal e Dropdown — clique para abrir.">
+          <Section id="overlays" title="Overlays" description="Modal e Dropdown — clique para abrir.">
             <Card>
               <CardBody className="flex flex-wrap gap-3">
-                <Button variant="secondary" onClick={() => setDrawerOpen(true)}>Abrir Drawer</Button>
                 <Button variant="secondary" onClick={() => setModalOpen(true)}>Abrir Modal</Button>
                 <DropdownMenu
                   label="Menu de exemplo"
@@ -422,9 +420,6 @@ export default function DesignSystem() {
                 />
               </CardBody>
             </Card>
-            <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title="Exemplo de Drawer" description="Painel lateral para formulários longos.">
-              <p className="text-sm text-text-muted">Conteúdo do drawer.</p>
-            </Drawer>
             <Modal
               open={modalOpen}
               onClose={() => setModalOpen(false)}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input, Select } from "@/components/ui/input";
-import { Drawer, Modal } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
@@ -111,7 +111,7 @@ export default function Movimentacoes() {
         )}
       </Card>
 
-      <Drawer
+      <Modal
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         title="Nova movimentação"
@@ -150,7 +150,7 @@ export default function Movimentacoes() {
             <Select label="Local de destino" required placeholder="Selecione o destino" value={destino} onChange={(e) => setDestino(e.target.value)} options={LOCAIS_ESTOQUE.map((l) => ({ value: l, label: l }))} />
           )}
         </div>
-      </Drawer>
+      </Modal>
 
       <Modal open={Boolean(confirm)} onClose={() => setConfirm(null)} title="Movimentação registrada" description={confirm ?? undefined} footer={<Button variant="primary" onClick={() => setConfirm(null)}>Entendi</Button>} />
     </div>

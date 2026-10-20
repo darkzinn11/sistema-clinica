@@ -51,6 +51,7 @@ export default function Page() {
         <Card>
           <CardBody className="flex flex-wrap items-center justify-between gap-3">
             <DateNav
+              date={date}
               label={dateLong(date)}
               prevLabel="Dia anterior"
               nextLabel="Próximo dia"

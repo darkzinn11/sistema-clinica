@@ -45,64 +45,7 @@ function Portal({ children }: { children: ReactNode }) {
   return mounted ? createPortal(children, document.body) : null;
 }
 
-/**
- * Painel lateral (side sheet). Preferido a modal pra formulários longos —
- * mantém o contexto da tela de trás visível.
- */
-export function Drawer({
-  open,
-  onClose,
-  title,
-  description,
-  footer,
-  width = "md",
-  children,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  description?: string;
-  footer?: ReactNode;
-  width?: "sm" | "md" | "lg" | "xl";
-  children: ReactNode;
-}) {
-  const panel = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-  useLockScroll(open);
-  useEscape(open, onClose);
-  useFocusReturn(open, panel);
-  if (!open) return null;
-  const widths = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" };
-  return (
-    <Portal>
-      <div className="ui-backdrop-enter fixed inset-0 z-50 flex justify-end">
-        <div className="absolute inset-0 bg-overlay" onClick={onClose} aria-hidden />
-        <div
-          ref={panel}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          tabIndex={-1}
-          className={cn("ui-drawer-enter relative flex h-full w-full flex-col bg-surface-raised shadow-pop outline-none", widths[width])}
-        >
-          <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4">
-            <div>
-              <h2 id={titleId} className="text-lg font-semibold text-text">{title}</h2>
-              {description && <p className="mt-0.5 text-sm text-text-muted">{description}</p>}
-            </div>
-            <button data-close type="button" onClick={onClose} aria-label="Fechar" className="rounded-full p-1.5 text-text-muted hover:bg-surface hover:text-text">
-              <Add size={18} aria-hidden className="rotate-45" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-          {footer && <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-3">{footer}</div>}
-        </div>
-      </div>
-    </Portal>
-  );
-}
-
-/** Diálogo centralizado — confirmações curtas e formulários pequenos. */
+/** Diálogo centralizado — usado para toda confirmação e formulário (curto ou longo). */
 export function Modal({
   open,
   onClose,

@@ -9,7 +9,7 @@ import { Segmented } from "@/components/ui/tabs";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/charts";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { DescriptionList } from "@/components/ui/misc";
 import { EmptyState } from "@/components/ui/empty-state";
 import { brl, dateBR, pct } from "@/lib/format";
@@ -119,13 +119,13 @@ export default function Propostas() {
         </CardBody>
       </Card>
 
-      <Drawer
+      <Modal
         open={Boolean(detalhe)}
         onClose={() => {
           setDetalheId(null);
           setEnviadoWpp(false);
         }}
-        width="lg"
+        size="lg"
         title={detalhe ? `Proposta ${detalhe.numero}` : ""}
         description={detalhe ? patientById(detalhe.pacienteId)?.name : undefined}
         footer={
@@ -178,7 +178,7 @@ export default function Propostas() {
             </section>
           </div>
         )}
-      </Drawer>
+      </Modal>
 
       <NovaProposta open={novaAberta} onClose={() => setNovaAberta(false)} />
     </div>
@@ -191,7 +191,7 @@ function NovaProposta({ open, onClose }: { open: boolean; onClose: () => void })
   const [condicao, setCondicao] = useState("");
 
   return (
-    <Drawer
+    <Modal
       open={open}
       onClose={onClose}
       title="Nova proposta"
@@ -215,6 +215,6 @@ function NovaProposta({ open, onClose }: { open: boolean; onClose: () => void })
           options={["À vista com 10% de desconto", "Em até 3x sem juros", "Em até 6x no cartão", "50% de entrada + 2x"].map((c) => ({ value: c, label: c }))}
         />
       </div>
-    </Drawer>
+    </Modal>
   );
 }

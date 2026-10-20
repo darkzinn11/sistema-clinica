@@ -51,6 +51,8 @@ export default function Page() {
         <Card>
           <CardBody className="flex flex-wrap items-center justify-between gap-3">
             <DateNav
+              date={refDate}
+              unit="week"
               label={`${dateShort(weekStart)} – ${dateShort(days[days.length - 1])}`}
               prevLabel="Semana anterior"
               nextLabel="Próxima semana"

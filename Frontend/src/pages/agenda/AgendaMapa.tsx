@@ -54,55 +54,53 @@ export default function Page() {
         <CardHeader title="Ocupação por profissional" description="Clique não é necessário — passe o mouse pra ver o detalhe do dia." />
         <CardBody>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className="sticky left-0 z-10 bg-surface-raised px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-text-muted">Profissional</th>
-                  {days.map((i) => {
-                    const iso = dayIsoAt(i);
+            <div
+              role="table"
+              className="grid min-w-max gap-1.5 text-sm"
+              style={{ gridTemplateColumns: `auto repeat(${days.length}, minmax(2.75rem, 1fr))` }}
+            >
+              <div role="row" className="contents">
+                <div role="columnheader" className="sticky left-0 z-10 flex items-end bg-surface-raised pb-1 pr-3 text-xs font-semibold uppercase tracking-wide text-text-muted">Profissional</div>
+                {days.map((i) => {
+                  const iso = dayIsoAt(i);
+                  return (
+                    <div role="columnheader" key={iso} className="pb-1 text-center text-[11px] font-medium leading-tight text-text-muted">
+                      <div className="capitalize">{weekdayShort(iso)}</div>
+                      <div className="tabular whitespace-nowrap text-text-subtle">{dateShort(iso)}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              {matrix.map((row) => (
+                <div role="row" key={row.prof.id} className="contents">
+                  <div role="rowheader" className="sticky left-0 z-10 flex items-center gap-2 bg-surface-raised pr-3 text-text">
+                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--c-series-${row.prof.color + 1})` }} />
+                    <span className="whitespace-nowrap">{row.prof.name}</span>
+                  </div>
+                  {row.days.map((d) => {
+                    const step = stepFor(d.pct);
+                    const isHover = hover?.prof === row.prof.id && hover.day === d.date;
                     return (
-                      <th key={iso} className="px-1 py-2 text-center text-[11px] font-medium text-text-muted">
-                        <div className="capitalize">{weekdayShort(iso)}</div>
-                        <div className="tabular text-text-subtle">{dateShort(iso)}</div>
-                      </th>
+                      <div role="cell" key={d.date}>
+                        <Tooltip content={`${row.prof.name} · ${dateShort(d.date)} · ${pct(d.pct * 100)} ocupado`} className="block w-full">
+                          <button
+                            type="button"
+                            onMouseEnter={() => setHover({ prof: row.prof.id, day: d.date })}
+                            onMouseLeave={() => setHover(null)}
+                            onFocus={() => setHover({ prof: row.prof.id, day: d.date })}
+                            onBlur={() => setHover(null)}
+                            className={`flex h-9 w-full items-center justify-center rounded-md text-[11px] font-semibold tabular transition-transform ${step <= 3 ? "heat-ink" : "heat-paper"} ${isHover ? "scale-105 ring-2 ring-accent" : ""}`}
+                            style={{ background: step === 0 ? "var(--c-surface)" : `var(--c-seq-${step})` }}
+                          >
+                            {Math.round(d.pct * 100)}
+                          </button>
+                        </Tooltip>
+                      </div>
                     );
                   })}
-                </tr>
-              </thead>
-              <tbody>
-                {matrix.map((row) => (
-                  <tr key={row.prof.id}>
-                    <td className="sticky left-0 z-10 bg-surface-raised px-2 py-1.5 text-text">
-                      <span className="flex items-center gap-2">
-                        <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--c-series-${row.prof.color + 1})` }} />
-                        <span className="whitespace-nowrap">{row.prof.name}</span>
-                      </span>
-                    </td>
-                    {row.days.map((d) => {
-                      const step = stepFor(d.pct);
-                      const isHover = hover?.prof === row.prof.id && hover.day === d.date;
-                      return (
-                        <td key={d.date} className="p-0.5 text-center">
-                          <Tooltip content={`${row.prof.name} · ${dateShort(d.date)} · ${pct(d.pct * 100)} ocupado`}>
-                            <button
-                              type="button"
-                              onMouseEnter={() => setHover({ prof: row.prof.id, day: d.date })}
-                              onMouseLeave={() => setHover(null)}
-                              onFocus={() => setHover({ prof: row.prof.id, day: d.date })}
-                              onBlur={() => setHover(null)}
-                              className={`flex h-9 w-12 items-center justify-center rounded-md text-[11px] font-semibold tabular transition-transform ${step <= 3 ? "heat-ink" : "heat-paper"} ${isHover ? "scale-105 ring-2 ring-accent" : ""}`}
-                              style={{ background: step === 0 ? "var(--c-surface)" : `var(--c-seq-${step})` }}
-                            >
-                              {Math.round(d.pct * 100)}
-                            </button>
-                          </Tooltip>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4 text-xs text-text-muted">

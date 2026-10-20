@@ -6,7 +6,7 @@ import type { Tone } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TH, TR, TD } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { Select, Input } from "@/components/ui/input";
 import type { Patient } from "@/lib/mock/core";
 import { brl, dateBR } from "@/lib/format";
@@ -149,12 +149,12 @@ export function Financeiro({ patient }: { patient: Patient }) {
         </CardBody>
       </Card>
 
-      <Drawer
+      <Modal
         open={showDrawer}
         onClose={() => setShowDrawer(false)}
         title="Receber pagamento"
         description={`Saldo em aberto: ${brl(balanceCents)}`}
-        width="sm"
+        size="sm"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowDrawer(false)}>
@@ -177,7 +177,7 @@ export function Financeiro({ patient }: { patient: Patient }) {
             options={INSTALLMENTS.map((p) => ({ value: p, label: p }))}
           />
         </div>
-      </Drawer>
+      </Modal>
     </div>
   );
 }

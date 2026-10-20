@@ -49,7 +49,15 @@ function Item({
   const isActive = section?.href === item.href;
   const hasSubmenu = !!item.children?.length && !item.childrenInPage;
   const [open, setOpen] = useState(isActive);
-  const expanded = hasSubmenu && (open || isActive) && !collapsed;
+  const [wasActive, setWasActive] = useState(isActive);
+  // Expande sozinho ao entrar na seção (isActive virar true), mas não força
+  // aberto a cada render — senão o botão de recolher nunca conseguiria fechar
+  // o grupo da página em que você já está.
+  if (isActive !== wasActive) {
+    setWasActive(isActive);
+    if (isActive) setOpen(true);
+  }
+  const expanded = hasSubmenu && open && !collapsed;
   const activeChild = isActive ? findActiveChild(item, pathname) : undefined;
   const Icon = item.icon;
 

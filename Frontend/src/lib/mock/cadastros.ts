@@ -8,6 +8,7 @@
 
 import {
   type Professional,
+  currentUser,
   equipment,
   insurances,
   leadSources,
@@ -27,7 +28,9 @@ import {
   ClipboardTick,
   Diagram,
   DocumentText,
+  Health,
   Location,
+  Microscope,
   Monitor,
   People,
   Profile2User,
@@ -49,6 +52,10 @@ function hashId(id: string): number {
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
+}
+
+function pick<T>(r: () => number, arr: readonly T[]): T {
+  return arr[Math.floor(r() * arr.length)];
 }
 
 // --- Profissionais: horários de atendimento --------------------------------
@@ -167,6 +174,137 @@ export function professionalAccess(prof: Professional): ProfessionalAccess {
   };
 }
 
+// --- Profissionais: status de acesso (migração ao login único) -------------
+
+export const ACCESS_STATUSES = ["Ativo", "Convite pendente", "Convite expirado", "Acesso legado", "Sem convite", "Desabilitado", "Inativo"] as const;
+export type AccessStatus = (typeof ACCESS_STATUSES)[number];
+
+const ACCESS_STATUS_WEIGHTS: AccessStatus[] = [
+  "Ativo", "Ativo", "Ativo", "Ativo", "Ativo",
+  "Convite expirado", "Convite expirado",
+  "Acesso legado",
+  "Sem convite",
+  "Inativo", "Inativo", "Inativo", "Inativo",
+];
+
+export interface ProfessionalAccessStatusInfo {
+  status: AccessStatus;
+  accessEmail?: string;
+  emailVerified: boolean;
+  verifiedAt?: string;
+}
+
+export function professionalAccessStatus(prof: Professional): ProfessionalAccessStatusInfo {
+  const r = rng(hashId(prof.id) + 450);
+  // Ids sequenciais (p1, p2…) dão seeds vizinhas, e um único r() logo após
+  // seedar fica quase linear nessa vizinhança — "esquenta" o gerador um
+  // número de passos que varia por profissional (hash do nome) pra evitar
+  // status em sequência (ex.: todos "Inativo").
+  for (let i = 0, warmup = hashId(prof.name) % 17; i < warmup; i += 1) r();
+  const status = pick(r, ACCESS_STATUS_WEIGHTS);
+  const hasEmail = status !== "Sem convite";
+  const verified = hasEmail && (status === "Ativo" || status === "Acesso legado") && r() > 0.15;
+  return {
+    status,
+    accessEmail: hasEmail ? professionalPersonalInfo(prof).email : undefined,
+    emailVerified: verified,
+    verifiedAt: verified ? `${pad2(1 + Math.floor(r() * 28))}/${pad2(1 + Math.floor(r() * 9))}/2026` : undefined,
+  };
+}
+
+// --- Profissionais: cadastro completo (dados cadastrais ricos) -------------
+
+export const CONSELHO_TYPES = ["CRM", "CRP", "CRO", "COREN", "CRN", "CREFITO", "CRF", "CRBM"];
+export const ANAMNESE_MODELS = ["Anamnese inicial", "Anamnese ginecológica", "Anamnese pediátrica", "Anamnese cardiológica"];
+export const EVOLUCAO_MODELS = ["Evolução padrão", "Evolução SOAP", "Evolução pós-cirúrgica"];
+export const TISS_PARTICIPATION_DEGREES = ["Clínico", "Cirurgião", "1º Auxiliar", "2º Auxiliar", "Anestesista", "Instrumentador"];
+export const MEDICAL_RECORD_TABS = ["Dados Principais", "Anamnese", "Evolução", "Exames"];
+
+export interface ProfessionalRegistration {
+  conselho: string;
+  registro: string;
+  uf: string;
+}
+
+export interface ProfessionalSubspecialty {
+  name: string;
+  note?: string;
+}
+
+export interface ProfessionalProfile {
+  active: boolean;
+  title: string;
+  socialName?: string;
+  cns: string;
+  gender: "Masculino" | "Feminino";
+  rqe?: string;
+  registrations: ProfessionalRegistration[];
+  address: { cep: string; street: string; number: string; complement?: string; neighborhood: string; city: string; state: string; country: string };
+  celular: string;
+  secondaryPhone?: string;
+  secondaryEmail?: string;
+  notes?: string;
+  defaultAnamnese?: string;
+  defaultEvolution?: string;
+  tissParticipationDegree?: string;
+  costCenter?: string;
+  group: string;
+  medicalRecordTab: string;
+  agendaAccess: string[];
+  schedulingInsurances: string[];
+  minAge?: number;
+  maxAge?: number;
+  hideFromAgenda: boolean;
+  agendaMessage?: string;
+  subspecialties: ProfessionalSubspecialty[];
+  units: string[];
+}
+
+export function professionalProfile(prof: Professional): ProfessionalProfile {
+  const r = rng(hashId(prof.id) + 500);
+  const digits = (n: number) => Array.from({ length: n }, () => Math.floor(r() * 10)).join("");
+  const personal = professionalPersonalInfo(prof);
+  const [conselho, registro] = prof.council.split(" ");
+  const isPediatra = prof.specialty === "Pediatria";
+  return {
+    active: r() > 0.15,
+    title: prof.name.startsWith("Dra.") ? "Dra." : prof.name.startsWith("Dr.") ? "Dr." : "",
+    socialName: undefined,
+    cns: digits(15),
+    gender: prof.name.startsWith("Dra.") ? "Feminino" : "Masculino",
+    rqe: r() < 0.5 ? String(10000 + Math.floor(r() * 89999)) : undefined,
+    registrations: [{ conselho: conselho ?? "CRM", registro: registro ?? "", uf: "MA" }],
+    address: {
+      cep: `65${digits(3)}-${digits(3)}`,
+      street: pick(r, ["Rua Grande", "Av. Colares Moreira", "Rua dos Pinheiros", "Av. Jerônimo de Albuquerque"]),
+      number: String(10 + Math.floor(r() * 2000)),
+      complement: r() < 0.3 ? `Sala ${1 + Math.floor(r() * 20)}` : undefined,
+      neighborhood: pick(r, ["Renascença", "Calhau", "Cohama", "Ponta do Farol", "São Francisco"]),
+      city: "São Luís",
+      state: "MA",
+      country: "Brasil",
+    },
+    celular: `(98) 9${digits(4)}-${digits(4)}`,
+    secondaryPhone: r() < 0.2 ? `(98) ${digits(4)}-${digits(4)}` : undefined,
+    secondaryEmail: r() < 0.3 ? personal.email.replace("@", ".pessoal@") : undefined,
+    notes: r() < 0.25 ? "Atende somente com encaminhamento prévio." : undefined,
+    defaultAnamnese: pick(r, ANAMNESE_MODELS),
+    defaultEvolution: pick(r, EVOLUCAO_MODELS),
+    tissParticipationDegree: pick(r, TISS_PARTICIPATION_DEGREES),
+    costCenter: pick(r, centrosDeCustoRows).nome as string,
+    group: "MÉDICOS",
+    medicalRecordTab: pick(r, MEDICAL_RECORD_TABS),
+    agendaAccess: professionals.filter((p) => p.id !== prof.id && r() < 0.2).map((p) => p.id),
+    schedulingInsurances: professionalInsurances(prof.id),
+    minAge: isPediatra ? 0 : undefined,
+    maxAge: isPediatra ? 12 : undefined,
+    hideFromAgenda: false,
+    agendaMessage: r() < 0.3 ? "Chegar com 15 minutos de antecedência e trazer exames anteriores." : undefined,
+    subspecialties: r() < 0.3 ? [{ name: `Subespecialidade em ${prof.specialty}`, note: "Atendimento restrito a encaminhamentos" }] : [],
+    units: r() < 0.25 ? ["u1", "u2"] : ["u1"],
+  };
+}
+
 // --- Funcionários e usuários -------------------------------------------------
 
 export interface AccessProfile {
@@ -183,8 +321,6 @@ export const ACCESS_PROFILES: AccessProfile[] = [
   { id: "gerencia", name: "Gerência", description: "Relatórios e cadastros, sem acesso a dados financeiros sensíveis." },
 ];
 
-export const PERMISSION_MODULES = ["Agenda", "Pacientes", "Prontuário", "Faturamento", "Financeiro", "Estoque", "Relatórios", "Cadastros"];
-
 export interface ModulePermission {
   ver: boolean;
   criar: boolean;
@@ -199,49 +335,210 @@ function perm(ver: boolean, criar: boolean, editar: boolean, excluir: boolean): 
 const ALL = perm(true, true, true, true);
 const NONE = perm(false, false, false, false);
 
-export const PROFILE_PERMISSIONS: Record<string, Record<string, ModulePermission>> = {
-  admin: Object.fromEntries(PERMISSION_MODULES.map((m) => [m, ALL])),
-  recepcao: {
-    Agenda: ALL,
-    Pacientes: perm(true, true, true, false),
-    Prontuário: perm(true, false, false, false),
-    Faturamento: perm(true, true, false, false),
-    Financeiro: perm(true, false, false, false),
-    Estoque: NONE,
-    Relatórios: perm(true, false, false, false),
-    Cadastros: NONE,
+export interface PermissionItem {
+  key: string;
+  label: string;
+}
+
+export interface PermissionCategory {
+  key: string;
+  label: string;
+  items: PermissionItem[];
+}
+
+/** Permissões por funcionalidade, agrupadas por módulo — igual em espírito ao Feegow, mas com granularidade do tamanho do nosso app (não 200 linhas por categoria). */
+export const PERMISSION_CATEGORIES: PermissionCategory[] = [
+  {
+    key: "agenda",
+    label: "Agenda",
+    items: [
+      { key: "agenda.visualizar", label: "Visualizar agenda" },
+      { key: "agenda.agendar", label: "Criar agendamento" },
+      { key: "agenda.reagendar", label: "Reagendar ou cancelar" },
+      { key: "agenda.checkin", label: "Check-in e sala de espera" },
+      { key: "agenda.bloquear", label: "Bloquear horários" },
+      { key: "agenda.outros", label: "Ver agenda de outros profissionais" },
+      { key: "agenda.confirmacao", label: "Confirmar agendamentos (WhatsApp/SMS)" },
+    ],
   },
-  financeiro: {
-    Agenda: perm(true, false, false, false),
-    Pacientes: perm(true, false, false, false),
-    Prontuário: NONE,
-    Faturamento: ALL,
-    Financeiro: ALL,
-    Estoque: perm(true, false, false, false),
-    Relatórios: perm(true, false, false, false),
-    Cadastros: perm(true, true, true, false),
+  {
+    key: "prontuario",
+    label: "Atendimento e prontuário",
+    items: [
+      { key: "prontuario.visualizar", label: "Visualizar prontuário" },
+      { key: "prontuario.evoluir", label: "Registrar evolução e anamnese" },
+      { key: "prontuario.prescrever", label: "Emitir receitas e atestados" },
+      { key: "prontuario.assinar", label: "Assinar digitalmente" },
+      { key: "prontuario.outros", label: "Ver prontuário de outros profissionais" },
+    ],
   },
-  profissional: {
-    Agenda: perm(true, true, true, false),
-    Pacientes: perm(true, false, true, false),
-    Prontuário: ALL,
-    Faturamento: perm(true, false, false, false),
-    Financeiro: NONE,
-    Estoque: perm(true, false, false, false),
-    Relatórios: perm(true, false, false, false),
-    Cadastros: NONE,
+  {
+    key: "pacientes",
+    label: "Pacientes",
+    items: [
+      { key: "pacientes.visualizar", label: "Visualizar cadastro" },
+      { key: "pacientes.editar", label: "Criar e editar cadastro" },
+      { key: "pacientes.mesclar", label: "Mesclar ou excluir cadastro" },
+      { key: "pacientes.financeiro", label: "Ver dados financeiros do paciente" },
+    ],
   },
-  gerencia: {
-    Agenda: perm(true, true, true, false),
-    Pacientes: perm(true, true, true, false),
-    Prontuário: perm(true, false, false, false),
-    Faturamento: perm(true, false, false, false),
-    Financeiro: perm(true, false, false, false),
-    Estoque: perm(true, true, true, false),
-    Relatórios: ALL,
-    Cadastros: perm(true, true, true, false),
+  {
+    key: "financeiro",
+    label: "Financeiro",
+    items: [
+      { key: "financeiro.caixa", label: "Abrir e fechar caixa" },
+      { key: "financeiro.pagar", label: "Contas a pagar" },
+      { key: "financeiro.receber", label: "Contas a receber" },
+      { key: "financeiro.conciliacao", label: "Conciliação bancária" },
+      { key: "financeiro.repasses", label: "Repasses" },
+      { key: "financeiro.notaFiscal", label: "Emitir nota fiscal" },
+    ],
   },
-};
+  {
+    key: "faturamento",
+    label: "Faturamento TISS",
+    items: [
+      { key: "faturamento.guias", label: "Visualizar guias" },
+      { key: "faturamento.gerarGuias", label: "Gerar e editar guias" },
+      { key: "faturamento.lotes", label: "Fechar lotes" },
+      { key: "faturamento.autorizacoes", label: "Autorizações" },
+      { key: "faturamento.tabelaValores", label: "Tabela de valores" },
+    ],
+  },
+  {
+    key: "estoque",
+    label: "Estoque",
+    items: [
+      { key: "estoque.visualizar", label: "Visualizar estoque" },
+      { key: "estoque.movimentacoes", label: "Movimentações (entrada/saída)" },
+      { key: "estoque.requisicoes", label: "Requisições" },
+      { key: "estoque.kits", label: "Kits" },
+    ],
+  },
+  {
+    key: "relatorios",
+    label: "Relatórios",
+    items: [
+      { key: "relatorios.visualizar", label: "Visualizar relatórios" },
+      { key: "relatorios.exportar", label: "Exportar relatórios" },
+      { key: "relatorios.modelos", label: "Configurar modelos de relatório" },
+    ],
+  },
+  {
+    key: "cadastros",
+    label: "Cadastros",
+    items: [
+      { key: "cadastros.profissionais", label: "Profissionais" },
+      { key: "cadastros.convenios", label: "Convênios" },
+      { key: "cadastros.procedimentos", label: "Procedimentos" },
+      { key: "cadastros.funcionarios", label: "Funcionários e permissões" },
+      { key: "cadastros.empresa", label: "Dados da empresa" },
+    ],
+  },
+  {
+    key: "configuracoes",
+    label: "Configurações",
+    items: [
+      { key: "config.gerais", label: "Configurações gerais" },
+      { key: "config.integracoes", label: "Integrações" },
+      { key: "config.privacidade", label: "Privacidade e acesso" },
+    ],
+  },
+];
+
+export const PERMISSION_ITEMS: PermissionItem[] = PERMISSION_CATEGORIES.flatMap((c) => c.items);
+
+function expandProfile(moduleLevels: Record<string, ModulePermission>): Record<string, ModulePermission> {
+  const categoryToModule: Record<string, string> = {
+    agenda: "Agenda",
+    prontuario: "Prontuário",
+    pacientes: "Pacientes",
+    financeiro: "Financeiro",
+    faturamento: "Faturamento",
+    estoque: "Estoque",
+    relatorios: "Relatórios",
+    cadastros: "Cadastros",
+    configuracoes: "Configurações",
+  };
+  const out: Record<string, ModulePermission> = {};
+  for (const cat of PERMISSION_CATEGORIES) {
+    const base = moduleLevels[categoryToModule[cat.key]] ?? NONE;
+    for (const item of cat.items) out[item.key] = base;
+  }
+  return out;
+}
+
+export const PROFILE_PERMISSIONS: Record<string, Record<string, ModulePermission>> = (() => {
+  const result: Record<string, Record<string, ModulePermission>> = {
+    admin: expandProfile({
+      Agenda: ALL,
+      Pacientes: ALL,
+      Prontuário: ALL,
+      Faturamento: ALL,
+      Financeiro: ALL,
+      Estoque: ALL,
+      Relatórios: ALL,
+      Cadastros: ALL,
+      Configurações: ALL,
+    }),
+    recepcao: expandProfile({
+      Agenda: ALL,
+      Pacientes: perm(true, true, true, false),
+      Prontuário: perm(true, false, false, false),
+      Faturamento: perm(true, true, false, false),
+      Financeiro: perm(true, false, false, false),
+      Estoque: NONE,
+      Relatórios: perm(true, false, false, false),
+      Cadastros: NONE,
+      Configurações: NONE,
+    }),
+    financeiro: expandProfile({
+      Agenda: perm(true, false, false, false),
+      Pacientes: perm(true, false, false, false),
+      Prontuário: NONE,
+      Faturamento: ALL,
+      Financeiro: ALL,
+      Estoque: perm(true, false, false, false),
+      Relatórios: perm(true, false, false, false),
+      Cadastros: perm(true, true, true, false),
+      Configurações: NONE,
+    }),
+    profissional: expandProfile({
+      Agenda: perm(true, true, true, false),
+      Pacientes: perm(true, false, true, false),
+      Prontuário: ALL,
+      Faturamento: perm(true, false, false, false),
+      Financeiro: NONE,
+      Estoque: perm(true, false, false, false),
+      Relatórios: perm(true, false, false, false),
+      Cadastros: NONE,
+      Configurações: NONE,
+    }),
+    gerencia: expandProfile({
+      Agenda: perm(true, true, true, false),
+      Pacientes: perm(true, true, true, false),
+      Prontuário: perm(true, false, false, false),
+      Faturamento: perm(true, false, false, false),
+      Financeiro: perm(true, false, false, false),
+      Estoque: perm(true, true, true, false),
+      Relatórios: ALL,
+      Cadastros: perm(true, true, true, false),
+      Configurações: perm(true, false, true, false),
+    }),
+  };
+
+  // Ajustes finos que não existem no nível de módulo — diferenças reais entre
+  // perfis que fazem sentido no dia a dia de uma clínica.
+  result.recepcao["agenda.outros"] = ALL;
+  result.recepcao["pacientes.financeiro"] = perm(true, false, false, false);
+  result.profissional["agenda.outros"] = NONE;
+  result.profissional["agenda.bloquear"] = perm(true, true, false, false);
+  result.profissional["prontuario.outros"] = NONE;
+  result.financeiro["pacientes.financeiro"] = ALL;
+  result.gerencia["financeiro.caixa"] = perm(true, false, false, false);
+
+  return result;
+})();
 
 export interface SystemUser {
   id: string;
@@ -258,6 +555,7 @@ export interface SystemUser {
 function makeUsers(): SystemUser[] {
   const r = rng(555);
   const staff: { name: string; role: string; profileId: string }[] = [
+    { name: currentUser.name, role: currentUser.role, profileId: "recepcao" },
     { name: "Ana Ribeiro", role: "Recepcionista", profileId: "recepcao" },
     { name: "Carla Dias", role: "Recepcionista", profileId: "recepcao" },
     { name: "Marcos Vieira", role: "Analista financeiro", profileId: "financeiro" },
@@ -485,6 +783,8 @@ const centrosDeCustoRows: EntityRow[] = [
   { id: "cc-5", nome: "Recepção", responsavel: "Ana Ribeiro", orcamentoMensal: "R$ 6.500,00", status: "Ativo" },
 ];
 
+export const COST_CENTER_NAMES = centrosDeCustoRows.map((r) => r.nome as string);
+
 // Contas correntes
 const contasCorrentesRows: EntityRow[] = [
   { id: "conta-1", banco: "Banco do Brasil", agencia: "3421-5", conta: "18.294-0", saldo: "R$ 48.230,00", status: "Ativo" },
@@ -538,6 +838,82 @@ const vouchersRows: EntityRow[] = [
   { id: "vou-2", codigo: "OUTUBRO ROSA", desconto: "15%", validade: "31/10/2026", usos: 58, status: "Ativo" },
   { id: "vou-3", codigo: "INDICACAO20", desconto: "20%", validade: "31/12/2026", usos: 21, status: "Ativo" },
   { id: "vou-4", codigo: "BLACKFRIDAY", desconto: "25%", validade: "30/11/2025", usos: 212, status: "Inativo" },
+];
+
+// Grupos de profissionais — usados no cadastro de Profissionais (campo "Grupo").
+const gruposDeProfissionaisRows: EntityRow[] = [
+  { id: "grp-1", nome: "MÉDICOS" },
+  { id: "grp-2", nome: "ENFERMAGEM" },
+  { id: "grp-3", nome: "ADMINISTRATIVO" },
+  { id: "grp-4", nome: "TÉCNICOS" },
+];
+
+export const PROFESSIONAL_GROUPS = gruposDeProfissionaisRows.map((r) => r.nome as string);
+
+// Especialidades — catálogo usado no cadastro de Profissionais e de Profissionais Externos.
+const especialidadesRows: EntityRow[] = (() => {
+  const base = [...new Set(professionals.map((p) => p.specialty))];
+  const extras = ["Oftalmologia", "Endocrinologia", "Gastroenterologia", "Urologia", "Nutrição", "Fisioterapia"];
+  const names = [...base, ...extras];
+  const r = rng(910);
+  return names.map((nome, i) => ({
+    id: `esp-${i + 1}`,
+    nome,
+    codigoCbo: `2251${pad2(10 + Math.floor(r() * 89))}`,
+    nomeResumido: nome.length > 18 ? nome.slice(0, 15) + "..." : nome,
+    agendamentoPorPeriodo: r() < 0.15,
+  }));
+})();
+
+export const SPECIALTY_NAMES = especialidadesRows.map((r) => r.nome as string);
+
+// Profissionais externos — médicos solicitantes/encaminhadores que não atendem na clínica.
+const profissionaisExternosRows: EntityRow[] = (() => {
+  const names = [
+    "Adriano Dourado", "Adryane Portilho", "Aguida Brito", "Amanda Marques", "André Felipe Ramos",
+    "Andrea Suzana Costa", "Andressa Miranda", "Anne Nathaly Fontoura", "Arnaldo Sousa Barros", "Bruce Bezerra Martins",
+  ];
+  const r = rng(920);
+  return names.map((nome, i) => {
+    const digits = (n: number) => Array.from({ length: n }, () => Math.floor(r() * 10)).join("");
+    return {
+      id: `ext-${i + 1}`,
+      nome,
+      especialidade: pick(r, SPECIALTY_NAMES),
+      conselho: pick(r, CONSELHO_TYPES),
+      registro: String(10000 + Math.floor(r() * 89999)),
+      telefone: `(98) 9${digits(4)}-${digits(4)}`,
+      email: `${nome.split(" ")[0].toLowerCase()}.${nome.split(" ").slice(-1)[0].toLowerCase()}@externo.com.br`,
+      status: "Ativo",
+    };
+  });
+})();
+
+// Cartões de benefícios — planos de desconto oferecidos a grupos de pacientes (empresas parceiras, etc.).
+const cartoesDeBeneficioRows: EntityRow[] = [
+  { id: "cb-1", nome: "Cartão Família Vida Plena", descricao: "Desconto para dependentes do titular.", descontoPercentual: 15, validadeMeses: 12, status: "Ativo" },
+  { id: "cb-2", nome: "Convênio Empresarial — Prefeitura", descricao: "Benefício para servidores municipais conveniados.", descontoPercentual: 20, validadeMeses: 24, status: "Ativo" },
+  { id: "cb-3", nome: "Cartão Terceira Idade", descricao: "Desconto para pacientes acima de 60 anos.", descontoPercentual: 10, validadeMeses: 12, status: "Ativo" },
+  { id: "cb-4", nome: "Programa Indica e Ganha", descricao: "Desconto por indicação de novos pacientes.", descontoPercentual: 5, validadeMeses: 6, status: "Inativo" },
+];
+
+// Variações de preço — regras de acréscimo/desconto aplicadas sobre a tabela base.
+const variacoesDePrecoRows: EntityRow[] = [
+  { id: "var-1", nome: "Fora do horário comercial", tipo: "Acréscimo", percentual: 20, aplicavelA: "Todos os procedimentos", status: "Ativo" },
+  { id: "var-2", nome: "Pagamento à vista", tipo: "Desconto", percentual: 10, aplicavelA: "Todos os procedimentos", status: "Ativo" },
+  { id: "var-3", nome: "Atendimento domiciliar", tipo: "Acréscimo", percentual: 35, aplicavelA: "Consultas", status: "Ativo" },
+  { id: "var-4", nome: "Pacote de check-up", tipo: "Desconto", percentual: 15, aplicavelA: "Exames", status: "Ativo" },
+  { id: "var-5", nome: "Feriados e fins de semana", tipo: "Acréscimo", percentual: 25, aplicavelA: "Todos os procedimentos", status: "Inativo" },
+];
+
+// Cadastro de exames (laboratório parceiro) — mapeia o nome interno ao código do laboratório de apoio.
+const examesLabRows: EntityRow[] = [
+  { id: "lab-1", nome: "Hemograma completo", codigoLaboratorio: "HC001", amostra: "Sangue total (EDTA)", prazoDias: 1, status: "Ativo" },
+  { id: "lab-2", nome: "Glicemia de jejum", codigoLaboratorio: "GJ014", amostra: "Soro", prazoDias: 1, status: "Ativo" },
+  { id: "lab-3", nome: "TSH", codigoLaboratorio: "TSH220", amostra: "Soro", prazoDias: 2, status: "Ativo" },
+  { id: "lab-4", nome: "Colesterol total e frações", codigoLaboratorio: "LIP305", amostra: "Soro (jejum 12h)", prazoDias: 1, status: "Ativo" },
+  { id: "lab-5", nome: "Urina tipo I", codigoLaboratorio: "URI008", amostra: "Urina", prazoDias: 1, status: "Ativo" },
+  { id: "lab-6", nome: "PCR (proteína C reativa)", codigoLaboratorio: "PCR119", amostra: "Soro", prazoDias: 2, status: "Inativo" },
 ];
 
 export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
@@ -771,6 +1147,125 @@ export const ENTITY_CONFIGS: Record<string, EntityConfig> = {
     searchKeys: [],
     singleForm: true,
   },
+  "grupos-de-profissionais": {
+    title: "Grupos de profissionais",
+    description: "Agrupe profissionais por função — usado em filtros, relatórios e no cadastro de profissionais.",
+    icon: People,
+    newLabel: "Novo grupo",
+    columns: [{ key: "nome", label: "Grupo" }],
+    fields: [{ key: "nome", label: "Nome do grupo", type: "text", required: true }],
+    rows: gruposDeProfissionaisRows,
+    searchKeys: ["nome"],
+  },
+  especialidades: {
+    title: "Especialidades",
+    description: "Catálogo de especialidades usado no cadastro de profissionais, agendamento e faturamento TISS.",
+    icon: Health,
+    newLabel: "Nova especialidade",
+    columns: [
+      { key: "nome", label: "Especialidade" },
+      { key: "codigoCbo", label: "Código CBO" },
+      { key: "nomeResumido", label: "Nome resumido" },
+      { key: "agendamentoPorPeriodo", label: "Agend. por período" },
+    ],
+    fields: [
+      { key: "nome", label: "Especialidade", type: "text", required: true },
+      { key: "codigoCbo", label: "Código CBO", type: "text" },
+      { key: "nomeResumido", label: "Nome resumido", type: "text" },
+      { key: "agendamentoPorPeriodo", label: "Agendamento por período?", type: "checkbox" },
+    ],
+    rows: especialidadesRows,
+    searchKeys: ["nome", "codigoCbo"],
+  },
+  "profissionais-externos": {
+    title: "Profissionais externos",
+    description: "Médicos solicitantes e encaminhadores que não atendem na clínica — usados em guias e encaminhamentos.",
+    icon: Profile2User,
+    newLabel: "Novo profissional externo",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "especialidade", label: "Especialidade" },
+      { key: "conselho", label: "Conselho" },
+      { key: "telefone", label: "Telefone" },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome completo", type: "text", required: true },
+      { key: "especialidade", label: "Especialidade", type: "select", options: SPECIALTY_NAMES.map((s) => ({ value: s, label: s })) },
+      { key: "conselho", label: "Conselho", type: "select", options: CONSELHO_TYPES.map((c) => ({ value: c, label: c })) },
+      { key: "registro", label: "Registro", type: "text" },
+      { key: "telefone", label: "Telefone", type: "tel" },
+      { key: "email", label: "E-mail", type: "email" },
+      STATUS_FIELD,
+    ],
+    rows: profissionaisExternosRows,
+    searchKeys: ["nome", "especialidade"],
+  },
+  "cartoes-de-beneficio": {
+    title: "Cartões de benefício",
+    description: "Planos de desconto oferecidos a grupos de pacientes (empresas parceiras, convênios de desconto).",
+    icon: Card,
+    newLabel: "Novo cartão",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "descontoPercentual", label: "Desconto", numeric: true },
+      { key: "validadeMeses", label: "Validade (meses)", numeric: true },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome do cartão", type: "text", required: true },
+      { key: "descricao", label: "Descrição", type: "textarea" },
+      { key: "descontoPercentual", label: "Desconto", type: "number", suffix: "%" },
+      { key: "validadeMeses", label: "Validade", type: "number", suffix: "meses" },
+      STATUS_FIELD,
+    ],
+    rows: cartoesDeBeneficioRows,
+    searchKeys: ["nome"],
+  },
+  "variacoes-de-preco": {
+    title: "Variações de preço",
+    description: "Regras de acréscimo ou desconto aplicadas sobre a tabela de preços base.",
+    icon: TicketDiscount,
+    newLabel: "Nova variação",
+    columns: [
+      { key: "nome", label: "Nome" },
+      { key: "tipo", label: "Tipo" },
+      { key: "percentual", label: "Percentual", numeric: true },
+      { key: "aplicavelA", label: "Aplicável a" },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome da variação", type: "text", required: true },
+      { key: "tipo", label: "Tipo", type: "select", options: [{ value: "Acréscimo", label: "Acréscimo" }, { value: "Desconto", label: "Desconto" }] },
+      { key: "percentual", label: "Percentual", type: "number", suffix: "%" },
+      { key: "aplicavelA", label: "Aplicável a", type: "select", options: ["Todos os procedimentos", "Consultas", "Exames"].map((v) => ({ value: v, label: v })) },
+      STATUS_FIELD,
+    ],
+    rows: variacoesDePrecoRows,
+    searchKeys: ["nome", "aplicavelA"],
+  },
+  "exames-laboratorio": {
+    title: "Exames (laboratório)",
+    description: "Catálogo de exames mapeados ao código do laboratório de apoio, usado na integração de pedidos e resultados.",
+    icon: Microscope,
+    newLabel: "Novo exame",
+    columns: [
+      { key: "nome", label: "Exame" },
+      { key: "codigoLaboratorio", label: "Código no laboratório" },
+      { key: "amostra", label: "Amostra" },
+      { key: "prazoDias", label: "Prazo (dias)", numeric: true },
+      { key: "status", label: "Status" },
+    ],
+    fields: [
+      { key: "nome", label: "Nome do exame", type: "text", required: true },
+      { key: "codigoLaboratorio", label: "Código no laboratório", type: "text", required: true },
+      { key: "amostra", label: "Amostra", type: "text" },
+      { key: "prazoDias", label: "Prazo de entrega", type: "number", suffix: "dias" },
+      STATUS_FIELD,
+    ],
+    rows: examesLabRows,
+    searchKeys: ["nome", "codigoLaboratorio"],
+  },
 };
 
 export const ENTITY_GROUPS: { id: string; label: string; description: string; icon: IconType; items: { entity: string; href: string }[] }[] = [
@@ -781,6 +1276,9 @@ export const ENTITY_GROUPS: { id: string; label: string; description: string; ic
     icon: People,
     items: [
       { entity: "profissionais", href: "/cadastros/profissionais" },
+      { entity: "profissionais-externos", href: "/cadastros/profissionais-externos" },
+      { entity: "grupos-de-profissionais", href: "/cadastros/grupos-de-profissionais" },
+      { entity: "especialidades", href: "/cadastros/especialidades" },
       { entity: "funcionarios", href: "/cadastros/funcionarios" },
       { entity: "fornecedores", href: "/cadastros/fornecedores" },
       { entity: "contatos", href: "/cadastros/contatos" },
@@ -794,6 +1292,7 @@ export const ENTITY_GROUPS: { id: string; label: string; description: string; ic
     items: [
       { entity: "procedimentos", href: "/cadastros/procedimentos" },
       { entity: "convenios", href: "/cadastros/convenios" },
+      { entity: "exames-laboratorio", href: "/cadastros/exames-laboratorio" },
       { entity: "locais", href: "/cadastros/locais" },
       { entity: "equipamentos", href: "/cadastros/equipamentos" },
       { entity: "feriados", href: "/cadastros/feriados" },
@@ -807,6 +1306,8 @@ export const ENTITY_GROUPS: { id: string; label: string; description: string; ic
     icon: Wallet2,
     items: [
       { entity: "tabelas-de-preco", href: "/cadastros/tabelas-de-preco" },
+      { entity: "variacoes-de-preco", href: "/cadastros/variacoes-de-preco" },
+      { entity: "cartoes-de-beneficio", href: "/cadastros/cartoes-de-beneficio" },
       { entity: "formas-de-recebimento", href: "/cadastros/formas-de-recebimento" },
       { entity: "regras-de-repasse", href: "/cadastros/regras-de-repasse" },
       { entity: "contas-correntes", href: "/cadastros/contas-correntes" },

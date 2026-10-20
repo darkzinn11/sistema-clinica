@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { Drawer } from "@/components/ui/overlay";
+import { Modal } from "@/components/ui/overlay";
 import { DescriptionList, Steps } from "@/components/ui/misc";
 import { brl, dateBR } from "@/lib/format";
 import { patientById, procedureById, professionalById } from "@/lib/mock/core";
@@ -106,7 +106,7 @@ export default function Repasses() {
         </Table>
       </Card>
 
-      <Drawer open={Boolean(detalhe)} onClose={() => setDetalheId(null)} width="lg" title={professionalById(detalhe?.professionalId ?? "")?.name ?? ""} description={competenciaLabel(competencia)}>
+      <Modal open={Boolean(detalhe)} onClose={() => setDetalheId(null)} size="lg" title={professionalById(detalhe?.professionalId ?? "")?.name ?? ""} description={competenciaLabel(competencia)}>
         {detalhe && (
           <div className="flex flex-col gap-6">
             <DescriptionList
@@ -147,9 +147,9 @@ export default function Repasses() {
             </section>
           </div>
         )}
-      </Drawer>
+      </Modal>
 
-      <Drawer
+      <Modal
         open={fechamentoAberto}
         onClose={() => {
           setFechamentoAberto(false);
@@ -174,7 +174,7 @@ export default function Repasses() {
           {passo === 1 && <p className="text-base text-text-muted">Ao aprovar, todos os repasses pendentes ficam disponíveis para pagamento.</p>}
           {passo === 2 && <p className="text-base text-text-muted">Confirme para marcar todos os repasses desta competência como pagos.</p>}
         </div>
-      </Drawer>
+      </Modal>
     </div>
   );
 }
