@@ -69,7 +69,7 @@ abstract class AgendaTestBase {
             jdbc.update("UPDATE clinica.profissionais SET usuario_id = ? WHERE id = ?", user, professional);
             insertProfessional(unlinkedProfessional, tenant, "Dr. Sem Unidade", "1002", null);
             // Sem vigencia: usa o DEFAULT da coluna, que a V12 corrigiu.
-            jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim) SELECT ?, ?, ?, d, '06:00', '20:00' FROM generate_series(0, 6) d", tenant, professional, unit);
+            jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min) SELECT ?, ?, ?, d, '06:00', '20:00', 30 FROM generate_series(0, 6) d", tenant, professional, unit);
             jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Consulta teste', 30)", procedure, tenant);
             return null;
         });

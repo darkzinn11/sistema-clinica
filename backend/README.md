@@ -185,12 +185,20 @@ Criar e remarcar passam pela mesma validação (`AppointmentService.requireFreeS
 
 - `diaSemana`: 0 = domingo ... 6 = sábado. Horários da grade são **locais da unidade** (`unidades.fuso`);
   o offset enviado pelo cliente não decide nada. O agendamento precisa caber inteiro em uma única janela da
-  grade e não pode atravessar a meia-noite. Duas janelas coladas (08–12 e 12–18) não somam: cada
-  agendamento precisa caber em uma delas.
+  grade. Duas janelas coladas (08–12 e 12–18) não somam: cada agendamento precisa caber em uma delas.
+- **Grade em blocos (V20).** Cada janela tem `duracaoBlocoMin` (ex.: 09:00–12:00 de 20 em 20 min; 14:30–17:00 de 15
+  em 15), e a janela precisa ser múltipla do bloco (o banco recusa o contrário). O início do agendamento precisa cair
+  num bloco, contado a partir do começo **da janela**. O `intervaloMin` antigo foi removido: tinha sido interpretado
+  como folga entre atendimentos e nunca valeu para a reserva.
+- **Tempo do procedimento é opcional (V20).** Vazio ou `0` = "ainda não medido" (a clínica ainda não tem média) e fica
+  guardado como nulo; de 1 a 4 minutos é recusado. Procedimento sem tempo ocupa **um bloco**; com tempo medido maior
+  que o bloco ocupa blocos seguidos (45 min num bloco de 30 = 2 blocos = 60 min). Preencher o tempo depois não exige
+  migrar nada.
+- **`fim` do agendamento é opcional** em criar e remarcar: o sistema calcula pelos blocos. Se vier, precisa bater com
+  o cálculo (422 "Duração inválida"). A disponibilidade devolve os mesmos horários que a reserva aceita.
 - Respostas de reserva: `422` horário inválido para a agenda (fora da grade, bloqueado); `409` horário válido
   porém ocupado; `400` dados/referências inválidos; `403` unidade diferente da sessão.
-- `vigenciaFim` da grade é inclusiva e opcional. `intervaloMin` só afeta os horários sugeridos pela
-  disponibilidade (passo = duração do procedimento + intervalo); a reserva não o exige.
+- `vigenciaFim` da grade é inclusiva e opcional.
 - Criar bloqueio sobre agendamentos ativos é recusado (409): cancele ou remarque antes.
 - Desativar uma grade não cancela agendamentos já feitos nela.
 - O default de `grades.vigencia` da V9 tinha o literal `'[\)'` (inválido); a V12 o corrigiu.

@@ -16,7 +16,7 @@ import static br.com.multisaude.agenda.ScheduleModels.*;
 /** Acesso a dados de grades e bloqueios. Sempre chamado dentro de TenantTransactions.inTenant. */
 @Repository
 public class ScheduleRepository {
-    private static final String GRADE_COLUMNS = "id, profissional_id, unidade_id, dia_semana, inicio, fim, intervalo_min, lower(vigencia) vig_ini, upper(vigencia) vig_fim, ativo";
+    private static final String GRADE_COLUMNS = "id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min, lower(vigencia) vig_ini, upper(vigencia) vig_fim, ativo";
     private static final String ACTIVE_STATUS = "status NOT IN ('cancelado','nao_compareceu','remarcado')";
     private final JdbcTemplate jdbc;
 
@@ -34,8 +34,11 @@ public class ScheduleRepository {
                 + "WHERE p.id = ? AND p.ativo AND u.unidade_id = ?)", Boolean.class, professional, unit));
     }
 
-    public Optional<Integer> procedureDuration(UUID procedure) {
-        return jdbc.query("SELECT duracao_min FROM clinica.procedimentos WHERE id = ? AND ativo", (r, n) -> r.getInt(1), procedure).stream().findFirst();
+    /** minutes é nulo enquanto a clínica não mediu o tempo do procedimento. */
+    public record ProcedureTime(Integer minutes) {}
+
+    public Optional<ProcedureTime> procedureTime(UUID procedure) {
+        return jdbc.query("SELECT duracao_min FROM clinica.procedimentos WHERE id = ? AND ativo", (r, n) -> new ProcedureTime(r.getObject(1, Integer.class)), procedure).stream().findFirst();
     }
 
     // ---- grades ----
@@ -49,9 +52,9 @@ public class ScheduleRepository {
 
     public GradeView createGrade(UUID tenant, UUID unit, CreateGradeRequest x, LocalDate validFrom) {
         UUID id = UUID.randomUUID();
-        jdbc.update("INSERT INTO clinica.grades(id, tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, intervalo_min, vigencia) "
+        jdbc.update("INSERT INTO clinica.grades(id, tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min, vigencia) "
                 + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, daterange(?, ?, '[]'))",
-            id, tenant, x.profissionalId(), unit, x.diaSemana(), x.inicio(), x.fim(), x.intervaloMin() == null ? 0 : x.intervaloMin(),
+            id, tenant, x.profissionalId(), unit, x.diaSemana(), x.inicio(), x.fim(), x.duracaoBlocoMin(),
             Date.valueOf(validFrom), x.vigenciaFim() == null ? null : Date.valueOf(x.vigenciaFim()));
         return jdbc.queryForObject("SELECT " + GRADE_COLUMNS + " FROM clinica.grades WHERE id = ?", (r, n) -> grade(r), id);
     }
@@ -73,12 +76,11 @@ public class ScheduleRepository {
             professional, unit, date.getDayOfWeek().getValue() % 7, Date.valueOf(date));
     }
 
-    /** O agendamento precisa caber inteiro em UMA janela de grade do dia local da unidade. */
-    public boolean fitsInGrade(UUID professional, UUID unit, LocalDate date, LocalTime start, LocalTime end) {
-        return Boolean.TRUE.equals(jdbc.queryForObject(
-            "SELECT EXISTS(SELECT 1 FROM clinica.grades WHERE profissional_id = ? AND unidade_id = ? AND ativo AND dia_semana = ? "
-                + "AND vigencia @> ?::date AND inicio <= ? AND fim >= ?)", Boolean.class,
-            professional, unit, date.getDayOfWeek().getValue() % 7, Date.valueOf(date), start, end));
+    /** A janela de grade do dia local da unidade que contém este horário de início (as janelas do profissional não se sobrepõem). */
+    public Optional<GradeView> windowAt(UUID professional, UUID unit, LocalDate date, LocalTime start) {
+        return jdbc.query("SELECT " + GRADE_COLUMNS + " FROM clinica.grades WHERE profissional_id = ? AND unidade_id = ? AND ativo AND dia_semana = ? "
+            + "AND vigencia @> ?::date AND inicio <= ? AND ? < fim LIMIT 1", (r, n) -> grade(r),
+            professional, unit, date.getDayOfWeek().getValue() % 7, Date.valueOf(date), start, start).stream().findFirst();
     }
 
     // ---- bloqueios ----
@@ -127,7 +129,7 @@ public class ScheduleRepository {
         Date until = r.getDate("vig_fim");
         // daterange guarda o fim exclusivo; a API expõe o último dia incluído.
         return new GradeView(r.getObject("id", UUID.class), r.getObject("profissional_id", UUID.class), r.getObject("unidade_id", UUID.class),
-            r.getInt("dia_semana"), r.getObject("inicio", LocalTime.class), r.getObject("fim", LocalTime.class), r.getInt("intervalo_min"),
+            r.getInt("dia_semana"), r.getObject("inicio", LocalTime.class), r.getObject("fim", LocalTime.class), r.getInt("duracao_bloco_min"),
             r.getObject("vig_ini", LocalDate.class), until == null ? null : until.toLocalDate().minusDays(1), r.getBoolean("ativo"));
     }
 

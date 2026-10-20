@@ -62,8 +62,11 @@ Antes do primeiro agendamento a clínica configura, nesta ordem: **especialidade
 (dados e conselho, especialidade, procedimentos habilitados na agenda, horários de atendimento, acesso).
 Já existem: unidades, usuários, grades, tipos de senha e guichês. Faltam o cadastro completo de procedimentos e
 profissionais, o vínculo profissional↔procedimento e especialidades por clínica. Ver README e a conversa de 20/10/2026.
-**Dúvida aberta que condiciona a grade:** o horário é um bloco fixo da grade (ex.: de 20 em 20 min) ou o procedimento
-ocupa o tempo dele? As telas sugerem bloco fixo, o que obriga a rever `grades.intervalo_min` e o cálculo de horários.
+**Resolvido (V20):** a grade define o bloco de horário e o tempo do procedimento é opcional ("0 min" = ainda não medido).
+Quando a clínica medir uma média, basta preencher o tempo do procedimento.
+Descoberto nas telas de agendamento e ainda por construir: **vários procedimentos por agendamento**, **valor por item**,
+**sala e equipamento** (ultrassom é provavelmente o grosso da clínica), **número de prontuário sequencial**, CPF e celular
+obrigatórios no cadastro do paciente (com "sem CPF" explícito) e **prioridade do paciente**.
 
 ### Pendências da Fatia 1
 - Encaminhamento do médico à recepção ao fim do atendimento (hoje não há registro dessa passagem).

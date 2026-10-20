@@ -36,6 +36,9 @@ public class ScheduleService {
         if (x.inicio().getSecond() != 0 || x.fim().getSecond() != 0 || x.inicio().getNano() != 0 || x.fim().getNano() != 0) {
             throw bad("Use horários em minutos inteiros.");
         }
+        if (java.time.Duration.between(x.inicio(), x.fim()).toMinutes() % x.duracaoBlocoMin() != 0) {
+            throw bad("A janela precisa ser múltipla do tamanho do bloco (" + x.duracaoBlocoMin() + " min), senão sobra um horário que ninguém consegue agendar.");
+        }
         UUID unit = s.identity().unidadeId();
         try {
             return tx.inTenant(s.identity().tenantId(), () -> {
@@ -103,8 +106,8 @@ public class ScheduleService {
     }
 
     /**
-     * Horários de início possíveis para o procedimento. O passo é duração + intervalo da grade;
-     * a reserva em si só exige caber na grade (AppointmentService), então outros inícios dentro dela também valem.
+     * Horários de início possíveis para o procedimento: os blocos da grade. Cada horário ocupa um bloco, ou blocos
+     * seguidos se o procedimento tiver tempo medido maior que o bloco. É a mesma regra que a reserva exige.
      */
     public List<SlotView> availability(Session s, UUID professional, UUID procedure, LocalDate from, LocalDate to) {
         if (to.isBefore(from)) throw bad("Intervalo inválido.");
@@ -112,7 +115,7 @@ public class ScheduleService {
         UUID unit = s.identity().unidadeId();
         return tx.inTenant(s.identity().tenantId(), () -> {
             access.scope(s).requireCanSee(professional);
-            int duration = repo.procedureDuration(procedure).orElseThrow(() -> bad("Procedimento inválido."));
+            ScheduleRepository.ProcedureTime procedureTime = repo.procedureTime(procedure).orElseThrow(() -> bad("Procedimento inválido."));
             if (!repo.professionalServesUnit(professional, unit)) throw bad("Profissional inválido ou não atende nesta unidade.");
             ZoneId zone = repo.unitZone(unit);
             OffsetDateTime rangeStart = from.atStartOfDay(zone).toOffsetDateTime();
@@ -122,11 +125,12 @@ public class ScheduleService {
             List<SlotView> free = new ArrayList<>();
             for (LocalDate day = from; !day.isAfter(to); day = day.plusDays(1)) {
                 for (GradeView grade : repo.gradesOn(professional, unit, day)) {
-                    // Em minutos do dia, não em LocalTime: este dá a volta à meia-noite e quebraria grades que terminam tarde.
-                    int gradeEnd = grade.fim().getHour() * 60 + grade.fim().getMinute();
-                    for (int m = grade.inicio().getHour() * 60 + grade.inicio().getMinute(); m + duration <= gradeEnd; m += duration + grade.intervaloMin()) {
+                    int block = grade.duracaoBlocoMin();
+                    int length = AgendaSlots.blocksNeeded(procedureTime.minutes(), block) * block;
+                    int gradeEnd = AgendaSlots.minutesOfDay(grade.fim());
+                    for (int m = AgendaSlots.minutesOfDay(grade.inicio()); m + length <= gradeEnd; m += block) {
                         OffsetDateTime start = ZonedDateTime.of(day, LocalTime.of(m / 60, m % 60), zone).toOffsetDateTime();
-                        OffsetDateTime end = start.plusMinutes(duration);
+                        OffsetDateTime end = start.plusMinutes(length);
                         if (start.isBefore(now) || busy.stream().anyMatch(b -> b.inicio().isBefore(end) && b.fim().isAfter(start))) continue;
                         free.add(new SlotView(start, end));
                     }

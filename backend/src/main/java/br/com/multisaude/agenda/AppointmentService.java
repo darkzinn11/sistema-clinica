@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import br.com.multisaude.identidade.IdentityModels.Session;
+import br.com.multisaude.agenda.ScheduleModels.GradeView;
 import br.com.multisaude.profissionais.ProfessionalRepository;
 import br.com.multisaude.shared.TenantTransactions;
 import static br.com.multisaude.agenda.AgendaModels.*;
@@ -44,7 +45,7 @@ public class AppointmentService {
     }
 
     public AppointmentView create(Session s, CreateAppointmentRequest x) {
-        if (!x.fim().isAfter(x.inicio())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fim deve ser posterior ao início.");
+        if (x.fim() != null && !x.fim().isAfter(x.inicio())) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fim deve ser posterior ao início.");
         if (!x.unidadeId().equals(s.identity().unidadeId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Unidade diferente da unidade ativa da sessão.");
         }
@@ -53,8 +54,9 @@ public class AppointmentService {
                 if (!repo.referencesAreValid(x.unidadeId(), x.profissionalId(), x.pacienteId(), x.procedimentoId())) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Paciente, profissional, procedimento ou unidade inválidos.");
                 }
-                requireFreeSlot(x.unidadeId(), x.profissionalId(), x.inicio(), x.fim(), null);
-                AppointmentView created = repo.createAppointment(x, s.identity().tenantId(), s.identity().usuarioId(), null);
+                OffsetDateTime end = requireFreeSlot(x.unidadeId(), x.profissionalId(), x.procedimentoId(), x.inicio(), x.fim(), null);
+                AppointmentView created = repo.createAppointment(new CreateAppointmentRequest(x.unidadeId(), x.profissionalId(), x.pacienteId(),
+                    x.procedimentoId(), x.inicio(), end, x.observacao(), x.canal()), s.identity().tenantId(), s.identity().usuarioId(), null);
                 repo.addHistory(s.identity().tenantId(), created.id(), null, created.status(), null, null, s.identity().usuarioId());
                 return created;
             });
@@ -68,25 +70,41 @@ public class AppointmentService {
     }
 
     /**
-     * Regra da clínica: só se agenda dentro da grade do profissional. Não há encaixe fora dela nem sobre bloqueio.
+     * Regra da clínica: só se agenda dentro da grade do profissional, em blocos. Não há encaixe fora dela nem sobre bloqueio.
+     * O início precisa cair num bloco da janela; o procedimento ocupa um bloco (ou blocos seguidos, se o tempo medido for
+     * maior). Se o cliente mandar o fim, ele precisa bater com o cálculo. Devolve o fim calculado.
      * 422 = o horário pedido é inválido para esta agenda; 409 = o horário é válido mas já está ocupado.
      */
-    private void requireFreeSlot(UUID unit, UUID professional, OffsetDateTime from, OffsetDateTime to, UUID ignoring) {
+    private OffsetDateTime requireFreeSlot(UUID unit, UUID professional, UUID procedure, OffsetDateTime from, OffsetDateTime requestedEnd, UUID ignoring) {
         ZoneId zone = schedule.unitZone(unit);
         ZonedDateTime localStart = from.atZoneSameInstant(zone);
-        ZonedDateTime localEnd = to.atZoneSameInstant(zone);
-        if (!localEnd.toLocalDate().equals(localStart.toLocalDate())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "O agendamento não pode atravessar a meia-noite.");
+        GradeView window = schedule.windowAt(professional, unit, localStart.toLocalDate(), localStart.toLocalTime())
+            .orElseThrow(() -> unprocessable("Horário fora da grade do profissional."));
+        int block = window.duracaoBlocoMin();
+        int windowStart = AgendaSlots.minutesOfDay(window.inicio());
+        int startMinute = AgendaSlots.minutesOfDay(localStart.toLocalTime());
+        if (localStart.getSecond() != 0 || localStart.getNano() != 0 || (startMinute - windowStart) % block != 0) {
+            throw unprocessable("Horário fora dos blocos da agenda: use horários de " + block + " em " + block + " minutos a partir das " + window.inicio() + ".");
         }
-        if (!schedule.fitsInGrade(professional, unit, localStart.toLocalDate(), localStart.toLocalTime(), localEnd.toLocalTime())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Horário fora da grade do profissional.");
+        int blocks = AgendaSlots.blocksNeeded(schedule.procedureTime(procedure).orElseThrow().minutes(), block);
+        OffsetDateTime end = from.plusMinutes((long) blocks * block);
+        if (requestedEnd != null && !requestedEnd.toInstant().equals(end.toInstant())) {
+            throw unprocessable("Duração inválida: este procedimento ocupa " + blocks + " bloco(s) de " + block + " min (" + blocks * block + " min).");
         }
-        schedule.blockReason(unit, professional, from, to).ifPresent(reason -> {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Horário bloqueado: " + reason);
+        if (startMinute + blocks * block > AgendaSlots.minutesOfDay(window.fim())) {
+            throw unprocessable("Horário fora da grade do profissional.");
+        }
+        schedule.blockReason(unit, professional, from, end).ifPresent(reason -> {
+            throw unprocessable("Horário bloqueado: " + reason);
         });
-        if (repo.hasConflict(professional, from, to, ignoring)) {
+        if (repo.hasConflict(professional, from, end, ignoring)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Horário ocupado para este profissional.");
         }
+        return end;
+    }
+
+    private static ResponseStatusException unprocessable(String message) {
+        return new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, message);
     }
 
     public AppointmentView updateStatus(Session s, UUID id, StatusRequest request) {
@@ -122,7 +140,7 @@ public class AppointmentService {
 
     /** Devolve o NOVO agendamento; o original vira 'remarcado' e permanece consultável. */
     public AppointmentView reschedule(Session s, UUID id, RescheduleRequest request) {
-        if (!request.fim().isAfter(request.inicio())) {
+        if (request.fim() != null && !request.fim().isAfter(request.inicio())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Fim deve ser posterior ao início.");
         }
         return tx.inTenant(s.identity().tenantId(), () -> {
@@ -131,12 +149,12 @@ public class AppointmentService {
             if (!CAN_RESCHEDULE.contains(current.status())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Agendamento em estado " + current.status() + " não pode ser remarcado.");
             }
-            // O próprio agendamento fica fora da checagem: remarcar 15 minutos adiante sobrepõe o horário antigo.
-            requireFreeSlot(current.unidadeId(), current.profissionalId(), request.inicio(), request.fim(), current.id());
+            // O próprio agendamento fica fora da checagem: com procedimento de vários blocos, remarcar um bloco adiante sobrepõe o horário antigo.
+            OffsetDateTime end = requireFreeSlot(current.unidadeId(), current.profissionalId(), current.procedimentoId(), request.inicio(), request.fim(), current.id());
             // O antigo precisa liberar o horário antes do insert, por causa da constraint de exclusão.
             apply(s, current, request.versao(), "remarcado", request.motivoId(), request.observacao());
             AppointmentView created = repo.createAppointment(new CreateAppointmentRequest(current.unidadeId(), current.profissionalId(),
-                current.pacienteId(), current.procedimentoId(), request.inicio(), request.fim(), current.observacao(), current.canal()),
+                current.pacienteId(), current.procedimentoId(), request.inicio(), end, current.observacao(), current.canal()),
                 s.identity().tenantId(), s.identity().usuarioId(), current.id());
             repo.addHistory(s.identity().tenantId(), created.id(), null, created.status(), request.motivoId(), "Remarcado de " + current.id(), s.identity().usuarioId());
             return created;

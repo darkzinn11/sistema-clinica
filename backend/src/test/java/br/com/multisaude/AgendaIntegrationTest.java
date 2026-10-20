@@ -64,7 +64,8 @@ class AgendaIntegrationTest extends AgendaTestBase {
     void overlappingAppointmentForSameProfessionalIsConflict() throws Exception {
         String token = login();
         book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)).andExpect(status().isCreated());
-        book(token, unit, professional, patient, procedure, start.plusMinutes(15), start.plusMinutes(45)).andExpect(status().isConflict());
+        // Com blocos fixos, a sobreposição de procedimentos de um bloco é o mesmo horário.
+        book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)).andExpect(status().isConflict());
     }
 
     @Test
@@ -79,7 +80,8 @@ class AgendaIntegrationTest extends AgendaTestBase {
         String token = login();
         insertAppointment("cancelado", start, start.plusMinutes(30));
         insertAppointment("nao_compareceu", start.plusMinutes(30), start.plusMinutes(60));
-        book(token, unit, professional, patient, procedure, start, start.plusMinutes(60)).andExpect(status().isCreated());
+        book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)).andExpect(status().isCreated());
+        book(token, unit, professional, patient, procedure, start.plusMinutes(30), start.plusMinutes(60)).andExpect(status().isCreated());
     }
 
     @Test
@@ -179,34 +181,38 @@ class AgendaIntegrationTest extends AgendaTestBase {
     @Test
     void rescheduleCreatesLinkedAppointmentKeepsOldOneAndMayOverlapItsOwnSlot() throws Exception {
         String token = login();
-        JsonNode original = created(book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)));
-        OffsetDateTime newStart = start.plusMinutes(15);
+        // Procedimento de 60 min = dois blocos de 30: remarcar um bloco adiante sobrepõe o próprio horário.
+        UUID longProcedure = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.procedimentos (id, tenant_id, nome, duracao_min) VALUES (?, ?, 'Consulta longa', 60)", longProcedure, tenant));
+        JsonNode original = created(book(token, unit, professional, patient, longProcedure, start, start.plusMinutes(60)));
+        OffsetDateTime newStart = start.plusMinutes(30);
         JsonNode moved = created(mvc.perform(post("/api/v1/agendamentos/" + id(original) + "/remarcar").header("Authorization", "Bearer " + token)
             .contentType("application/json").content(json.writeValueAsString(Map.of("motivoId", 2, "versao", 0,
-                "inicio", newStart.toString(), "fim", newStart.plusMinutes(30).toString()))))
+                "inicio", newStart.toString(), "fim", newStart.plusMinutes(60).toString()))))
             .andExpect(status().isCreated()).andExpect(jsonPath("status").value("agendado"))
             .andExpect(jsonPath("remarcadoDe").value(id(original).toString())));
         org.junit.jupiter.api.Assertions.assertNotEquals(id(original), id(moved));
         mvc.perform(get("/api/v1/agendamentos").header("Authorization", "Bearer " + token).param("profissionalId", professional.toString())
-            .param("de", start.minusHours(1).toString()).param("ate", start.plusHours(2).toString()))
+            .param("de", start.minusHours(1).toString()).param("ate", start.plusHours(3).toString()))
             .andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].status").value("remarcado"))
             .andExpect(jsonPath("$[1].status").value("agendado"));
         mvc.perform(get("/api/v1/agendamentos/" + id(original) + "/historico").header("Authorization", "Bearer " + token))
             .andExpect(jsonPath("$[1].para").value("remarcado")).andExpect(jsonPath("$[1].motivoId").value(2));
         mvc.perform(get("/api/v1/agendamentos/" + id(moved) + "/historico").header("Authorization", "Bearer " + token))
             .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].para").value("agendado"));
-        // O novo horário volta a ser ocupado e o antigo, que estava dentro dele, não conta mais.
-        book(token, unit, professional, patient, procedure, newStart.plusMinutes(10), newStart.plusMinutes(20)).andExpect(status().isConflict());
+        // O novo horário passa a ser ocupado; o antigo, que estava dentro dele, não conta mais.
+        book(token, unit, professional, patient, procedure, start.plusMinutes(60), start.plusMinutes(90)).andExpect(status().isConflict());
+        book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)).andExpect(status().isCreated());
     }
 
     @Test
     void rescheduleIntoBusySlotIsRefusedAndLeavesOriginalUntouched() throws Exception {
         String token = login();
         JsonNode original = created(book(token, unit, professional, patient, procedure, start, start.plusMinutes(30)));
-        book(token, unit, professional, patient, procedure, start.plusHours(2), start.plusHours(3)).andExpect(status().isCreated());
+        book(token, unit, professional, patient, procedure, start.plusHours(2), start.plusHours(2).plusMinutes(30)).andExpect(status().isCreated());
         mvc.perform(post("/api/v1/agendamentos/" + id(original) + "/remarcar").header("Authorization", "Bearer " + token)
             .contentType("application/json").content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0,
-                "inicio", start.plusHours(2).plusMinutes(30).toString(), "fim", start.plusHours(3).plusMinutes(30).toString()))))
+                "inicio", start.plusHours(2).toString(), "fim", start.plusHours(2).plusMinutes(30).toString()))))
             .andExpect(status().isConflict());
         mvc.perform(get("/api/v1/agendamentos/" + id(original) + "/historico").header("Authorization", "Bearer " + token))
             .andExpect(jsonPath("$.length()").value(1));
@@ -220,7 +226,7 @@ class AgendaIntegrationTest extends AgendaTestBase {
         UUID checkedIn = insertAppointment("check_in", start, start.plusMinutes(30));
         mvc.perform(post("/api/v1/agendamentos/" + checkedIn + "/remarcar").header("Authorization", "Bearer " + token)
             .contentType("application/json").content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0,
-                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(4).toString())))).andExpect(status().isConflict());
+                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(3).plusMinutes(30).toString())))).andExpect(status().isConflict());
         mvc.perform(post("/api/v1/agendamentos/" + checkedIn + "/remarcar").header("Authorization", "Bearer " + token)
             .contentType("application/json").content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0,
                 "inicio", start.plusHours(4).toString(), "fim", start.plusHours(3).toString())))).andExpect(status().isBadRequest());
@@ -267,12 +273,12 @@ class AgendaIntegrationTest extends AgendaTestBase {
         // Perfil do médico: muda status, mas não remarca.
         mvc.perform(post("/api/v1/agendamentos/" + id(created) + "/remarcar").header("Authorization", "Bearer " + token).contentType("application/json")
             .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 0,
-                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(4).toString())))).andExpect(status().isForbidden());
+                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(3).plusMinutes(30).toString())))).andExpect(status().isForbidden());
         changeStatus(token, "/api/v1/agendamentos/" + id(created) + "/status", "confirmado", 0).andExpect(status().isOk());
         transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.papeis SET permissoes = ARRAY['agenda:ler','agenda:cancelar','agenda:remarcar'] WHERE id = ?", role));
         changeStatus(token, "/api/v1/agendamentos/" + id(created) + "/status", "check_in", 1).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/agendamentos/" + id(created) + "/remarcar").header("Authorization", "Bearer " + token).contentType("application/json")
             .content(json.writeValueAsString(Map.of("motivoId", 1, "versao", 1,
-                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(4).toString())))).andExpect(status().isCreated());
+                "inicio", start.plusHours(3).toString(), "fim", start.plusHours(3).plusMinutes(30).toString())))).andExpect(status().isCreated());
     }
 }
