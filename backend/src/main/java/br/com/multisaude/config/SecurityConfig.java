@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
                 .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/unidades").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/inicio").hasAuthority("agenda:ler")
                 .requestMatchers(HttpMethod.GET, "/api/v1/pacientes").hasAnyAuthority("pacientes:ler", "pacientes:ler_vinculados")
                 .requestMatchers(HttpMethod.POST, "/api/v1/pacientes").hasAuthority("pacientes:criar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/pacientes/prioridades", "/api/v1/pacientes/origens-paciente", "/api/v1/pacientes/duplicados").hasAnyAuthority("pacientes:ler", "pacientes:criar")

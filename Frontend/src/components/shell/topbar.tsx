@@ -2,7 +2,8 @@
 import { Add, ArrowDown2, Building, Clock, Fatrows, FolderOpen, HamburgerMenu, LogoutCurve, Monitor, Moon, Notification, Profile, RowVertical, SearchNormal1, Sun1, TickCircle } from "iconsax-reactjs";
 import { Link } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { clinic, currentUser, notifications } from "@/lib/mock/core";
+import { notifications } from "@/lib/mock/core";
+import { useAuth } from "@/lib/auth/auth";
 import { Avatar } from "@/components/ui/avatar";
 import { DropdownMenu } from "@/components/ui/overlay";
 import { Kbd } from "@/components/ui/misc";
@@ -72,9 +73,10 @@ function NotificationsButton() {
 
 export function Topbar({ onOpenSearch, onOpenMobileNav }: { onOpenSearch: () => void; onOpenMobileNav: () => void }) {
   const { theme, density, setTheme, setDensity } = usePreferences();
-  const [unit, setUnit] = useState(clinic.units[0].id);
+  const { session, logout } = useAuth();
+  const me = session!.usuario;   // o Topbar só existe dentro de RequireAuth
   const [isScrolled, setIsScrolled] = useState(() => typeof window !== "undefined" && window.scrollY > 8);
-  const unitName = clinic.units.find((u) => u.id === unit)?.name;
+  const unitName = me.unidadeNome;
 
   useEffect(() => {
     const update = () => setIsScrolled(window.scrollY > 8);
@@ -124,7 +126,12 @@ export function Topbar({ onOpenSearch, onOpenMobileNav }: { onOpenSearch: () => 
 
         <DropdownMenu
           label="Trocar unidade"
-          items={clinic.units.map((u) => ({ label: u.name, icon: u.id === unit ? TickCircle : Building, onSelect: () => setUnit(u.id) }))}
+          // A sessão é de uma unidade: para trocar, sai e entra de novo escolhendo a outra.
+          items={[
+            { label: unitName, icon: TickCircle, onSelect: () => {} },
+            { label: "", divider: true },
+            { label: "Entrar em outra unidade", icon: Building, onSelect: () => void logout() },
+          ]}
           trigger={(p) => (
             <button {...p} type="button" className="ui-topbar-control ui-topbar-pill hidden h-12 items-center gap-2 whitespace-nowrap px-4 text-base text-text-muted hover:text-text lg:inline-flex">
               <Building size={20} variant="Linear" aria-hidden />
@@ -151,14 +158,14 @@ export function Topbar({ onOpenSearch, onOpenMobileNav }: { onOpenSearch: () => 
               ? { label: "Modo confortável", icon: RowVertical, onSelect: () => setDensity("comfortable") }
               : { label: "Modo compacto", icon: Fatrows, onSelect: () => setDensity("compact") },
             { label: "", divider: true },
-            { label: "Sair", icon: LogoutCurve, href: "/login", danger: true },
+            { label: "Sair", icon: LogoutCurve, onSelect: () => void logout(), danger: true },
           ]}
           trigger={(p) => (
-            <button {...p} type="button" aria-label={`Conta de ${currentUser.name}`} className="ui-topbar-control ui-topbar-pill flex h-12 items-center gap-2 pl-1.5 pr-4">
-              <Avatar name={currentUser.name} size="sm" />
+            <button {...p} type="button" aria-label={`Conta de ${me.nome}`} className="ui-topbar-control ui-topbar-pill flex h-12 items-center gap-2 pl-1.5 pr-4">
+              <Avatar name={me.nome} size="sm" />
               <span className="hidden flex-col text-left leading-tight xl:flex">
-                <span className="text-sm font-medium text-text">{currentUser.name}</span>
-                <span className="text-xs text-text-muted">{currentUser.role}</span>
+                <span className="text-sm font-medium text-text">{me.nome}</span>
+                <span className="text-xs text-text-muted">{me.papel}</span>
               </span>
               <ArrowDown2 size={16} variant="Linear" aria-hidden className="hidden text-text-subtle xl:block" />
             </button>

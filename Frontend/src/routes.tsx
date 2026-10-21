@@ -1,5 +1,6 @@
 import { lazy } from "react";
 import { Navigate, type RouteObject } from "react-router";
+import { RequireAuth } from "@/components/auth/require-auth";
 import { ShellLayout } from "@/components/shell/shell-layout";
 import NotFound from "@/pages/NotFound";
 
@@ -10,6 +11,8 @@ import NotFound from "@/pages/NotFound";
 export const routes: RouteObject[] = [
   { path: "/", element: <Navigate to="/inicio" replace /> },
   {
+    Component: RequireAuth,
+    children: [{
     Component: ShellLayout,
     children: [
       { path: "/inicio", Component: lazy(() => import("@/pages/inicio/Inicio")) },
@@ -69,6 +72,7 @@ export const routes: RouteObject[] = [
       { path: "/arquivos", Component: lazy(() => import("@/pages/conta/Arquivos")) },
       { path: "/logs", Component: lazy(() => import("@/pages/conta/Logs")) },
     ],
+    }],
   },
   { path: "/login", Component: lazy(() => import("@/pages/auth/Login")) },
   { path: "/esqueci-senha", Component: lazy(() => import("@/pages/auth/EsqueciSenha")) },
