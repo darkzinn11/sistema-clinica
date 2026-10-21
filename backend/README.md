@@ -458,6 +458,36 @@ descrição e código TUSS para o cadastro da própria clínica; preço e tempo 
   **Limite conhecido:** se ninguém gerar senha depois, o CPF digitado continua guardado.
 - **Para o frontend:** o aviso "CPF de quem será atendido" fica na tela do totem; o token do dispositivo vai no `Authorization: Bearer`, como o das pessoas.
 
+## Cadastro completo de pacientes, padrão Feegow (V29, V30, V31)
+
+A ficha segue a tela Pacientes > Inserir do Feegow (campos no design, seção 4). `GET /pacientes` devolve só o resumo
+(identificar e achar); a ficha inteira vem de `GET /pacientes/{id}`. Quem só tem `pacientes:ler_vinculados` (médico) recebe a
+ficha **sem** endereço, telefones extras, RG, CNS, origem, indicação, religião, observações e parentes.
+
+| Rota | Quem | O que faz |
+|---|---|---|
+| `POST /pacientes`, `PUT /pacientes/{id}` | `pacientes:criar` / `pacientes:editar` | Cadastro completo. Exige **CPF, "sem CPF" ou estrangeiro** e celular com DDD. `PUT` troca todos os campos e a lista de parentes. |
+| `GET /pacientes?busca=&inicial=&situacao=` | `ler` / `ler_vinculados` | Nome ou nome social sem acento, CPF, qualquer telefone (só dígitos) e nº do prontuário. `inicial` = primeira letra. `situacao` = `ativos` (padrão), `inativos`, `todos`. |
+| `GET /pacientes/duplicados?cpf=&celular=&nome=&nascimento=` | `ler` ou `criar` | Candidatos: mesmo CPF, mesmo telefone (últimos 10 dígitos) ou mesmo nome **e** nascimento (nome sozinho não basta). Inclui inativos. Cada paciente mostrado entra na trilha de acesso (`conferir_duplicados`). |
+| `POST /pacientes/{id}/inativar`, `POST /pacientes/{id}/reativar` | `pacientes:inativar` | Motivo `sem_vinculo`, `obito` ou `sem_motivo` + observação; guarda quem e quando. `DELETE` continua inativando (`sem_motivo`). |
+| `GET /pacientes/{id}/historico` | `pacientes:ler` | Quais campos mudaram e quem mudou (**só os nomes dos campos, nunca os valores**). Somente-inserção. |
+| `GET/POST/PUT /pacientes/prioridades`, `/pacientes/origens-paciente` | ler ou criar / editar | Listas da clínica. `?todas=true` (com inativos) só para quem edita. |
+
+- **Prontuário:** número sequencial por clínica (`prontuario_contador`), gerado na transação do cadastro: cadastro que falha não deixa
+  buraco. O cliente não escolhe o número. Paciente anterior à V29 recebe o número na próxima edição (a migração não enxerga as linhas).
+- **Listas iniciais:** nascem na primeira consulta de cada clínica (a migração não enxerga as clínicas). Prioridades: idoso 60+, idoso 80+,
+  gestante, lactante, pessoa com deficiência, pessoa com criança de colo, cardíaco. Origens: indicação de paciente, indicação médica,
+  internet, redes sociais, convênio, outros. **A lista de prioridades é minha, não a do Feegow**: confirmar com a clínica. Desativar tudo
+  não faz a lista voltar. Quem edita pacientes mantém as listas (não criei permissão nova para não migrar os papéis).
+- **Cadastro rápido da fila** (`POST /senhas/{id}/cadastrar-paciente`) continua aceitando só o nome; vale apenas a consistência
+  (CPF + "sem CPF" juntos e aviso sem texto são recusados). A regra de "CPF, sem CPF ou estrangeiro" é da API completa, não do banco.
+- **Normalização:** CPF e CEP só dígitos, UF maiúscula, e-mail minúsculo, país "Brasil" se vazio. IMC é calculado só na resposta.
+- **V29 foi aplicada no banco de dev antes de revisada** e tinha defeitos (`sem_cpf` com padrão `true` quebrava qualquer banco com paciente
+  que tivesse CPF; prontuário vinha do cliente). Como migração aplicada é imutável, o conserto está na V30; a V31 inclui `conferir_duplicados`
+  na trilha de acesso e a ordem dos parentes. Constraints novas da V30 nasceram `NOT VALID` (linhas antigas não são revalidadas).
+- **Busca:** corrigido um defeito antigo: termo sem dígitos (`ana`) virava `LIKE '%%'` e trazia todo paciente com CPF ou celular.
+- **Ainda fora:** convênios do paciente (módulo de convênios), programação de agendamentos, abas do prontuário; consentimento LGPD no cadastro.
+
 ### CORS e navegador
 
 O CORS liberava só `GET`, `POST` e `OPTIONS`: qualquer `PUT` ou `DELETE` feito pelo navegador seria bloqueado (editar paciente, desativar grade, editar

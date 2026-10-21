@@ -13,7 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import br.com.multisaude.agenda.ScheduleRepository;
 import br.com.multisaude.auditoria.AccessAudit;
 import br.com.multisaude.identidade.IdentityModels.Session;
-import br.com.multisaude.pacientes.PatientModels.CreatePatientRequest;
+import br.com.multisaude.pacientes.PatientModels.PatientForm;
 import br.com.multisaude.pacientes.PatientModels.PatientView;
 import br.com.multisaude.pacientes.PatientReadGuard;
 import br.com.multisaude.pacientes.PatientRepository;
@@ -228,7 +228,8 @@ public class FilaService {
     }
 
     /** Cadastra o paciente e liga a senha a ele na mesma transação: se um falhar, nenhum dos dois acontece. */
-    public IdentifiedTicket registerAndAttach(Session s, UUID ticketId, CreatePatientRequest request) {
+    public IdentifiedTicket registerAndAttach(Session s, UUID ticketId, PatientForm request) {
+        br.com.multisaude.pacientes.PatientRules.validateConsistency(request);   // cadastro rápido: só o nome é obrigatório
         UUID tenant = s.identity().tenantId();
         return conflictAs("Já existe paciente com este CPF.", () -> tx.inTenant(tenant, () -> {
             TicketView ticket = lock(ticketId, s.identity().unidadeId());

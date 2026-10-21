@@ -33,7 +33,8 @@ Regra de escopo: backend e banco. Frontend segue com mocks até decisão contrá
 - Monólito modular, sem microserviços. Sem deploy em produção por enquanto.
 
 ## Estado atual (base)
-Pronto: identidade/sessões/permissões, pacientes (CRUD), profissionais completos (cadastro, especialidade principal,
+Pronto: identidade/sessões/permissões (login por código da clínica), pacientes completos no padrão Feegow (prontuário sequencial,
+histórico, inativação com motivo, duplicados, prioridade/origem da clínica), profissionais completos (cadastro, especialidade principal,
 procedimentos habilitados, cópia de grade), procedimentos e especialidades com catálogo ANS, fila de senhas, prontuário,
 agendamento (com conflito por profissional e lista de procedimentos habilitados).
 Sem API: grades, salas, convênios, check-in, prontuário, financeiro, estoque.

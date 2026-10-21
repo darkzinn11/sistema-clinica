@@ -435,7 +435,7 @@ class FilaIntegrationTest extends AgendaTestBase {
         mvc.perform(post("/api/v1/pacientes").header("Authorization", "Bearer " + reception).contentType("application/json")
             .content(json.writeValueAsString(Map.of("nome", "Cpf Ruim", "cpf", "52998224726")))).andExpect(status().isBadRequest());
         mvc.perform(post("/api/v1/pacientes").header("Authorization", "Bearer " + reception).contentType("application/json")
-            .content(json.writeValueAsString(Map.of("nome", "Cpf Bom", "cpf", CPF_A)))).andExpect(status().isCreated());
+            .content(json.writeValueAsString(Map.of("nome", "Cpf Bom", "cpf", CPF_A, "celular", "85999990000")))).andExpect(status().isCreated());   // cadastro completo exige celular
     }
 
     // ---- helpers ----

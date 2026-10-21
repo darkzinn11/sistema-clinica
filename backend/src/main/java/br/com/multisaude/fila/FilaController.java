@@ -9,7 +9,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import br.com.multisaude.identidade.IdentityModels.Session;
-import br.com.multisaude.pacientes.PatientModels.CreatePatientRequest;
+import br.com.multisaude.pacientes.PatientModels.PatientForm;
 import static br.com.multisaude.fila.FilaModels.*;
 
 @RestController
@@ -93,7 +93,7 @@ public class FilaController {
     }
 
     @PostMapping("/senhas/{id}/cadastrar-paciente") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('fila:chamar') and hasAuthority('pacientes:criar')")
-    public IdentifiedTicket register(@AuthenticationPrincipal Session s, @PathVariable UUID id, @Valid @RequestBody CreatePatientRequest x) {
+    public IdentifiedTicket register(@AuthenticationPrincipal Session s, @PathVariable UUID id, @Valid @RequestBody PatientForm x) {
         return service.registerAndAttach(s, id, x);
     }
 
