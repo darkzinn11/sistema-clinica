@@ -29,7 +29,7 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
 
 - Perder ou sobrescrever o trabalho visual do front.
 - Seed rodando em produção ou em migração; senha de seed no repositório; dado real de paciente em qualquer lugar.
-- Token da sessão em log, em URL, ou em `localStorage` (roubável por XSS).
+- Token da sessão em log ou em URL.
 - A tela parecer "ligada" mostrando dado de demonstração sem avisar.
 - Descobrir se uma clínica ou um e-mail existe pelas respostas do login.
 
@@ -66,7 +66,9 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
 
 - `src/lib/api`: cliente `fetch` fino (URL em `VITE_API_URL`, `Authorization: Bearer`, JSON, erro tipado com status e mensagem do backend, `Retry-After` no 429, `X-Total-Count`).
   Sem biblioteca de requisição nova além da de cache de dados (ver "Decisões do construtor").
-- Sessão: token em `sessionStorage` (some ao fechar a aba); `Lembrar de mim` guarda **só** código da clínica e e-mail. Expirada (401) → limpa e volta ao login.
+- Sessão: token em `localStorage` (decisão do dono em 20/10/2026: fechar a aba não deve deslogar). `Lembrar de mim` guarda também código da clínica e e-mail. Expirada (401) → limpa e volta ao login.
+  Compensações: expiração de 12 h no servidor; "Sair" revoga o token no banco; token só no cabeçalho `Authorization`, nunca em URL ou log; CSP restritivo (`script-src 'self'`)
+  nos cabeçalhos do front; **saída por inatividade** configurável por clínica (desligada por padrão). Dispositivos (totem, painel) usam o mesmo mecanismo com o token de dispositivo.
 - `AuthProvider` + rota protegida; `GET /auth/me` preenche usuário, clínica, unidade e **permissões**; o menu (`lib/nav.ts`) esconde o que a pessoa não pode usar.
 - Login com três campos (clínica, e-mail, senha) e passo de unidade quando houver várias. "Esqueci a senha" continua sem backend e fica desabilitado com aviso.
 
@@ -102,8 +104,8 @@ O estado em memória da agenda (`components/agenda/store.ts`) é trocado por cac
 
 - **Cache de dados:** adotar `@tanstack/react-query` (versão fixa, com pelo menos duas semanas de lançamento, a confirmar na hora). São dezenas de telas com leitura, escrita e
   invalidação; fazer isso à mão repete bug em cada tela. Se o time do front preferir zero dependência nova, troca-se por hooks próprios, com mais código.
-- **Token em `sessionStorage`**, não `localStorage`: a sessão dura 12 horas e some ao fechar a aba. Custa pedir login de novo; o ganho é não deixar token de acesso a dado de saúde
-  por tempo indeterminado no navegador.
+- **Token em `localStorage`** (escolha do dono, contra a minha recomendação de `sessionStorage`). Registrado: não é mais seguro, só mais confortável; o risco é XSS ou computador
+  compartilhado com sessão aberta. Mitigações acima. Se uma clínica usar máquina compartilhada, liga a saída por inatividade.
 - **Teste no front:** o front não tem nenhum. Adicionar Vitest só para a camada `lib/api`, o mapa de status e a sessão (o que tem regra). Telas se verificam por `tsc -b`, `oxlint`,
   build e um roteiro de fumaça contra o backend local com os seeds.
 - **Código da clínica** com `-` e minúsculas, como um subdomínio, para o dia em que cada clínica tiver o seu (`vidaplena.sistema.com.br`). Nesta fatia só vale no campo do login.
