@@ -33,12 +33,15 @@ public class IdentityController {
     @PostMapping("/auth/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         // Não confiar em X-Forwarded-For enviado pelo cliente.
-        limiter.check(http.getRemoteAddr(), request.tenantId() + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
+        String clinic = request.tenantId() != null ? request.tenantId().toString() : "codigo:" + request.codigoClinica().trim().toLowerCase(java.util.Locale.ROOT);
+        limiter.check(http.getRemoteAddr(), clinic + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
         return service.login(request);
     }
 
     @GetMapping("/auth/me")
-    public Identity me(@AuthenticationPrincipal Session session) { return session.identity(); }
+    public MeView me(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> service.me(session.identity()));
+    }
 
     @PostMapping("/auth/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)

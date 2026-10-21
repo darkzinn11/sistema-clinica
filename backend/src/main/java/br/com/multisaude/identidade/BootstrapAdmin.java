@@ -54,6 +54,10 @@ public class BootstrapAdmin implements ApplicationRunner {
                 throw new IllegalStateException("Clínica já cadastrada; bootstrap não altera dados existentes.");
             }
             jdbc.update("INSERT INTO clinica.tenants (id, nome) VALUES (?, ?)", tenant, required("BOOTSTRAP_CLINIC_NAME"));
+            // Código para entrar (BOOTSTRAP_CLINIC_CODE); se não vier, deriva do id da clínica.
+            String code = env.getProperty("BOOTSTRAP_CLINIC_CODE");
+            if (code == null || code.isBlank()) code = "clinica-" + tenant.toString().replace("-", "").substring(0, 8);
+            jdbc.update("INSERT INTO clinica.codigos_clinica (codigo, tenant_id) VALUES (?, ?)", code.trim().toLowerCase(), tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, ?)", unit, tenant, required("BOOTSTRAP_UNIT_NAME"));
             jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Administrador', ARRAY['usuarios:ler','usuarios:criar','pacientes:ler','pacientes:criar','pacientes:editar','pacientes:inativar','profissionais:ler','profissionais:criar','agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:configurar','agenda:ver_valores','auditoria:ler','prontuario:compartilhar','fila:ler','fila:configurar','especialidades:ler','especialidades:criar','especialidades:editar','procedimentos:ler','procedimentos:criar','procedimentos:editar','profissionais:editar'])",
                 request.papelId(), tenant);

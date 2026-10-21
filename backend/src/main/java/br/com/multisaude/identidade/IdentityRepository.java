@@ -29,10 +29,26 @@ public class IdentityRepository {
         """;
     private static final String IDENTITY_FIELDS = "u.id, u.tenant_id, v.unidade_id, u.nome, u.email, p.nome AS papel, p.permissoes";
 
-    public Optional<Credentials> credentials(String email, UUID unit) {
+    /** Todos os vínculos ativos do e-mail na clínica em contexto (uma linha por unidade). */
+    public List<Credentials> credentials(String email) {
         return jdbc.query("SELECT " + IDENTITY_FIELDS + ", u.senha_hash " + MEMBERSHIP
-            + " WHERE u.ativo AND u.email = ? AND v.unidade_id = ?",
-            (rs, row) -> new Credentials(identity(rs), rs.getString("senha_hash")), email, unit).stream().findFirst();
+            + " WHERE u.ativo AND u.email = ? ORDER BY n.nome, n.id",
+            (rs, row) -> new Credentials(identity(rs), rs.getString("senha_hash")), email);
+    }
+
+    /** Fora de qualquer clínica: `codigos_clinica` não tem segurança por linha. Só consulta por igualdade. */
+    public Optional<UUID> tenantByCode(String code) {
+        return jdbc.queryForList("SELECT tenant_id FROM clinica.codigos_clinica WHERE codigo = ?", UUID.class, code).stream().findFirst();
+    }
+
+    public Optional<String> codeOf(UUID tenant) {
+        return jdbc.queryForList("SELECT codigo FROM clinica.codigos_clinica WHERE tenant_id = ?", String.class, tenant).stream().findFirst();
+    }
+
+    /** Nomes da clínica e da unidade da sessão. Dentro do contexto da clínica. */
+    public Optional<String[]> names(UUID unit) {
+        return jdbc.query("SELECT t.nome, n.nome FROM clinica.unidades n JOIN clinica.tenants t ON t.id = n.tenant_id WHERE n.id = ?",
+            (rs, row) -> new String[] {rs.getString(1), rs.getString(2)}, unit).stream().findFirst();
     }
 
     public Optional<Session> session(byte[] hash) {

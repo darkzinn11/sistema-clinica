@@ -8,9 +8,14 @@ import jakarta.validation.constraints.*;
 public final class IdentityModels {
     private IdentityModels() {}
 
-    public record LoginRequest(@NotNull UUID tenantId, @NotNull UUID unidadeId,
+    // A clínica vem pelo código (o que a pessoa digita) ou pelo id (clientes e testes antigos): exatamente um dos dois.
+    // A unidade é opcional: sem ela e com várias unidades, o login responde 409 com a lista, depois de validar a senha.
+    public record LoginRequest(UUID tenantId, @Size(max = 40) String codigoClinica, UUID unidadeId,
         @NotBlank @Email @Size(max = 254) String email,
         @NotBlank @Size(max = 72) String senha) {
+        @AssertTrue boolean isClinicaInformada() {
+            return (tenantId != null) != (codigoClinica != null && !codigoClinica.isBlank());
+        }
         @Override public String toString() { return "LoginRequest[credenciais omitidas]"; }
     }
 
@@ -24,7 +29,10 @@ public final class IdentityModels {
     public record Identity(UUID usuarioId, UUID tenantId, UUID unidadeId,
         String nome, String email, String papel, List<String> permissoes) {}
     public record Session(UUID id, Identity identity) {}
-    public record LoginResponse(String accessToken, String tokenType, Instant expiraEm, Identity usuario) {
+    // Identity mais os nomes que a tela precisa (topbar, seletor de unidade); o código é nulo se a clínica ainda não tem um.
+    public record MeView(UUID usuarioId, UUID tenantId, UUID unidadeId, String nome, String email, String papel, List<String> permissoes,
+        String clinicaNome, String unidadeNome, String codigoClinica) {}
+    public record LoginResponse(String accessToken, String tokenType, Instant expiraEm, MeView usuario) {
         @Override public String toString() { return "LoginResponse[token omitido]"; }
     }
     public record UserView(UUID id, String nome, String email, boolean ativo) {}

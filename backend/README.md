@@ -427,6 +427,21 @@ descrição e código TUSS para o cadastro da própria clínica; preço e tempo 
   destino já tem grade sobreposta, nada é copiado (409 listando os horários). Bloqueios não são copiados.
 - Permissões: Administrador ganha `profissionais:editar`. Médico não vê o cadastro de colegas.
 
+## Login por código da clínica (V28)
+
+- **Entrar:** `POST /auth/login` com `codigoClinica` (o que a pessoa digita; minúsculas, números e `-`, até 40 caracteres, sem diferenciar caixa nem espaços nas pontas), `email`, `senha`
+  e, opcionalmente, `unidadeId`. Envie **ou** `codigoClinica` **ou** `tenantId` (clientes antigos); os dois juntos, ou nenhum, é 400.
+- **Unidade:** com `unidadeId`, entra nela. Sem `unidadeId` e com **uma** unidade, entra direto. Com **várias**, responde `409` com `{ "erro": "Escolha a unidade.", "unidades": [{id, nome}] }`
+  e o cliente reenvia com `unidadeId`. A lista só sai **depois** de a senha ser validada.
+- **Nada vaza:** código inexistente, clínica suspensa, e-mail errado, senha errada, usuário inativo e unidade que não é da pessoa dão o **mesmo** `401` com o mesmo corpo e o mesmo custo
+  (BCrypt contra um hash fictício). O limite de tentativas (10 por clínica+e-mail e 40 por IP, em 15 minutos) usa o código digitado.
+- **Resposta e `GET /auth/me`:** além de `usuarioId`, `tenantId`, `unidadeId`, `nome`, `email`, `papel` e `permissoes`, trazem `clinicaNome`, `unidadeNome` e `codigoClinica` (nulo se a clínica
+  não tem código).
+- **Tabela `codigos_clinica`:** sem segurança por linha, porque o login precisa traduzir código em clínica antes de existir clínica selecionada. Expõe só "código → id da clínica", consultada por
+  igualdade; **nenhuma rota lista códigos**. O código nunca muda (a aplicação só tem `SELECT` e `INSERT`). Um mesmo e-mail em duas clínicas são duas contas independentes.
+- **Clínica já existente:** a migração não copia (`tenants` tem segurança por linha forçada). Dar um código: `INSERT INTO clinica.codigos_clinica (codigo, tenant_id) VALUES ('codigo-da-clinica', '<id>');`.
+  O `BootstrapAdmin` aceita `BOOTSTRAP_CLINIC_CODE`; sem ele, deriva `clinica-` + 8 primeiros caracteres do id.
+
 ## Totem com CPF e dispositivos (V27)
 
 - **Fluxo:** o paciente digita o CPF de quem será atendido (ou "Sem CPF"), escolhe o objetivo e o preferencial, e recebe a senha. O totem **não consulta o cadastro**:

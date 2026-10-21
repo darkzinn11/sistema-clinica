@@ -45,7 +45,7 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
 
 - `clinica.codigos_clinica(codigo text primary key, tenant_id uuid references tenants)`, **sem** segurança por linha, porque o login precisa traduzir código em clínica
   *antes* de existir clínica selecionada (`tenants` tem RLS e só enxerga a clínica já escolhida). Código: `^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])?$`. A aplicação só consulta por
-  igualdade; nenhuma rota lista códigos. Os tenants existentes recebem um código derivado (`clinica-` + 8 primeiros caracteres do id) para não ficarem sem acesso.
+  igualdade; nenhuma rota lista códigos. A migração **não** copia clínicas existentes (`tenants` tem segurança por linha forçada e a migração não a enxerga): uma clínica que já existe recebe o código por um `INSERT` documentado; o `BootstrapAdmin` aceita `BOOTSTRAP_CLINIC_CODE` e, sem ele, deriva `clinica-` + 8 primeiros caracteres do id. Clínica sem código continua entrando pelo `tenantId`.
 - `POST /auth/login` aceita `codigoClinica` **no lugar de** `tenantId` (um dos dois é obrigatório; `tenantId` continua valendo para não quebrar clientes e testes) e `unidadeId`
   **opcional**:
   - credenciais válidas e **uma** unidade (ou `unidadeId` informado) → sessão, como hoje;

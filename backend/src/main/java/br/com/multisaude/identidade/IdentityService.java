@@ -6,6 +6,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import br.com.multisaude.shared.TenantTransactions;
+import br.com.multisaude.shared.UnitChoiceRequiredException;
 import static br.com.multisaude.identidade.IdentityModels.*;
 
 @Service
@@ -34,26 +36,47 @@ public class IdentityService {
         this.dummyHash = passwords.encode(UUID.randomUUID().toString());
     }
 
+    /**
+     * Código desconhecido, clínica suspensa, e-mail ou senha errados e unidade que não é da pessoa dão a MESMA resposta e o mesmo custo
+     * (compara com um hash fictício), para nada revelar sobre o que existe. A lista de unidades só sai depois de a senha ser validada.
+     */
     public LoginResponse login(LoginRequest request) {
         validatePasswordBytes(request.senha());
-        var credentials = transactions.inTenant(request.tenantId(), () -> repository.credentials(
-            request.email().trim().toLowerCase(Locale.ROOT), request.unidadeId()));
-        boolean matches = passwords.matches(request.senha(), credentials.map(IdentityRepository.Credentials::passwordHash).orElse(dummyHash));
-        if (!matches || credentials.isEmpty()) {
-            log.info("Login recusado tenant={}", request.tenantId());
+        Optional<UUID> tenant = request.tenantId() != null ? Optional.of(request.tenantId())
+            : repository.tenantByCode(request.codigoClinica().trim().toLowerCase(Locale.ROOT));
+        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        List<IdentityRepository.Credentials> memberships = tenant
+            .map(id -> transactions.inTenant(id, () -> repository.credentials(email)))
+            .orElse(List.of()).stream()
+            .filter(c -> request.unidadeId() == null || c.identity().unidadeId().equals(request.unidadeId())).toList();
+        boolean matches = passwords.matches(request.senha(), memberships.stream().findFirst().map(IdentityRepository.Credentials::passwordHash).orElse(dummyHash));
+        if (!matches || memberships.isEmpty()) {
+            log.info("Login recusado");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais ou vínculo inválidos.");
         }
+        if (memberships.size() > 1) {
+            UUID tenantId = memberships.get(0).identity().tenantId();
+            throw new UnitChoiceRequiredException(transactions.inTenant(tenantId, () -> repository.units(memberships.get(0).identity().usuarioId())).stream()
+                .map(u -> new UnitChoiceRequiredException.UnitOption(u.id(), u.nome())).toList());
+        }
+        Identity identity = memberships.get(0).identity();
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
-        String token = request.tenantId() + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = identity.tenantId() + "." + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         Instant expires = Instant.now().plusSeconds(12 * 60 * 60);
-        Identity identity = credentials.get().identity();
-        transactions.inTenant(identity.tenantId(), () -> {
+        MeView me = transactions.inTenant(identity.tenantId(), () -> {
             repository.createSession(identity, hash(token), expires);
-            return null;
+            return me(identity);
         });
         log.info("Login aceito tenant={} usuario={}", identity.tenantId(), identity.usuarioId());
-        return new LoginResponse(token, "Bearer", expires, identity);
+        return new LoginResponse(token, "Bearer", expires, me);
+    }
+
+    /** Dentro do contexto da clínica da identidade. */
+    public MeView me(Identity identity) {
+        String[] names = repository.names(identity.unidadeId()).orElse(new String[] {null, null});
+        return new MeView(identity.usuarioId(), identity.tenantId(), identity.unidadeId(), identity.nome(), identity.email(), identity.papel(),
+            identity.permissoes(), names[0], names[1], repository.codeOf(identity.tenantId()).orElse(null));
     }
 
     /** Abre uma sessão de longa duração para um dispositivo. Chamar dentro de TenantTransactions.inTenant; o token só existe aqui e no retorno. */
