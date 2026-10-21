@@ -54,6 +54,8 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
   - código inexistente, clínica suspensa, e-mail ou senha errados → o **mesmo** `401`, com o mesmo custo de BCrypt (hash fictício) para o tempo de resposta não revelar nada.
 - `GET /auth/me` e a resposta do login passam a trazer `clinicaNome`, `unidadeNome` e o `codigoClinica` (o topbar e o seletor de unidade precisam; hoje só vêm ids). Campo novo, o resto do
   contrato não muda.
+- **V29, paciente completo no padrão do Feegow** (decisão do dono em 20/10/2026: "os mesmos campos que tem no Feegow", no backend e no front). Ver a seção 4. Vem **antes** dos seeds,
+  porque os pacientes de seed já usam esses campos.
 - Seeds de desenvolvimento: `ApplicationRunner` com `seed.enabled=true`, no estilo do `BootstrapAdmin`. Cria **duas** clínicas fictícias (a "Clínica Vida Plena", espelho do mock, e uma
   segunda só para mostrar o isolamento), cada uma com unidades, papéis, usuários, especialidades, procedimentos (a partir do catálogo), profissionais com procedimentos habilitados
   e grades, pacientes fictícios (CPFs válidos gerados, de teste), agendamentos, tipos de senha, guichês e um totem. Idempotente por código de clínica; recusa rodar sem a flag;
@@ -83,10 +85,32 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
 - Especialidades, procedimentos (com sugestões do catálogo ANS e a atribuição da fonte exibida junto), profissionais (cadastro completo, especialidade principal, procedimentos habilitados,
   cópia de grade, grades e bloqueios). Convênios e funcionários continuam no mock.
 
-### 4. Pacientes
+### 4. Pacientes: os campos do Feegow
 
-- Lista, novo, perfil: ligados ao que o backend guarda (nome, nome social, CPF, nascimento, celular, e-mail, ativo). Campos do mock **sem backend** (sexo, convênio, tags, alertas, origem do
-  lead, saldo, cidade) ficam como estão **e sinalizados** até a peça "paciente no guichê" (CPF/celular obrigatórios, "sem CPF", prontuário sequencial, responsáveis) existir.
+**Fonte:** documentação pública da API do Feegow (<https://docs.feegow.com/>, endpoints `POST /patient/create`, `POST /patient/edit`, `GET /patient/list`, `GET /patient/search`,
+`GET /patient/list-dependents`, `GET /patient/list-sources`), mais o formulário do front, que replica a tela original. **Limite conhecido:** a ajuda do Feegow só mostra os campos da
+tela em imagens e a API não expõe tudo o que a tela tem (por exemplo profissão e estado civil). A lista abaixo é a API **mais** os campos que o front já traz; o dono confirma o
+resto olhando a tela *Pacientes > Inserir* do Feegow (pergunta aberta 1).
+
+| Grupo | Campos (nome do Feegow → nosso) | Observação |
+|---|---|---|
+| Identificação | `nome_completo`→nome (obrigatório), `nome_social`, `cpf` (obrigatório), `sem_cpf`, `data_nascimento`, `genero`→sexo, `documento` (RG ou outro), `nome_mae`, `peso`, `altura` | CPF obrigatório com a saída explícita "sem CPF" (decisão do chefe). Validação de CPF e unicidade por clínica, só entre os que têm CPF. |
+| Contato | `celular`, `celular2`, `telefone`, `telefone2`, `email`, `email2` | O front acrescenta "este celular é WhatsApp" e "preferência de contato". |
+| Endereço | `cep`, `endereco`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `pais` | Busca de CEP fica no front (serviço público), não no backend. |
+| Origem | `origem_id` + `indicado_por` | Origens (como conheceu a clínica) são **cadastro da clínica**, com lista inicial sugerida; `GET /origens-paciente`. |
+| Observações | `observacao` | Interna. |
+| Responsável | nome, CPF e parentesco do responsável | Obrigatório o nome quando o paciente é menor de 18 anos (regra do front). Vínculo entre pacientes ("dependentes" do Feegow) fica para depois. |
+| Prontuário | número sequencial por clínica | O `paciente_id` numérico do Feegow; aqui é `numero_prontuario`, sem buracos, único por clínica. |
+| Situação | inativar **com motivo** (sem vínculo, óbito, sem motivo + texto) e reativar | O Feegow pede o motivo; guarda quem e quando. Hoje só existe `ativo`. |
+| Do front | profissão, estado civil, escolaridade, alertas clínicos, consentimentos LGPD (com data e hora) | Entram na V29 **se** o dono confirmar que existem no Feegow (pergunta 1). |
+| **Fica para o módulo de convênios** | `convenio_id`, `plano_id`, `matricula`, `titular`, `validade`, `tabela_id` | Dependem de um cadastro de convênios e de tabelas de preço que ainda não existe. Até lá, ficam no mock com selo. |
+
+Regras que já valem e continuam: o médico só vê paciente com vínculo; leitura de paciente é auditada e limitada por volume; CPF, nascimento e contato só aparecem a quem tem
+`pacientes:ler`.
+
+- Busca: por nome (sem acento), CPF só com números, telefone, número do prontuário e letra inicial, como no Feegow (*Busca rápida* e *Listar* por letra). Aviso de possível duplicado por
+  nome ou CPF ao cadastrar (`GET /pacientes/duplicados`).
+- O que sobrar do mock (tags, saldo, cidade derivada) sai ou fica sinalizado: **tags** e **saldo** não existem no Feegow como campos de cadastro, então não entram.
 
 ### 5. Agenda
 
@@ -114,8 +138,8 @@ O estado em memória da agenda (`components/agenda/store.ts`) é trocado por cac
 
 ## Perguntas ainda abertas (só o dono responde)
 
-1. Os campos de paciente que o mock tem e o backend não tem (sexo, convênio, tags, alertas, origem do lead, saldo, cidade): **o que fazer na tela enquanto não existem**?
-   Minha sugestão: manter visíveis com o selo "demonstração" até a peça do paciente; a alternativa é esconder.
+1. **Resolvida em 20/10/2026:** o paciente segue os campos do Feegow (seção 4). Falta o dono **olhar a tela *Pacientes > Inserir* do Feegow** (uma captura serve) para confirmar profissão,
+   estado civil, escolaridade, alertas e consentimentos, que a API não mostra, e dizer se há algum campo que a tela tem e a lista acima não.
 2. Tela de login: o código da clínica fica **visível** num campo, ou o dono quer subdomínio já nesta fase? (Subdomínio exige DNS e decisão de hospedagem; sugiro campo agora.)
 3. Quem testa as telas e valida o fluxo com o mock lado a lado (o dono, o chefe, o Jorran)?
 
