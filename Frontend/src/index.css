@@ -365,6 +365,11 @@ body {
   from { transform: translateX(-24px); }
   to { transform: translateX(0); }
 }
+.ui-side-panel-enter { animation: ui-side-panel-reveal 280ms var(--ui-ease-out) both; }
+@keyframes ui-side-panel-reveal {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 .ui-scrollbar { scrollbar-width: thin; scrollbar-color: transparent transparent; }
 .ui-scrollbar:hover { scrollbar-color: var(--c-border-strong) transparent; }
 
@@ -390,7 +395,7 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .ui-page-enter, .ui-nav-active, .ui-submenu-enter, .ui-menu-enter,
-  .ui-backdrop-enter, .ui-dialog-enter, .ui-mobile-sidebar-enter,
+  .ui-backdrop-enter, .ui-dialog-enter, .ui-mobile-sidebar-enter, .ui-side-panel-enter,
   .ui-stat-strip > * { animation: none !important; }
   .ui-nav-link, .ui-button, .ui-surface-card { transition: none !important; }
   .ui-nav-link:active, .ui-button:active { transform: none !important; }
