@@ -59,11 +59,8 @@ public class BootstrapAdmin implements ApplicationRunner {
             if (code == null || code.isBlank()) code = "clinica-" + tenant.toString().replace("-", "").substring(0, 8);
             jdbc.update("INSERT INTO clinica.codigos_clinica (codigo, tenant_id) VALUES (?, ?)", code.trim().toLowerCase(), tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, ?)", unit, tenant, required("BOOTSTRAP_UNIT_NAME"));
-            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Administrador', ARRAY['usuarios:ler','usuarios:criar','pacientes:ler','pacientes:criar','pacientes:editar','pacientes:inativar','profissionais:ler','profissionais:criar','agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:configurar','agenda:ver_valores','auditoria:ler','prontuario:compartilhar','fila:ler','fila:configurar','especialidades:ler','especialidades:criar','especialidades:editar','procedimentos:ler','procedimentos:criar','procedimentos:editar','profissionais:editar'])",
-                request.papelId(), tenant);
-            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Recepção', ARRAY['agenda:ler','agenda:criar','agenda:editar','agenda:cancelar','agenda:remarcar','agenda:ver_valores','pacientes:ler','pacientes:criar','pacientes:editar','profissionais:ler','fila:ler','fila:gerar','fila:chamar','especialidades:ler','procedimentos:ler'])", tenant);
-            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Médico', ARRAY['agenda:ler_proprios','agenda:atender','pacientes:ler_vinculados','prontuario:ler','prontuario:escrever'])", tenant);
-            repository.createUser(tenant, request, hash);
+            var roles = DefaultRoles.insert(jdbc, tenant);
+            repository.createUser(tenant, new CreateUserRequest(name, email, password, unit, roles.administrador()), hash);
             return null;
         });
         System.out.println("Clínica, unidade e administrador cadastrados. Nenhuma credencial será exibida.");

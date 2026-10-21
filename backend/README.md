@@ -488,6 +488,46 @@ ficha **sem** endereço, telefones extras, RG, CNS, origem, indicação, religi�
 - **Busca:** corrigido um defeito antigo: termo sem dígitos (`ana`) virava `LIKE '%%'` e trazia todo paciente com CPF ou celular.
 - **Ainda fora:** convênios do paciente (módulo de convênios), programação de agendamentos, abas do prontuário; consentimento LGPD no cadastro.
 
+## Banco local e seeds de desenvolvimento
+
+Para trabalhar sem o túnel SSH e sem mexer no banco compartilhado do servidor, há um PostgreSQL 16 local em Docker
+(`backend/docker-compose.dev.yml`). Ele só escuta em `127.0.0.1:55432`, cria os dois usuários do projeto (`multisaude_migrator`, dono do
+banco e das migrações, e `multisaude_app`, sem `BYPASSRLS`) e o schema `clinica`, igual ao `scripts/provision_database.rb`. As extensões
+`btree_gist` e `unaccent` vêm das migrações. **Não foi testado em máquina com Docker rodando ainda** (o Docker Desktop estava desligado
+quando escrevi): se algo falhar na primeira subida, o ponto de partida é `docker/init-dev-db.sh`.
+
+```sh
+cd backend
+docker compose -f docker-compose.dev.yml up -d
+cp local-dev.env.example local-dev.env        # senhas só de desenvolvimento local; ajuste SEED_PASSWORD se quiser
+set -a; source local-dev.env; set +a
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+SEED_ENABLED=true ./mvnw spring-boot:run
+```
+
+Com `seed.enabled=true` (`SEED_ENABLED=true`) a aplicação cria duas clínicas **fictícias** e continua rodando. Exige `SEED_PASSWORD`
+(mínimo 12 caracteres; é a senha de todos os usuários de demonstração e nunca fica no código) e recusa o perfil `prod`.
+
+| Clínica | Código | Usuários (todos com `SEED_PASSWORD`) |
+|---|---|---|
+| Clínica Vida Plena (2 unidades) | `vida-plena` | `admin@vidaplena.test` (Administrador), `igor.leonardo@vidaplena.test` (Recepção, nas duas unidades: o login pede a unidade), `camila.esteves@vidaplena.test` (Médico, ligada à Dra. Camila Esteves) |
+| Clínica Bem Viver (1 unidade) | `bem-viver` | `admin@bemviver.test`, `recepcao@bemviver.test` |
+
+A Vida Plena espelha o mock do front: 8 especialidades, 20 procedimentos, 8 profissionais com procedimentos habilitados e grade de segunda a
+sexta (e sábado na Unidade Norte para dois deles), 28 pacientes (um sem CPF, um estrangeiro, um inativo, alguns com prioridade, aviso ou
+parentes), agenda de dois dias úteis atrás a dois à frente com todos os status, tipos de senha (C, E, R, P), dois guichês e cinco senhas do
+dia. A Bem Viver é menor (3 profissionais, 10 pacientes) e serve para ver o isolamento entre clínicas.
+
+- **Idempotente:** clínica cujo código já existe não é recriada. A cada execução, se não houver agenda daqui para a frente ou senhas do dia,
+  elas são renovadas (a demonstração não envelhece).
+- **Não existe "reset":** as tabelas de histórico e de acesso são somente-inserção, de propósito, e a aplicação não tem `DELETE`. Para recomeçar,
+  `docker compose -f docker-compose.dev.yml down -v` e suba de novo.
+- **Dados fictícios:** nomes, telefones e e-mails (`.test`) são inventados. Os CPFs são **gerados** (só passam na validação): não representam
+  ninguém, mas por serem válidos podem coincidir por acaso com CPFs reais; não use esses dados fora do desenvolvimento.
+- **Não semeado:** procedimentos sem código TUSS (evita levar código licenciado para o seed), dispositivo/totem (crie pelo
+  `POST /dispositivos`), financeiro, estoque, convênios.
+- O teste `DevSeedIntegrationTest` roda os seeds dentro da transação do teste, com códigos de clínica próprios, e desfaz tudo: não suja o banco.
+
 ### CORS e navegador
 
 O CORS liberava só `GET`, `POST` e `OPTIONS`: qualquer `PUT` ou `DELETE` feito pelo navegador seria bloqueado (editar paciente, desativar grade, editar

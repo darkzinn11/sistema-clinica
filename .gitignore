@@ -7,3 +7,6 @@ dist/
 *.tsbuildinfo
 .vercel
 .claude/settings.local.json
+
+# Variáveis locais de desenvolvimento (o modelo é backend/local-dev.env.example)
+backend/local-dev.env

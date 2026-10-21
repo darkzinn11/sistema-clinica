@@ -1,0 +1,33 @@
+# PostgreSQL 16 local para desenvolvimento: sem túnel SSH e sem mexer no banco compartilhado do servidor.
+# Só escuta em 127.0.0.1. As senhas abaixo são de desenvolvimento local; nunca reutilize em outro lugar.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#   cp local-dev.env.example local-dev.env      # ajuste se quiser
+#   set -a; source local-dev.env; set +a
+#   SEED_ENABLED=true ./mvnw spring-boot:run     # cria as clínicas de demonstração (veja o README)
+#
+# Recomeçar do zero (apaga o banco local): docker compose -f docker-compose.dev.yml down -v
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: multisaude-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-postgres-dev-local}
+      POSTGRES_DB: multisaude_dev
+      MULTISAUDE_APP_PASSWORD: ${MULTISAUDE_APP_PASSWORD:-multisaude-app-dev-local}
+      MULTISAUDE_MIGRATOR_PASSWORD: ${MULTISAUDE_MIGRATOR_PASSWORD:-multisaude-migrator-dev-local}
+    ports:
+      - "127.0.0.1:${MULTISAUDE_DB_PORT:-55432}:5432"
+    volumes:
+      - multisaude-dev-data:/var/lib/postgresql/data
+      - ./docker/init-dev-db.sh:/docker-entrypoint-initdb.d/10-init-dev-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d multisaude_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  multisaude-dev-data:
