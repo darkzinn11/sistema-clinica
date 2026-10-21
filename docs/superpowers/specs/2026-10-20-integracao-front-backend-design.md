@@ -87,30 +87,36 @@ O produto é um **SaaS: várias clínicas** no mesmo sistema. Isso muda o login 
 
 ### 4. Pacientes: os campos do Feegow
 
-**Fonte:** documentação pública da API do Feegow (<https://docs.feegow.com/>, endpoints `POST /patient/create`, `POST /patient/edit`, `GET /patient/list`, `GET /patient/search`,
-`GET /patient/list-dependents`, `GET /patient/list-sources`), mais o formulário do front, que replica a tela original. **Limite conhecido:** a ajuda do Feegow só mostra os campos da
-tela em imagens e a API não expõe tudo o que a tela tem (por exemplo profissão e estado civil). A lista abaixo é a API **mais** os campos que o front já traz; o dono confirma o
-resto olhando a tela *Pacientes > Inserir* do Feegow (pergunta aberta 1).
+**Fontes:** (1) a tela *Pacientes > Inserir* do Feegow, em capturas enviadas pelo dono em 20/10/2026 (fonte principal); (2) a API pública
+(<https://docs.feegow.com/>, `patient/create`, `edit`, `list`, `search`, `list-dependents`, `list-sources`). Onde as duas divergem, vale a tela.
+A tela só traz *Nome* sem asterisco; **obrigatórios na tela: CPF, Prontuário e Celular** (o administrador pode reconfigurar, ver "Campos obrigatórios" do Feegow).
 
-| Grupo | Campos (nome do Feegow → nosso) | Observação |
+| Grupo (como aparece no Feegow) | Campos | Decisão para o nosso backend (V29) |
 |---|---|---|
-| Identificação | `nome_completo`→nome (obrigatório), `nome_social`, `cpf` (obrigatório), `sem_cpf`, `data_nascimento`, `genero`→sexo, `documento` (RG ou outro), `nome_mae`, `peso`, `altura` | CPF obrigatório com a saída explícita "sem CPF" (decisão do chefe). Validação de CPF e unicidade por clínica, só entre os que têm CPF. |
-| Contato | `celular`, `celular2`, `telefone`, `telefone2`, `email`, `email2` | O front acrescenta "este celular é WhatsApp" e "preferência de contato". |
-| Endereço | `cep`, `endereco`, `numero`, `complemento`, `bairro`, `cidade`, `estado`, `pais` | Busca de CEP fica no front (serviço público), não no backend. |
-| Origem | `origem_id` + `indicado_por` | Origens (como conheceu a clínica) são **cadastro da clínica**, com lista inicial sugerida; `GET /origens-paciente`. |
-| Observações | `observacao` | Interna. |
-| Responsável | nome, CPF e parentesco do responsável | Obrigatório o nome quando o paciente é menor de 18 anos (regra do front). Vínculo entre pacientes ("dependentes" do Feegow) fica para depois. |
-| Prontuário | número sequencial por clínica | O `paciente_id` numérico do Feegow; aqui é `numero_prontuario`, sem buracos, único por clínica. |
-| Situação | inativar **com motivo** (sem vínculo, óbito, sem motivo + texto) e reativar | O Feegow pede o motivo; guarda quem e quando. Hoje só existe `ativo`. |
-| Do front | profissão, estado civil, escolaridade, alertas clínicos, consentimentos LGPD (com data e hora) | Entram na V29 **se** o dono confirmar que existem no Feegow (pergunta 1). |
-| **Fica para o módulo de convênios** | `convenio_id`, `plano_id`, `matricula`, `titular`, `validade`, `tabela_id` | Dependem de um cadastro de convênios e de tabelas de preço que ainda não existe. Até lá, ficam no mock com selo. |
+| Identificação | Nome, Nascimento, **Estrangeiro** (marcar), **CPF \*** + **Sem CPF** (marcar), **Cor de identificação** (cor), Sexo, Nome social, Altura, Peso, IMC (calculado), **Prontuário \*** (número), **Prioridade** (lista), Foto | CPF **ou** "sem CPF" **ou** estrangeiro; CPF validado e único por clínica entre os que têm. Cor `#RRGGBB`. Altura em cm e peso em kg; IMC só na resposta. **Prontuário** sequencial por clínica, sem buracos, gerado pelo sistema. Foto: depende do módulo de arquivos, fica para depois. |
+| Endereço | CEP (com "Não sei o CEP"), Endereço, Número, Compl., Bairro, Cidade, Estado, País | Texto livre com limites; país padrão Brasil. Busca de CEP no front. |
+| Contato | Telefone, **Celular \***, E-mail, Telefone 2, Celular 2, E-mail 2 | Celular obrigatório (como na tela). |
+| Complementares | Profissão, Escolaridade, Naturalidade, Estado civil, Nacionalidade, RG, **Origem** (lista), **Indicação** (texto), Religião, CNS, Cor da pele | Listas fixas para escolaridade, estado civil e cor da pele (categorias do IBGE); **Origem** é cadastro da clínica (`GET /origens-paciente`, lista inicial sugerida). CNS com 15 dígitos. |
+| Observações | Observações (interna) | Texto. |
+| Avisos e pendências | caixa de marcação + texto | `aviso_ativo` + `aviso_texto`: aparece em destaque ao abrir o paciente e ao agendar. Substitui os "alertas clínicos" em chips do nosso front. |
+| Pessoas relacionadas e parentes | Nome, **Responsável financeiro** (marcar), Parentesco, CPF (várias linhas) | Tabela de linhas livres (não vínculo entre pacientes). Sem regra de menor de idade: o Feegow não exige. |
+| Situação | chave ativo/inativo no topo; inativar pede **motivo** | `ativo` + motivo (sem vínculo, óbito, sem motivo + texto), quem e quando; reativar. |
+| Histórico (ícone de relógio) | log de alterações | Registro **somente inserção** de quem alterou e **quais campos** (sem repetir os valores). |
+| **Fica para o módulo de convênios** | Convênios do paciente (até 3 linhas: Convênio, Plano, Matrícula/Carteirinha, Token da carteirinha, Validade, Titular) | Dependem do cadastro de convênios e planos. Até lá, mock com selo. |
+| **Fica para depois** | Programação de agendamentos do paciente; abas do prontuário (anamnese, laudos, prescrições, imagens, arquivos, recibos, propostas, conta, IA) | Cada uma é módulo próprio. Prontuário/evolução e agenda já têm backend. |
 
-Regras que já valem e continuam: o médico só vê paciente com vínculo; leitura de paciente é auditada e limitada por volume; CPF, nascimento e contato só aparecem a quem tem
-`pacientes:ler`.
+**Prioridade na ficha do paciente (reverte uma decisão anterior).** Antes ficou decidido que a prioridade era "a da lei" e não ficava no paciente. O Feegow guarda a prioridade **no paciente**,
+com uma lista que o dono viu na tela: *Cardíaco, Criança de colo, Lactante, Portador de deficiência* e mais itens que a captura corta. Seguindo o Feegow: `prioridade_id` aponta para um
+**cadastro da clínica** (`GET /prioridades`), com lista inicial = categorias da Lei 10.048/2000 (idoso, gestante, lactante, criança de colo, pessoa com deficiência, TEA, obeso, mobilidade reduzida,
+doador de sangue) **mais** "Cardíaco", que o Feegow oferece mas **não está na lei federal** (pode haver lei estadual ou municipal; fica por conta da clínica manter ou desativar). Ela **não** muda a
+numeração da senha por si só: a fila continua decidida pelo tipo de senha escolhido no totem.
 
-- Busca: por nome (sem acento), CPF só com números, telefone, número do prontuário e letra inicial, como no Feegow (*Busca rápida* e *Listar* por letra). Aviso de possível duplicado por
-  nome ou CPF ao cadastrar (`GET /pacientes/duplicados`).
-- O que sobrar do mock (tags, saldo, cidade derivada) sai ou fica sinalizado: **tags** e **saldo** não existem no Feegow como campos de cadastro, então não entram.
+Regras que já valem e continuam: o médico só vê paciente com vínculo; leitura de paciente é auditada e limitada por volume; a ficha completa (CPF, RG, CNS, nascimento, contato, endereço)
+só aparece a quem tem `pacientes:ler`.
+
+- Busca como no Feegow: nome (sem acento), CPF só com números, telefone, número do prontuário e letra inicial. Aviso de possível duplicado por nome ou CPF ao cadastrar (`GET /pacientes/duplicados`).
+- **Sai do nosso front, por não existir no Feegow:** tags, saldo, cidade derivada, consentimentos LGPD no cadastro e o campo "como conheceu" como lista fixa (vira **Origem**). Consentimento LGPD
+  continua sendo um item jurídico em aberto, fora desta fatia.
 
 ### 5. Agenda
 
@@ -138,8 +144,8 @@ O estado em memória da agenda (`components/agenda/store.ts`) é trocado por cac
 
 ## Perguntas ainda abertas (só o dono responde)
 
-1. **Resolvida em 20/10/2026:** o paciente segue os campos do Feegow (seção 4). Falta o dono **olhar a tela *Pacientes > Inserir* do Feegow** (uma captura serve) para confirmar profissão,
-   estado civil, escolaridade, alertas e consentimentos, que a API não mostra, e dizer se há algum campo que a tela tem e a lista acima não.
+1. **Resolvida em 20/10/2026:** paciente segue a tela do Feegow (seção 4). **Falta só** a lista completa do campo *Prioridade* (a captura corta depois de "Portador de deficiência") e confirmar
+   que a clínica quer manter "Cardíaco" mesmo não sendo da lei federal.
 2. Tela de login: o código da clínica fica **visível** num campo, ou o dono quer subdomínio já nesta fase? (Subdomínio exige DNS e decisão de hospedagem; sugiro campo agora.)
 3. Quem testa as telas e valida o fluxo com o mock lado a lado (o dono, o chefe, o Jorran)?
 
