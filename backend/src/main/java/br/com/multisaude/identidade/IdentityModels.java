@@ -13,8 +13,9 @@ public final class IdentityModels {
     public record LoginRequest(UUID tenantId, @Size(max = 40) String codigoClinica, UUID unidadeId,
         @NotBlank @Email @Size(max = 254) String email,
         @NotBlank @Size(max = 72) String senha) {
-        @AssertTrue boolean isClinicaInformada() {
-            return (tenantId != null) != (codigoClinica != null && !codigoClinica.isBlank());
+        /** A clínica é opcional (o login descobre pelo e-mail); informar as duas formas ao mesmo tempo é ambíguo. */
+        @AssertTrue boolean isClinicaNoMaximoUma() {
+            return tenantId == null || codigoClinica == null || codigoClinica.isBlank();
         }
         @Override public String toString() { return "LoginRequest[credenciais omitidas]"; }
     }

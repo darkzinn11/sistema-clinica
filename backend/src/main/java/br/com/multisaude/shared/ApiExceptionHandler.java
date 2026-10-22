@@ -34,6 +34,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Escolha a unidade.", "unidades", exception.units()));
     }
 
+    @ExceptionHandler(ClinicChoiceRequiredException.class)
+    ResponseEntity<?> chooseClinic(ClinicChoiceRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Escolha a clínica.", "clinicas", exception.clinics()));
+    }
+
     @ExceptionHandler(EmptyResultDataAccessException.class)
     ResponseEntity<?> notFound(EmptyResultDataAccessException exception) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", "Registro não encontrado."));

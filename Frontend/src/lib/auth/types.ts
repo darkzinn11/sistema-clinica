@@ -29,3 +29,9 @@ export interface UnitOption {
   id: string;
   nome: string;
 }
+
+/** Clínicas em que o mesmo e-mail e a mesma senha funcionam (o servidor só pergunta depois de validar a senha). */
+export interface ClinicOption {
+  id: string;
+  nome: string;
+}

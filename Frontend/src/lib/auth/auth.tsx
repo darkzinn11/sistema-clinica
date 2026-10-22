@@ -1,13 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, configureApi } from "@/lib/api/client";
-import { clearSession, loadSession, rememberClinicCode, saveSession } from "./storage";
-import type { LoginResponse, StoredSession, UnitOption } from "./types";
+import { clearSession, loadSession, saveSession } from "./storage";
+import type { ClinicOption, LoginResponse, StoredSession, UnitOption } from "./types";
 
 export interface LoginInput {
-  codigoClinica: string;
   email: string;
   senha: string;
+  /** Só depois que o servidor pediu para escolher a clínica. */
+  clinicaId?: string;
   unidadeId?: string;
 }
 
@@ -17,6 +18,15 @@ export class UnitChoiceRequired extends Error {
   constructor(units: UnitOption[]) {
     super("Escolha a unidade.");
     this.units = units;
+  }
+}
+
+/** O servidor pede para escolher a clínica (a pessoa tem conta com o mesmo e-mail e senha em mais de uma). */
+export class ClinicChoiceRequired extends Error {
+  readonly clinics: ClinicOption[];
+  constructor(clinics: ClinicOption[]) {
+    super("Escolha a clínica.");
+    this.clinics = clinics;
   }
 }
 
@@ -52,20 +62,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session, end]);
 
   const login = useCallback(async (input: LoginInput) => {
-    const code = input.codigoClinica.trim().toLowerCase();
     try {
       const response = await api<LoginResponse>("/auth/login", {
         method: "POST", public: true,
-        body: { codigoClinica: code, email: input.email.trim(), senha: input.senha, unidadeId: input.unidadeId },
+        body: { tenantId: input.clinicaId, email: input.email.trim(), senha: input.senha, unidadeId: input.unidadeId },
       });
       const next: StoredSession = { accessToken: response.accessToken, expiraEm: response.expiraEm, usuario: response.usuario };
       queryClient.clear();
       saveSession(next);
-      rememberClinicCode(code);
       setSession(next);
     } catch (error) {
-      if (error instanceof ApiError && error.status === 409 && error.body && typeof error.body === "object" && "unidades" in error.body)
-        throw new UnitChoiceRequired((error.body as { unidades: UnitOption[] }).unidades);
+      if (error instanceof ApiError && error.status === 409 && error.body && typeof error.body === "object") {
+        if ("clinicas" in error.body) throw new ClinicChoiceRequired((error.body as { clinicas: ClinicOption[] }).clinicas);
+        if ("unidades" in error.body) throw new UnitChoiceRequired((error.body as { unidades: UnitOption[] }).unidades);
+      }
       throw error;
     }
   }, [queryClient]);

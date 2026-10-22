@@ -36,6 +36,15 @@ public class IdentityRepository {
             (rs, row) -> new Credentials(identity(rs), rs.getString("senha_hash")), email);
     }
 
+    /** Fora de qualquer clínica: em quais clínicas o e-mail tem conta (índice mantido pelo banco; só consulta por igualdade). */
+    public List<UUID> tenantsForEmail(String email) {
+        return jdbc.queryForList("SELECT tenant_id FROM clinica.emails_login WHERE email = ? ORDER BY tenant_id LIMIT 20", UUID.class, email);
+    }
+
+    public Optional<String> clinicName(UUID tenant) {
+        return jdbc.queryForList("SELECT nome FROM clinica.tenants WHERE id = ?", String.class, tenant).stream().findFirst();
+    }
+
     /** Fora de qualquer clínica: `codigos_clinica` não tem segurança por linha. Só consulta por igualdade. */
     public Optional<UUID> tenantByCode(String code) {
         return jdbc.queryForList("SELECT tenant_id FROM clinica.codigos_clinica WHERE codigo = ?", UUID.class, code).stream().findFirst();

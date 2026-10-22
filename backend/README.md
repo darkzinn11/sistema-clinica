@@ -427,20 +427,28 @@ descrição e código TUSS para o cadastro da própria clínica; preço e tempo 
   destino já tem grade sobreposta, nada é copiado (409 listando os horários). Bloqueios não são copiados.
 - Permissões: Administrador ganha `profissionais:editar`. Médico não vê o cadastro de colegas.
 
-## Login por código da clínica (V28)
+## Login só com e-mail e senha (V28 e V33)
 
-- **Entrar:** `POST /auth/login` com `codigoClinica` (o que a pessoa digita; minúsculas, números e `-`, até 40 caracteres, sem diferenciar caixa nem espaços nas pontas), `email`, `senha`
-  e, opcionalmente, `unidadeId`. Envie **ou** `codigoClinica` **ou** `tenantId` (clientes antigos); os dois juntos, ou nenhum, é 400.
-- **Unidade:** com `unidadeId`, entra nela. Sem `unidadeId` e com **uma** unidade, entra direto. Com **várias**, responde `409` com `{ "erro": "Escolha a unidade.", "unidades": [{id, nome}] }`
-  e o cliente reenvia com `unidadeId`. A lista só sai **depois** de a senha ser validada.
-- **Nada vaza:** código inexistente, clínica suspensa, e-mail errado, senha errada, usuário inativo e unidade que não é da pessoa dão o **mesmo** `401` com o mesmo corpo e o mesmo custo
-  (BCrypt contra um hash fictício). O limite de tentativas (10 por clínica+e-mail e 40 por IP, em 15 minutos) usa o código digitado.
+A tela de login pede **só e-mail e senha**. O sistema descobre a clínica pelo e-mail; depois de validar a senha, pergunta a clínica (se houver mais de uma) e a unidade (se houver mais de uma).
+
+- **Entrar:** `POST /auth/login` com `email`, `senha` e, opcionalmente, `unidadeId`. Para escolher a clínica (ou para clientes antigos) ainda aceita `tenantId` **ou** `codigoClinica`; os dois juntos
+  são 400, nenhum dos dois é o caso normal.
+- **Como acha a clínica:** `emails_login` (V33) é um índice e-mail → clínica, **sem** segurança por linha (como `codigos_clinica`), consultado só por igualdade. A aplicação **não escreve** nele:
+  um gatilho do banco o mantém a cada usuário criado ou e-mail alterado (e a migração indexou os que já existiam). Ele só diz "este e-mail tem conta nesta clínica"; a senha é conferida dentro da clínica.
+  Um e-mail antigo que mudou fica no índice, mas não tem mais conta (o login recusa igual).
+- **Mais de uma clínica:** o mesmo e-mail pode existir em clínicas diferentes (contas independentes). A **senha** decide qual vale. Se a mesma senha vale em mais de uma, responde `409` com
+  `{ "erro": "Escolha a clínica.", "clinicas": [{id, nome}] }` **depois** de validar a senha, e o cliente reenvia com `tenantId`. Nenhuma unidade é revelada antes de escolher a clínica.
+- **Unidade:** com `unidadeId`, entra nela. Sem `unidadeId` e com **uma** unidade, entra direto. Com **várias**, `409` com `{ "erro": "Escolha a unidade.", "unidades": [{id, nome}] }`, também só
+  depois da senha.
+- **Nada vaza:** e-mail inexistente, clínica suspensa, senha errada, usuário inativo e unidade que não é da pessoa dão o **mesmo** `401` com o mesmo corpo. O custo (BCrypt) é o mesmo para e-mail
+  inexistente e senha errada (compara contra um hash fictício); e-mail com conta em duas clínicas gasta uma comparação por clínica (só isso o diferencia). O limite de tentativas (10 por e-mail
+  e 40 por IP, em 15 minutos) usa o e-mail quando não há clínica informada.
 - **Resposta e `GET /auth/me`:** além de `usuarioId`, `tenantId`, `unidadeId`, `nome`, `email`, `papel` e `permissoes`, trazem `clinicaNome`, `unidadeNome` e `codigoClinica` (nulo se a clínica
   não tem código).
-- **Tabela `codigos_clinica`:** sem segurança por linha, porque o login precisa traduzir código em clínica antes de existir clínica selecionada. Expõe só "código → id da clínica", consultada por
-  igualdade; **nenhuma rota lista códigos**. O código nunca muda (a aplicação só tem `SELECT` e `INSERT`). Um mesmo e-mail em duas clínicas são duas contas independentes.
-- **Clínica já existente:** a migração não copia (`tenants` tem segurança por linha forçada). Dar um código: `INSERT INTO clinica.codigos_clinica (codigo, tenant_id) VALUES ('codigo-da-clinica', '<id>');`.
-  O `BootstrapAdmin` aceita `BOOTSTRAP_CLINIC_CODE`; sem ele, deriva `clinica-` + 8 primeiros caracteres do id.
+- **`codigos_clinica`** continua existindo (código → id da clínica, sem segurança por linha, só `SELECT`/`INSERT`; nenhuma rota lista códigos). Hoje serve ao login opcional por código e a quem
+  precise identificar uma clínica por um nome curto; a tela deixou de pedir.
+- **Clínica já existente:** o índice de e-mails já a cobre (V33). O `BootstrapAdmin` aceita `BOOTSTRAP_CLINIC_CODE` (opcional).
+- **Custo da decisão (para saber):** quem sabe o e-mail de alguém pode descobrir, só pelo tempo de resposta, que ele tem conta em **duas** clínicas. Não revela se existe conta nem em qual clínica.
 
 ## Totem com CPF e dispositivos (V27)
 

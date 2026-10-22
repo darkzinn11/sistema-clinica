@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
@@ -16,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+import br.com.multisaude.shared.ClinicChoiceRequiredException;
 import br.com.multisaude.shared.TenantTransactions;
 import br.com.multisaude.shared.UnitChoiceRequiredException;
 import static br.com.multisaude.identidade.IdentityModels.*;
@@ -42,18 +44,31 @@ public class IdentityService {
      */
     public LoginResponse login(LoginRequest request) {
         validatePasswordBytes(request.senha());
-        Optional<UUID> tenant = request.tenantId() != null ? Optional.of(request.tenantId())
-            : repository.tenantByCode(request.codigoClinica().trim().toLowerCase(Locale.ROOT));
         String email = request.email().trim().toLowerCase(Locale.ROOT);
-        List<IdentityRepository.Credentials> memberships = tenant
-            .map(id -> transactions.inTenant(id, () -> repository.credentials(email)))
-            .orElse(List.of()).stream()
-            .filter(c -> request.unidadeId() == null || c.identity().unidadeId().equals(request.unidadeId())).toList();
-        boolean matches = passwords.matches(request.senha(), memberships.stream().findFirst().map(IdentityRepository.Credentials::passwordHash).orElse(dummyHash));
-        if (!matches || memberships.isEmpty()) {
+        // Sem clínica informada, descobre pelo e-mail em quais clínicas ele tem conta (a senha decide qual vale).
+        List<UUID> candidates = request.tenantId() != null ? List.of(request.tenantId())
+            : request.codigoClinica() != null && !request.codigoClinica().isBlank()
+                ? repository.tenantByCode(request.codigoClinica().trim().toLowerCase(Locale.ROOT)).map(List::of).orElse(List.of())
+                : repository.tenantsForEmail(email);
+        record Match(UUID tenant, List<IdentityRepository.Credentials> memberships) {}
+        List<Match> matches = new ArrayList<>();
+        for (UUID candidate : candidates) {
+            List<IdentityRepository.Credentials> memberships = transactions.inTenant(candidate, () -> repository.credentials(email)).stream()
+                .filter(c -> request.unidadeId() == null || c.identity().unidadeId().equals(request.unidadeId())).toList();
+            String hash = memberships.stream().findFirst().map(IdentityRepository.Credentials::passwordHash).orElse(dummyHash);
+            if (passwords.matches(request.senha(), hash) && !memberships.isEmpty()) matches.add(new Match(candidate, memberships));
+        }
+        // Sem nenhum candidato, ainda assim gasta uma comparação: e-mail inexistente custa o mesmo que senha errada.
+        if (candidates.isEmpty()) passwords.matches(request.senha(), dummyHash);
+        if (matches.isEmpty()) {
             log.info("Login recusado");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciais ou vínculo inválidos.");
         }
+        if (matches.size() > 1) {
+            throw new ClinicChoiceRequiredException(matches.stream()
+                .map(m -> new ClinicChoiceRequiredException.ClinicOption(m.tenant(), transactions.inTenant(m.tenant(), () -> repository.clinicName(m.tenant())).orElse("Clínica"))).toList());
+        }
+        List<IdentityRepository.Credentials> memberships = matches.get(0).memberships();
         if (memberships.size() > 1) {
             UUID tenantId = memberships.get(0).identity().tenantId();
             throw new UnitChoiceRequiredException(transactions.inTenant(tenantId, () -> repository.units(memberships.get(0).identity().usuarioId())).stream()

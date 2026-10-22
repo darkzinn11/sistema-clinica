@@ -201,16 +201,17 @@ class LoginPorCodigoIntegrationTest {
     // ---- entrada ----
 
     @Test
-    void exactlyOneOfCodeOrIdIsRequired() throws Exception {
+    void atMostOneOfCodeOrIdIsAccepted() throws Exception {
         Map<String, Object> both = base(email, PASSWORD);
         both.put("tenantId", tenant);
         both.put("codigoClinica", code);
         both.put("unidadeId", unitA);
         send(both).andExpect(status().isBadRequest());
-        send(base(email, PASSWORD)).andExpect(status().isBadRequest());
-        Map<String, Object> blank = base(email, PASSWORD);
+        Map<String, Object> none = base(singleEmail, PASSWORD);        // sem clínica: o e-mail diz qual é
+        send(none).andExpect(status().isOk());
+        Map<String, Object> blank = base(singleEmail, PASSWORD);
         blank.put("codigoClinica", "   ");
-        send(blank).andExpect(status().isBadRequest());
+        send(blank).andExpect(status().isOk());                        // código em branco = sem código
         Map<String, Object> legacy = base(email, PASSWORD);
         legacy.put("tenantId", tenant);
         legacy.put("unidadeId", unitA);
@@ -218,6 +219,89 @@ class LoginPorCodigoIntegrationTest {
         Map<String, Object> tooLong = base(email, PASSWORD);
         tooLong.put("codigoClinica", "a".repeat(41));
         send(tooLong).andExpect(status().isBadRequest());
+    }
+
+    // ---- entrar só com e-mail e senha ----
+
+    private ResultActions byEmail(UUID unit, String mail, String password) throws Exception {
+        Map<String, Object> m = base(mail, password);
+        if (unit != null) m.put("unidadeId", unit);
+        return send(m);
+    }
+
+    @Test
+    void theEmailAloneFindsTheClinicAndThePasswordDecidesWhichOneWhenTheEmailIsInTwo() throws Exception {
+        // O e-mail da Ana existe nas duas clínicas, com senhas diferentes: a senha escolhe a conta.
+        byEmail(unitA, email, PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("usuario.tenantId").value(tenant.toString())).andExpect(jsonPath("usuario.nome").value("Ana Teste"));
+        byEmail(otherUnit, email, OTHER_PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("usuario.tenantId").value(otherTenant.toString())).andExpect(jsonPath("usuario.nome").value("Ana do Norte"));
+        byEmail(null, singleEmail, PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("usuario.clinicaNome").value("Clínica Vida Plena de Teste"));
+    }
+
+    @Test
+    void theUnitIsAskedAfterThePasswordEvenWithoutTheClinic() throws Exception {
+        byEmail(null, email, PASSWORD).andExpect(status().isConflict()).andExpect(jsonPath("erro").value("Escolha a unidade.")).andExpect(jsonPath("unidades.length()").value(2))
+            .andExpect(jsonPath("clinicas").doesNotExist()).andExpect(jsonPath("accessToken").doesNotExist());
+        byEmail(unitB, email, PASSWORD).andExpect(status().isOk()).andExpect(jsonPath("usuario.unidadeNome").value("Unidade Renascença"));
+    }
+
+    @Test
+    void whenTheSameEmailAndPasswordWorkInTwoClinicsTheClinicIsAskedOnlyAfterThePassword() throws Exception {
+        transactions.inTenant(otherTenant, () -> jdbc.update("UPDATE clinica.usuarios SET senha_hash = ? WHERE email = ?", passwords.encode(PASSWORD), email));
+        ResultActions ask = byEmail(null, email, PASSWORD);
+        ask.andExpect(status().isConflict()).andExpect(jsonPath("erro").value("Escolha a clínica.")).andExpect(jsonPath("clinicas.length()").value(2))
+            .andExpect(jsonPath("accessToken").doesNotExist()).andExpect(jsonPath("unidades").doesNotExist());
+        String body = ask.andReturn().getResponse().getContentAsString();
+        assertTrue(body.contains("Clínica Vida Plena de Teste") && body.contains("Clínica Norte de Teste"));
+        assertFalse(body.contains("Unidade"), "nenhuma unidade é revelada antes de escolher a clínica");
+        // Escolhida a clínica (pelo id que veio na lista), segue o fluxo normal.
+        Map<String, Object> chosen = base(email, PASSWORD);
+        chosen.put("tenantId", otherTenant);
+        send(chosen).andExpect(status().isOk()).andExpect(jsonPath("usuario.clinicaNome").value("Clínica Norte de Teste"));
+        // Senha errada nunca chega a perguntar a clínica.
+        byEmail(null, email, "senha-errada-123456").andExpect(status().isUnauthorized()).andExpect(content().string(Matchers.not(Matchers.containsString("Clínica"))));
+    }
+
+    @Test
+    void withoutTheClinicEveryKindOfWrongInputStillGivesTheSameAnswer() throws Exception {
+        String unknownEmail = byEmail(null, "ninguem-" + suffix + "@example.invalid", PASSWORD).andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        String wrongPassword = byEmail(unitA, email, "senha-errada-123456").andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        String foreignUnit = byEmail(UUID.randomUUID(), singleEmail, PASSWORD).andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.tenants SET status = 'suspenso' WHERE id = ?", tenant));
+        String suspended = byEmail(null, singleEmail, PASSWORD).andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.tenants SET status = 'ativo' WHERE id = ?", tenant));
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.usuarios SET ativo = false WHERE id = ?", singleUser));
+        String inactive = byEmail(null, singleEmail, PASSWORD).andExpect(status().isUnauthorized()).andReturn().getResponse().getContentAsString();
+        assertEquals(unknownEmail, wrongPassword);
+        assertEquals(unknownEmail, foreignUnit);
+        assertEquals(unknownEmail, suspended);
+        assertEquals(unknownEmail, inactive);
+    }
+
+    @Test
+    void theEmailIndexFollowsNewUsersAndEmailChangesAndTheApplicationCannotWriteToIt() throws Exception {
+        String fresh = "novo-" + suffix + "@example.invalid";
+        UUID role = UUID.randomUUID(), newUser = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> {
+            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Recepção nova', ARRAY['fila:ler'])", role, tenant);
+            jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash) VALUES (?, ?, 'Novo Teste', ?, ?)", newUser, tenant, fresh, passwords.encode(PASSWORD));
+            jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, newUser, unitA, role);
+            return null;
+        });
+        byEmail(null, fresh, PASSWORD).andExpect(status().isOk());
+        String changed = "mudou-" + suffix + "@example.invalid";
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.usuarios SET email = ? WHERE id = ?", changed, newUser));
+        byEmail(null, changed, PASSWORD).andExpect(status().isOk());
+        byEmail(null, fresh, PASSWORD).andExpect(status().isUnauthorized());        // o e-mail antigo ainda está no índice, mas não tem conta
+        rejected(org.springframework.jdbc.BadSqlGrammarException.class, "INSERT INTO clinica.emails_login (email, tenant_id) VALUES (?, ?)", "forjado-" + suffix + "@example.invalid", tenant);
+        rejected(org.springframework.jdbc.BadSqlGrammarException.class, "DELETE FROM clinica.emails_login WHERE tenant_id = ?", tenant);
+        rejected(org.springframework.jdbc.BadSqlGrammarException.class, "UPDATE clinica.emails_login SET tenant_id = ? WHERE tenant_id = ?", otherTenant, tenant);
+    }
+
+    @Test
+    void attemptsWithoutTheClinicAreLimitedPerEmail() throws Exception {
+        for (int i = 0; i < 10; i++) byEmail(unitA, email, "senha-errada-123456").andExpect(status().isUnauthorized());
+        byEmail(unitA, email, PASSWORD).andExpect(status().isTooManyRequests());
+        byEmail(null, singleEmail, PASSWORD).andExpect(status().isOk());              // outro e-mail, outra contagem
     }
 
     @Test
