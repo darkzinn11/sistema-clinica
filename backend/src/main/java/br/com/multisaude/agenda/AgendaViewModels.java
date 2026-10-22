@@ -15,4 +15,7 @@ public final class AgendaViewModels {
         String observacao, UUID remarcadoDe, UUID profissionalId, String profissionalNome, String profissionalCor,
         UUID pacienteId, String pacienteNome, String pacienteCelular, UUID procedimentoId, String procedimentoNome, String procedimentoTipo,
         Long valorCentavos, OffsetDateTime chegadaEm) {}
+
+    /** Ocupação de um profissional num dia: blocos da grade do dia e quantos estão tomados. Dia sem grade não aparece. */
+    public record OcupacaoDia(UUID profissionalId, LocalDate data, int blocos, int ocupados) {}
 }

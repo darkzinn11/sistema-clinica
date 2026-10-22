@@ -76,7 +76,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/status").hasAnyAuthority("agenda:editar", "agenda:atender")
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/remarcar").hasAuthority("agenda:remarcar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/agendamentos/*/cancelar").hasAuthority("agenda:cancelar")
-                .requestMatchers(HttpMethod.GET, "/api/v1/grades", "/api/v1/bloqueios", "/api/v1/agenda/disponibilidade", "/api/v1/agenda/agendamentos").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
+                .requestMatchers(HttpMethod.GET, "/api/v1/grades", "/api/v1/bloqueios", "/api/v1/agenda/disponibilidade", "/api/v1/agenda/agendamentos", "/api/v1/agenda/ocupacao").hasAnyAuthority("agenda:ler", "agenda:ler_proprios")
                 .requestMatchers(HttpMethod.POST, "/api/v1/grades", "/api/v1/grades/copiar", "/api/v1/bloqueios").hasAuthority("agenda:configurar")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/grades/*", "/api/v1/bloqueios/*").hasAuthority("agenda:configurar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/tipos-senha", "/api/v1/guiches", "/api/v1/guiches/*/atual", "/api/v1/senhas/fila").hasAuthority("fila:ler")

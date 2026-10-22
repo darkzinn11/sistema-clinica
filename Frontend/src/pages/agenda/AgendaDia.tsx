@@ -93,7 +93,7 @@ function AgendaDiaView() {
   const { professionals, professionalById } = useCatalog();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [date, setDate] = useState(todayIso);
+  const [date, setDate] = useState(() => searchParams.get("data") ?? todayIso());
   const [profFilter, setProfFilter] = useState<Set<string>>(new Set(professionals.map((p) => p.id)));
   const [specialtyFilter, setSpecialtyFilter] = useState("todas");
   const [statusFilter, setStatusFilter] = useState<"todos" | AppointmentStatus>("todos");

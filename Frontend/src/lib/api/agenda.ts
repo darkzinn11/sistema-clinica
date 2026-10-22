@@ -86,6 +86,17 @@ export function useAgendaItems(from: string, to: string, professionalId?: string
   });
 }
 
+export interface OccupancyDay { profissionalId: string; data: string; blocos: number; ocupados: number }
+
+/** Ocupação por profissional e dia (blocos da grade tomados). Dia sem grade não vem na lista. */
+export function useOccupancy(from: string, to: string) {
+  return useQuery({
+    queryKey: ["agenda", "ocupacao", from, to],
+    queryFn: () => api<OccupancyDay[]>("/agenda/ocupacao", { query: { de: from, ate: to } }),
+    refetchInterval: 60_000,
+  });
+}
+
 export function useApiProfessionals() {
   return useQuery({
     queryKey: ["profissionais", "agenda"],

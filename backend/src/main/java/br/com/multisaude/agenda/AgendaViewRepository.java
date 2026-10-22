@@ -46,4 +46,28 @@ public class AgendaViewRepository {
     }
 
     private static OffsetDateTime local(OffsetDateTime value, ZoneId zone) { return value.atZoneSameInstant(zone).toOffsetDateTime(); }
+
+    /**
+     * Blocos da grade (janela / tamanho do bloco) contra os agendamentos que ainda contam (cancelado, remarcado e falta liberam o horário),
+     * por profissional e dia, só de profissionais ativos e visíveis na agenda. professional limita a um profissional.
+     */
+    public List<OcupacaoDia> occupancy(UUID unit, ZoneId zone, LocalDate from, LocalDate to, UUID professional) {
+        List<Object> args = new java.util.ArrayList<>(List.of(java.sql.Date.valueOf(from), java.sql.Date.valueOf(to), unit, zone.getId(), unit));
+        String filter = "";
+        if (professional != null) {
+            filter = " AND cap.profissional_id = ?";
+            args.add(professional);
+        }
+        return jdbc.query("SELECT cap.dia, cap.profissional_id, cap.blocos, COALESCE(used.n, 0) FROM ("
+            + "  SELECT d.dia::date dia, g.profissional_id, sum((upper(g.janela_min) - lower(g.janela_min)) / g.duracao_bloco_min)::int blocos "
+            + "  FROM generate_series(?::date, ?::date, interval '1 day') d(dia) "
+            + "  JOIN clinica.grades g ON g.unidade_id = ? AND g.ativo AND g.dia_semana = extract(dow FROM d.dia)::int AND g.vigencia @> d.dia::date "
+            + "  GROUP BY d.dia, g.profissional_id) cap "
+            + "JOIN clinica.profissionais pr ON pr.id = cap.profissional_id AND pr.ativo AND NOT pr.oculto_na_agenda "
+            + "LEFT JOIN (SELECT a.profissional_id, (lower(a.periodo) AT TIME ZONE ?)::date dia, count(*)::int n FROM clinica.agendamentos a "
+            + "  WHERE a.unidade_id = ? AND a.status NOT IN ('cancelado', 'remarcado', 'nao_compareceu') GROUP BY 1, 2) used "
+            + "  ON used.profissional_id = cap.profissional_id AND used.dia = cap.dia "
+            + "WHERE true" + filter + " ORDER BY cap.dia, pr.nome, pr.id",
+            (rs, n) -> new OcupacaoDia(rs.getObject(2, UUID.class), rs.getObject(1, LocalDate.class), rs.getInt(3), rs.getInt(4)), args.toArray());
+    }
 }

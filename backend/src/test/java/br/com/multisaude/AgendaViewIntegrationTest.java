@@ -35,8 +35,12 @@ class AgendaViewIntegrationTest extends AgendaTestBase {
         return userId;
     }
 
+    private String receptionToken;
+
+    /** Um só usuário de recepção por teste (o nome do papel é único na clínica). */
     private String reception() throws Exception {
-        return tokenFor(userWith("Recepção agenda", "agenda:ler", "agenda:ver_valores"));
+        if (receptionToken == null) receptionToken = tokenFor(userWith("Recepção agenda", "agenda:ler", "agenda:ver_valores"));
+        return receptionToken;
     }
 
     private ResultActions list(String token, LocalDate from, LocalDate to, UUID professionalId) throws Exception {
@@ -153,5 +157,61 @@ class AgendaViewIntegrationTest extends AgendaTestBase {
         });
         list(tokenFor(userWith("Sem agenda", "pacientes:ler")), day, day, null).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/agenda/agendamentos").param("de", day.toString()).param("ate", day.toString())).andExpect(status().isUnauthorized());
+    }
+
+    // ---- ocupação (Mapa de ocupação) ----
+
+    private ResultActions occupancy(String token, LocalDate from, LocalDate to, UUID professionalId) throws Exception {
+        var request = get("/api/v1/agenda/ocupacao").header("Authorization", "Bearer " + token).param("de", from.toString()).param("ate", to.toString());
+        if (professionalId != null) request = request.param("profissionalId", professionalId.toString());
+        return mvc.perform(request);
+    }
+
+    @Test
+    void occupancyIsBookedBlocksOverTheGradeBlocksPerDay() throws Exception {
+        book("agendado", day, 9);
+        book("confirmado", day, 10);
+        book("cancelado", day, 11);          // liberou o horário
+        book("remarcado", day, 12);
+        book("nao_compareceu", day, 13);     // faltou: o horário voltou a ficar livre
+        book("atendido", day.plusDays(1), 9);
+        // Grade da fixture: 06:00 às 20:00 em blocos de 30 min = 28 blocos, todos os dias.
+        occupancy(reception(), day, day.plusDays(1), null).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].profissionalId").value(professional.toString())).andExpect(jsonPath("$[0].data").value(day.toString()))
+            .andExpect(jsonPath("$[0].blocos").value(28)).andExpect(jsonPath("$[0].ocupados").value(2))
+            .andExpect(jsonPath("$[1].data").value(day.plusDays(1).toString())).andExpect(jsonPath("$[1].ocupados").value(1));
+    }
+
+    @Test
+    void occupancyIgnoresDaysWithoutGradeInactiveAndHiddenProfessionalsAndOtherUnits() throws Exception {
+        UUID hidden = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> {
+            insertProfessional(hidden, tenant, "Dr. Oculto", "5001", unit);
+            jdbc.update("UPDATE clinica.profissionais SET oculto_na_agenda = true WHERE id = ?", hidden);
+            jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min) VALUES (?, ?, ?, ?, '08:00', '12:00', 30)", tenant, hidden, unit, day.getDayOfWeek().getValue() % 7);
+            return null;
+        });
+        occupancy(reception(), day, day, null).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].profissionalId").value(professional.toString()));
+        occupancy(reception(), day, day, hidden).andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void occupancyOfADoctorIsOnlyTheirOwnAndRangesAreLimited() throws Exception {
+        UUID doctor = userWith("Médico ocupação", "agenda:ler_proprios");
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.profissionais SET usuario_id = ? WHERE id = ?", doctor, professional));
+        UUID other = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> {
+            insertProfessional(other, tenant, "Dr. Colega Ocupação", "5002", unit);
+            jdbc.update("INSERT INTO clinica.grades (tenant_id, profissional_id, unidade_id, dia_semana, inicio, fim, duracao_bloco_min) VALUES (?, ?, ?, ?, '08:00', '12:00', 30)", tenant, other, unit, day.getDayOfWeek().getValue() % 7);
+            return null;
+        });
+        String token = tokenFor(doctor);
+        occupancy(token, day, day, null).andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].profissionalId").value(professional.toString()));
+        occupancy(token, day, day, other).andExpect(status().isForbidden());
+        String reception = reception();
+        occupancy(reception, day, day.minusDays(1), null).andExpect(status().isBadRequest());
+        occupancy(reception, day, day.plusDays(62), null).andExpect(status().isBadRequest());
+        occupancy(reception, day, day.plusDays(61), null).andExpect(status().isOk());
+        occupancy(tokenFor(userWith("Sem agenda ocupação", "pacientes:ler")), day, day, null).andExpect(status().isForbidden());
     }
 }

@@ -64,4 +64,26 @@ public class AgendaViewController {
             return found;
         });
     }
+
+    private static final int MAX_OCCUPANCY_DAYS = 62;
+
+    /** Ocupação por profissional e dia (o Mapa de ocupação). Sem dados de paciente; o médico só vê o próprio profissional. */
+    @GetMapping("/ocupacao")
+    @PreAuthorize("hasAnyAuthority('agenda:ler', 'agenda:ler_proprios')")
+    public List<OcupacaoDia> occupancy(@AuthenticationPrincipal Session session, @RequestParam LocalDate de, @RequestParam LocalDate ate,
+        @RequestParam(required = false) UUID profissionalId) {
+        if (ate.isBefore(de)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Intervalo inválido.");
+        if (ChronoUnit.DAYS.between(de, ate) >= MAX_OCCUPANCY_DAYS) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Consulte no máximo " + MAX_OCCUPANCY_DAYS + " dias por vez.");
+        var identity = session.identity();
+        return transactions.inTenant(identity.tenantId(), () -> {
+            var scope = access.scope(session);
+            UUID professional = profissionalId;
+            if (!scope.all()) {
+                if (scope.professional() == null) return List.of();
+                if (professional != null) scope.requireCanSee(professional);
+                professional = scope.professional();
+            }
+            return repository.occupancy(identity.unidadeId(), schedule.unitZone(identity.unidadeId()), de, ate, professional);
+        });
+    }
 }

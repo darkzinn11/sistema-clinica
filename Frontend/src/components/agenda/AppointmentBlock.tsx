@@ -22,12 +22,18 @@ export function AppointmentBlock({
   height,
   onClick,
   selected = false,
+  lane,
+  accent,
 }: {
   appointment: Appointment;
   top: number;
   height: number;
   onClick: () => void;
   selected?: boolean;
+  /** Visão geral: agendamentos de profissionais diferentes ao mesmo tempo dividem a largura da coluna. */
+  lane?: { index: number; count: number };
+  /** Cor do profissional (visão geral), para saber de quem é cada bloco. */
+  accent?: string;
 }) {
   const patientName = appointment.patientName;
   const procName = appointment.procedureName;
@@ -46,8 +52,13 @@ export function AppointmentBlock({
       data-cancelled={["cancelado_pelo_profissional", "desmarcado_pelo_paciente"].includes(appointment.status) || undefined}
       data-selected={selected || undefined}
       aria-label={[appointment.start, patientName, procName, status.label].join(", ")}
-      title={[appointment.start + "–" + appointment.end, patientName, procName, status.label].join(" · ")}
-      style={{ top, height }}
+      title={[appointment.start + "–" + appointment.end, patientName, procName, accent ? appointment.professionalName : null, status.label].filter(Boolean).join(" · ")}
+      style={{
+        top,
+        height,
+        ...(lane ? { left: `calc(${(lane.index / lane.count) * 100}% + 2px)`, width: `calc(${100 / lane.count}% - 4px)`, right: "auto" } : {}),
+        ...(accent ? { borderLeft: `3px solid ${accent}` } : {}),
+      }}
       className={cn(
         "ms-appointment absolute inset-x-1 z-10 flex flex-col overflow-hidden text-left focus-visible:outline-none",
         compact ? "justify-center rounded-md px-2.5" : "gap-0.5 rounded-lg px-3 py-1.5",
@@ -72,7 +83,7 @@ export function AppointmentBlock({
         </>
       )}
       {showProc && (
-        <span className="ms-appointment__meta truncate text-[11px]">{procName}</span>
+        <span className="ms-appointment__meta truncate text-[11px]">{procName}{accent ? ` · ${appointment.professionalName}` : ""}</span>
       )}
       {showFooter && (
         <span className="mt-auto flex flex-wrap items-center gap-1 pt-0.5">
