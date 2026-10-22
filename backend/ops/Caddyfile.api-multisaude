@@ -1,0 +1,31 @@
+# API do sistema da clínica (Spring Boot em 127.0.0.1:8083, serviço multisaude-backend).
+# Só /api/* e o health ficam públicos; o resto responde 404. O Caddy substitui qualquer X-Forwarded-For vindo do cliente pelo IP real
+# (o Tomcat só confia no proxy local), que é o que o limite de tentativas de login usa.
+api.multisaude.sitw.tech {
+	encode gzip
+	request_body {
+		max_size 2MB
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		-Server
+	}
+	log {
+		output stderr
+		format filter {
+			wrap json
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+			request>headers>X-Csrf-Token delete
+			resp_headers>Set-Cookie delete
+		}
+	}
+	@publico path /api/* /actuator/health
+	handle @publico {
+		reverse_proxy 127.0.0.1:8083
+	}
+	handle {
+		respond "não encontrado" 404
+	}
+}

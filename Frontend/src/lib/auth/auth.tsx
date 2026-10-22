@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, configureApi } from "@/lib/api/client";
 import { clearSession, loadSession, saveSession } from "./storage";
-import type { ClinicOption, LoginResponse, StoredSession, UnitOption } from "./types";
+import type { ClinicOption, LoginResponse, Me, StoredSession, UnitOption } from "./types";
 
 export interface LoginInput {
   email: string;
@@ -34,6 +34,8 @@ interface AuthContextValue {
   session: StoredSession | null;
   login: (input: LoginInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Atualiza os dados da pessoa na sessão guardada (ex.: depois de mudar o nome no perfil). */
+  updateUser: (user: Me) => void;
   can: (permission: string) => boolean;
 }
 
@@ -71,6 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.clear();
       saveSession(next);
       setSession(next);
+      // A tela de destino pode fazer uma query imediatamente após o navigate.
+      // Atualize o cliente HTTP no mesmo ciclo do login, sem depender do próximo
+      // useEffect do Provider para começar a enviar o Bearer.
+      configureApi({ token: () => loadSession()?.accessToken ?? null, onUnauthorized: end });
     } catch (error) {
       if (error instanceof ApiError && error.status === 409 && error.body && typeof error.body === "object") {
         if ("clinicas" in error.body) throw new ClinicChoiceRequired((error.body as { clinicas: ClinicOption[] }).clinicas);
@@ -78,17 +84,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       throw error;
     }
-  }, [queryClient]);
+  }, [queryClient, end]);
 
   const logout = useCallback(async () => {
     try { await api("/auth/logout", { method: "POST" }); } catch { /* sem rede ou já expirada: sai do mesmo jeito */ }
     end();
   }, [end]);
 
+  const updateUser = useCallback((user: Me) => {
+    const current = loadSession();
+    if (!current) return;
+    const next: StoredSession = { ...current, usuario: user };
+    saveSession(next);
+    setSession(next);
+  }, []);
+
   const value = useMemo<AuthContextValue>(() => ({
-    session, login, logout,
+    session, login, logout, updateUser,
     can: (permission) => session?.usuario.permissoes.includes(permission) ?? false,
-  }), [session, login, logout]);
+  }), [session, login, logout, updateUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

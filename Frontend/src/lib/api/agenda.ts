@@ -77,12 +77,12 @@ export interface ApiPatientSummary {
 
 // ---- consultas ----
 
-export function useAgendaItems(from: string, to: string, professionalId?: string) {
+export function useAgendaItems(from: string, to: string, professionalId?: string, refetchInterval = 30_000) {
   return useQuery({
     queryKey: ["agenda", "itens", from, to, professionalId ?? "todos"],
     queryFn: () => api<AgendaItem[]>("/agenda/agendamentos", { query: { de: from, ate: to, profissionalId: professionalId } }),
     placeholderData: keepPreviousData,
-    refetchInterval: 30_000,
+    refetchInterval,
   });
 }
 

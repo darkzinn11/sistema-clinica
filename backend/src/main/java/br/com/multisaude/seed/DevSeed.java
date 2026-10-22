@@ -154,12 +154,16 @@ public class DevSeed implements ApplicationRunner {
             // Fila: tipos e guichês da unidade principal.
             UUID consulta = fila.createType(tenant, new TicketTypeRequest("Consulta", "C", false, true)).id();
             UUID exames = fila.createType(tenant, new TicketTypeRequest("Exames", "E", false, true)).id();
-            UUID retorno = fila.createType(tenant, new TicketTypeRequest("Retorno e resultados", "R", false, true)).id();
-            UUID preferencial = fila.createType(tenant, new TicketTypeRequest("Preferencial", "P", true, true)).id();
+            UUID laboratorio = fila.createType(tenant, new TicketTypeRequest("Laboratório", "L", false, true)).id();
+            UUID consultaPreferencial = fila.createType(tenant, new TicketTypeRequest("Consulta Preferencial", "CP", true, true)).id();
+            UUID examesPreferencial = fila.createType(tenant, new TicketTypeRequest("Exames Preferencial", "EP", true, true)).id();
+            UUID laboratorioPreferencial = fila.createType(tenant, new TicketTypeRequest("Laboratório Preferencial", "LP", true, true)).id();
+            UUID retorno = fila.createType(tenant, new TicketTypeRequest("Retorno", "R", false, true)).id();
+            UUID retornoPreferencial = fila.createType(tenant, new TicketTypeRequest("Retorno Preferencial", "RP", true, true)).id();
             UUID g1 = fila.createCounter(tenant, mainUnit, "Guichê 1", true);
-            fila.replaceCounterTypes(tenant, g1, List.of(new CounterTypeRef(preferencial, 1), new CounterTypeRef(consulta, 2)));
+            fila.replaceCounterTypes(tenant, g1, List.of(new CounterTypeRef(consultaPreferencial, 1), new CounterTypeRef(examesPreferencial, 2), new CounterTypeRef(laboratorioPreferencial, 3), new CounterTypeRef(retornoPreferencial, 4)));
             UUID g2 = fila.createCounter(tenant, mainUnit, "Guichê 2", true);
-            fila.replaceCounterTypes(tenant, g2, List.of(new CounterTypeRef(consulta, 1), new CounterTypeRef(exames, 2), new CounterTypeRef(retorno, 3)));
+            fila.replaceCounterTypes(tenant, g2, List.of(new CounterTypeRef(consulta, 1), new CounterTypeRef(exames, 2), new CounterTypeRef(laboratorio, 3), new CounterTypeRef(retorno, 4)));
 
             seedPatients(tenant, admin, c);
             return tenant;
@@ -280,10 +284,12 @@ public class DevSeed implements ApplicationRunner {
     private void seedTickets(UUID tenant, UUID unit, UUID creator, LocalDate today) {
         record Type(UUID id, String prefix) {}
         List<Type> types = jdbc.query("SELECT id, prefixo FROM clinica.tipos_senha ORDER BY prefixo", (rs, n) -> new Type(rs.getObject(1, UUID.class), rs.getString(2)));
-        for (String prefix : new String[] {"C", "C", "E", "P", "R"}) {
-            Type type = types.stream().filter(t -> t.prefix().equals(prefix)).findFirst().orElseThrow();
-            int number = fila.nextNumber(tenant, unit, type.id(), today);
-            fila.insertTicket(tenant, unit, type.id(), today, number, prefix + number, null, "recepcao", creator);
+        // Clínicas semeadas antes da troca dos tipos têm "P" (preferencial); as novas têm "CP": usa o que existir.
+        for (String prefix : new String[] {"C", "C", "E", "P", "CP", "R"}) {
+            types.stream().filter(t -> t.prefix().equals(prefix)).findFirst().ifPresent(type -> {
+                int number = fila.nextNumber(tenant, unit, type.id(), today);
+                fila.insertTicket(tenant, unit, type.id(), today, number, prefix + number, null, "recepcao", creator);
+            });
         }
     }
 }

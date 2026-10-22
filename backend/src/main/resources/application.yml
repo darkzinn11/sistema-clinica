@@ -29,6 +29,14 @@ spring:
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
   port: ${SERVER_PORT:8083}
+  # Atrás do Caddy o IP de quem conecta é sempre o do proxy; o limite de tentativas de login por IP precisa do IP real do cliente.
+  # Só o proxy local é confiável: um X-Forwarded-For que vem de fora não vale (o Caddy o substitui pelo IP real).
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+      internal-proxies: 127\.0\.0\.1|0:0:0:0:0:0:0:1|::1
   error:
     include-message: never
     include-stacktrace: never

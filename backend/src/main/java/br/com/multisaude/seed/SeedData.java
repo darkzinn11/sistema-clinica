@@ -47,7 +47,8 @@ final class SeedData {
             new Professional("Dra. Fernanda Quintela", "Pediatria", "CRM", "19950", 8, 13, 30), new Professional("Dr. Gustavo Pimentel", "Clínica geral", "CRM", "31560", 7, 13, 20));
         var accounts = List.of(
             new Account("Administração MultiSaúde", "admin@multisaude.test", "Administrador", List.of("Unidade Centro"), null),
-            new Account("Igor Leonardo", "igor.leonardo@multisaude.test", "Recepção", List.of("Unidade Centro", "Unidade Norte"), null),
+            new Account("Igor Leonardo", "igor.leonardo@multisaude.test", "Administrador", List.of("Unidade Centro", "Unidade Norte"), null),
+            new Account("Paula Recepção", "recepcao@multisaude.test", "Recepção", List.of("Unidade Centro"), null),
             new Account("Camila Esteves", "camila.esteves@multisaude.test", "Médico", List.of("Unidade Centro"), "Dra. Camila Esteves"));
         return new Clinic("multisaude", "Clínica Popular MultiSaúde", List.of("Unidade Centro", "Unidade Norte"), accounts, specialties, procedures, professionals,
             "Unidade Norte", List.of("Dra. Larissa Moura", "Dr. Gustavo Pimentel"), names(28, 0), 0,

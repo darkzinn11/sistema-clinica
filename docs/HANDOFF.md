@@ -17,17 +17,30 @@ Mostrar aos chefes (Clínica Popular MultiSaúde) o sistema **funcionando de ver
 - Banco com segurança por linha (RLS) forçada: tudo roda em `TenantTransactions.inTenant`. Migração não enxerga as linhas (nem o dono da tabela), por isso listas iniciais nascem por código (ver `PatientRepository.seedIfEmpty`) e há tabelas fora de RLS só de consulta por igualdade (`codigos_clinica`, `emails_login`).
 
 ## Como rodar (máquina do dono, macOS)
-O banco de desenvolvimento é um PostgreSQL no servidor `sitw-tech-vps`, acessado por túnel SSH. **O túnel cai de vez em quando** (erro "I/O error" nos testes = túnel, não bug: rode de novo).
+**O backend agora roda no VPS** (`sitw-tech-vps`), como serviço `systemd` chamado `multisaude-backend`: sobe sozinho e reinicia se cair. **Não é preciso ligar backend local.** Ele usa o PostgreSQL do próprio VPS (`multisaude_dev`) e escuta só em `127.0.0.1:8083` **dentro do VPS** (não está aberto na internet). Para o front local alcançá-lo, abra o túnel e deixe aberto:
 ```sh
-# 1) túnel (deixe aberto)
-ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -L 127.0.0.1:15432:127.0.0.1:5432 sitw-tech-vps
-# 2) backend com seeds (em backend/; .env é carregado pelo shell, nunca lido por IA)
-export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
-set -a; source .env; set +a
-SEED_ENABLED=true SEED_PASSWORD=demo-multisaude-2026 ./mvnw spring-boot:run     # porta 8083
-# 3) front (em Frontend/): proxy /api -> 127.0.0.1:8083
-npm run dev                                                                       # http://localhost:5173
+cd backend && ./scripts/tunel_backend.sh        # 127.0.0.1:8083 (nesta máquina) -> backend no VPS
+cd Frontend && npm run dev                      # http://localhost:5173 (o Vite já aponta o /api para 127.0.0.1:8083)
 ```
+**Erro 502 na tela = o túnel está fechado** (ou o serviço do VPS caiu). Teste: `curl http://127.0.0.1:8083/actuator/health` deve devolver `{"status":"UP"}`; no VPS: `ssh sitw-tech-vps 'systemctl status multisaude-backend'` e `sudo journalctl -u multisaude-backend -n 100`.
+
+**Atualizar o backend no VPS depois de mudar código Java** (rode os testes antes; o script não roda testes):
+```sh
+cd backend && ./scripts/deploy_vps.sh           # compila, envia, reinicia, confere o health e volta ao jar anterior se falhar
+```
+Detalhes do que está no VPS: serviço em `/etc/systemd/system/multisaude-backend.service`, jar em `/opt/multisaude-backend/` (usuário de sistema `multisaude`, sem login), senhas em `/etc/multisaude/backend.env` (root, modo 600; **nunca** copie esse arquivo para o repositório nem leia o conteúdo). Seeds e bootstrap estão **desligados** lá. O VPS é compartilhado com outros sistemas (inclusive o painel de TV da clínica, atrás do Caddy): não mexa no Caddy nem em outros serviços sem o dono pedir; abrir o backend para a internet (HTTPS pelo Caddy) é uma decisão em aberto.
+
+**API pública (HTTPS) — em andamento:** a ideia é `https://api.multisaude.sitw.tech` apontando para o backend do VPS, para quem quiser usar o front local contra o backend hospedado **sem túnel**: `API_PROXY_TARGET=https://api.multisaude.sitw.tech npm run dev` (ou a mesma linha em `Frontend/.env.local`, ignorado pelo Git). O Vite repassa `/api`, então não precisa abrir CORS. Depende de **criar o registro DNS** `api.multisaude` (tipo A, `187.127.53.226`) no DNS do `sitw.tech` (Hostinger); depois rode `backend/scripts/publicar_api_caddy.sh` (backup do Caddyfile, valida, recarrega, espera o certificado). Só `/api/*` e `/actuator/health` ficam públicos (`backend/ops/Caddyfile.api-multisaude`). O backend já confia só no proxy local para ler o IP real do cliente (o limite de tentativas de login por IP depende disso).
+
+Para rodar um backend **local** (testes, ou quando o VPS estiver fora): feche o túnel do backend (mesma porta) e use o banco por túnel SSH:
+```sh
+ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -L 127.0.0.1:15432:127.0.0.1:5432 sitw-tech-vps   # banco (os TESTES sempre precisam deste)
+cd backend && export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+set -a; source .env; set +a                                         # .env é carregado pelo shell, nunca lido por IA
+SEED_ENABLED=true SEED_PASSWORD=demo-multisaude-2026 ./mvnw spring-boot:run   # porta 8083
+```
+O túnel do banco cai de vez em quando (erro "I/O error" nos testes = túnel, não bug: rode de novo).
+
 Login de demonstração (só desenvolvimento; senha `demo-multisaude-2026`): `igor.leonardo@multisaude.test` (Recepção, 2 unidades: o login pergunta a unidade), `admin@multisaude.test` (Administrador), `camila.esteves@multisaude.test` (Médica, ainda sem tela própria), `admin@bemviver.test` (outra clínica, para provar o isolamento). A tela de login pede **só e-mail e senha**.
 
 Testes (em `backend/`, com o `.env` carregado como acima; **junte classes com vírgula**, `A,B`, nunca `A+B`):
@@ -37,7 +50,7 @@ Testes (em `backend/`, com o `.env` carregado como acima; **junte classes com v�
 ./mvnw verify                                                             # suíte completa: ~1 hora pelo túnel
 ```
 Front: `cd Frontend && npx tsc -b && npx oxlint` (os avisos `only-export-components` do oxlint são conhecidos).
-Docker: `backend/docker-compose.dev.yml` (Postgres local) está escrito mas **nunca foi executado** (o Docker Desktop do dono travou). Quando funcionar, elimina a dependência do túnel.
+Docker: `backend/docker-compose.dev.yml` (Postgres local) está escrito mas **nunca foi executado** (o Docker Desktop do dono travou). Quando funcionar, elimina a dependência do túnel do banco nos testes.
 
 ## O que já é REAL (sem mock), com testes
 - **Login** por e-mail e senha (`emails_login`, V33), escolha de clínica (se o mesmo e-mail e senha valem em duas) e de unidade; sessão em localStorage (decisão do dono); 401 uniforme; limite de tentativas.
@@ -59,6 +72,7 @@ Docker: `backend/docker-compose.dev.yml` (Postgres local) está escrito mas **nu
 - **Suíte completa de testes não rodou inteira desde a V29** (cada classe nova passou isolada). Rodar antes de qualquer PR; o teste de seeds é o mais lento (~20 min).
 - Faltam: reservas avulsas de equipamento (manutenção) e bloqueio de sala; encaixe/retorno/convênio no agendamento; mensagens automáticas (WhatsApp) e registro de tentativas de contato.
 - Fora do código: ICP-Brasil e LGPD pendentes; licença TUSS 22 (risco aceito, procedimentos semeados sem código TUSS); revisão jurídica.
+- **Senha de demonstração pública (decisão do dono em 22/10/2026: manter por enquanto).** `demo-multisaude-2026` está no repositório e a API está aberta em `https://api.multisaude.sitw.tech`: quem lê o repositório entra nas clínicas de demonstração (dados fictícios). Não trocar sem o dono pedir; **trocar antes de qualquer dado real ou de uma apresentação a terceiros que não deveriam ter acesso**.
 - `LoginRateLimiter` é em memória (10 chaves/conta e 40 por IP em 15 min); pode travar logins se alguém variar muitas chaves.
 
 ## Armadilhas já pagas (economize o tempo)

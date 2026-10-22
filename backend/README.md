@@ -268,11 +268,11 @@ Quem tem acesso legítimo poderia varrer o cadastro em volume. `PatientReadGuard
 
 | Perfil | Requisições por minuto | Registros entregues por hora |
 | --- | --- | --- |
-| Completo (`pacientes:ler`, recepção) | 120 | 3000 |
-| Restrito (`pacientes:ler_vinculados`, médico) | 30 | 300 |
+| Completo (`pacientes:ler`, recepção) | 600 | 30000 |
+| Restrito (`pacientes:ler_vinculados`, médico) | 120 | 5000 |
 
 Os registros são cobrados **antes** de devolver a resposta: o que passaria do orçamento não é entregue (429 com
-`Retry-After`). Ajustável por `app.limits.patients.{full,restricted}.{requests-per-minute,records-per-hour}`.
+`Retry-After`). Os padrões são 600 requisições/minuto e 30.000 registros/hora para perfis completos, e 120 requisições/minuto e 5.000 registros/hora para perfis restritos. Ajustável por `app.limits.patients.{full,restricted}.{requests-per-minute,records-per-hour}`.
 Os contadores ficam em memória (`VolumeLimiter`): reiniciar zera, e com mais de uma instância precisam ir para
 armazenamento compartilhado. Os limites são ponto de partida e devem ser calibrados com o uso real da clínica.
 Excesso gera log de aviso com tenant e usuário (sem dados do paciente).
@@ -578,3 +578,4 @@ guichê, editar procedimento). Agora libera `PUT` e `DELETE` e expõe `X-Total-C
   o login da clínica inteira por 15 minutos.
 - **`agenda:criar` serve a agendamento e a cadastro de procedimento** (que carrega preço): a recepção cria ambos.
 - Um médico que copia dados manualmente não é impedido por software; só a auditoria e o contrato o desencorajam.
+- Painel de TV: crie um dispositivo com `POST /dispositivos` usando `{"nome":"Painel recepção","tipo":"painel"}`. O token retornado acessa somente `GET /painel/chamadas`, com as últimas chamadas do dia e sem dados de paciente.

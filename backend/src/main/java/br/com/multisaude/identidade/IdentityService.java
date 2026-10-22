@@ -120,6 +120,20 @@ public class IdentityService {
         log.info("Logout tenant={} usuario={}", session.identity().tenantId(), session.identity().usuarioId());
     }
 
+    /** Troca a senha da própria pessoa e encerra as outras sessões (a atual continua). Senha atual errada é 400, não 401: 401 desloga no front. */
+    public void changePassword(Session session, String current, String next) {
+        validatePasswordBytes(current);
+        validatePasswordBytes(next);
+        UUID user = session.identity().usuarioId();
+        Optional<String> hash = repository.personPasswordHash(user);
+        boolean matches = passwords.matches(current, hash.orElse(dummyHash));   // o mesmo custo mesmo sem hash
+        if (hash.isEmpty() || !matches) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A senha atual está incorreta.");
+        if (current.equals(next)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A nova senha precisa ser diferente da atual.");
+        repository.setPassword(user, passwords.encode(next));
+        int closed = repository.revokeOtherSessions(user, session.id());
+        log.info("Senha alterada usuario={} outras sessões encerradas={}", user, closed);
+    }
+
     public static void validatePasswordBytes(String password) {
         if (password.getBytes(StandardCharsets.UTF_8).length > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Senha excede o limite de 72 bytes UTF-8.");

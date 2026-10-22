@@ -1,6 +1,7 @@
 package br.com.multisaude.identidade;
 
 import java.util.List;
+import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -32,7 +33,7 @@ public class IdentityController {
 
     @PostMapping("/auth/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
-        // Não confiar em X-Forwarded-For enviado pelo cliente.
+        // getRemoteAddr já é o IP real do cliente: o Tomcat só aceita X-Forwarded-For do proxy local (application.yml); o que o cliente mandar é descartado.
         String clinic = request.tenantId() != null ? request.tenantId().toString()
             : request.codigoClinica() != null && !request.codigoClinica().isBlank() ? "codigo:" + request.codigoClinica().trim().toLowerCase(java.util.Locale.ROOT) : "email";
         limiter.check(http.getRemoteAddr(), clinic + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
@@ -42,6 +43,60 @@ public class IdentityController {
     @GetMapping("/auth/me")
     public MeView me(@AuthenticationPrincipal Session session) {
         return transactions.inTenant(session.identity().tenantId(), () -> service.me(session.identity()));
+    }
+
+    private void requirePerson(Session session) {
+        if (!repository.isPerson(session.identity().usuarioId())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Disponível só para pessoas.");
+    }
+
+    @PutMapping("/auth/me")
+    public MeView updateMe(@AuthenticationPrincipal Session session, @Valid @RequestBody UpdateMeRequest request) {
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            requirePerson(session);
+            repository.updateName(session.identity().usuarioId(), request.nome());
+            Identity i = session.identity();
+            return service.me(new Identity(i.usuarioId(), i.tenantId(), i.unidadeId(), request.nome().trim(), i.email(), i.papel(), i.permissoes()));
+        });
+    }
+
+    @PostMapping("/auth/senha")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@AuthenticationPrincipal Session session, @Valid @RequestBody ChangePasswordRequest request, HttpServletRequest http) {
+        // Quem tem uma sessão roubada não pode descobrir a senha atual por tentativa: mesmo limite do login, por pessoa.
+        limiter.check(http.getRemoteAddr(), "senha:" + session.identity().usuarioId());
+        transactions.inTenant(session.identity().tenantId(), () -> {
+            requirePerson(session);
+            service.changePassword(session, request.senhaAtual(), request.novaSenha());
+            return null;
+        });
+    }
+
+    @GetMapping("/auth/sessoes")
+    public List<SessionView> sessions(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            requirePerson(session);
+            return repository.sessions(session.identity().usuarioId(), session.id());
+        });
+    }
+
+    @DeleteMapping("/auth/sessoes/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeSession(@AuthenticationPrincipal Session session, @PathVariable UUID id) {
+        transactions.inTenant(session.identity().tenantId(), () -> {
+            requirePerson(session);
+            if (!repository.revokeSessionOf(session.identity().usuarioId(), id)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Sessão não encontrada.");
+            return null;
+        });
+    }
+
+    @PostMapping("/auth/sessoes/encerrar-outras")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void revokeOtherSessions(@AuthenticationPrincipal Session session) {
+        transactions.inTenant(session.identity().tenantId(), () -> {
+            requirePerson(session);
+            repository.revokeOtherSessions(session.identity().usuarioId(), session.id());
+            return null;
+        });
     }
 
     @PostMapping("/auth/logout")
@@ -73,9 +128,11 @@ public class IdentityController {
     public DeviceCreated createDevice(@AuthenticationPrincipal Session session, @Valid @RequestBody CreateDeviceRequest request) {
         java.time.Duration validFor = java.time.Duration.ofDays(365);
         return transactions.inTenant(session.identity().tenantId(), () -> {
-            Identity device = repository.createDevice(session.identity().tenantId(), session.identity().unidadeId(), repository.totemRole(session.identity().tenantId()), request.nome());
+            String type = "painel".equals(request.tipo()) ? "painel" : "totem";
+            UUID role = "painel".equals(type) ? repository.panelRole(session.identity().tenantId()) : repository.totemRole(session.identity().tenantId());
+            Identity device = repository.createDevice(session.identity().tenantId(), session.identity().unidadeId(), role, request.nome(), type);
             String token = service.openDeviceSession(device, validFor);
-            return new DeviceCreated(new DeviceView(device.usuarioId(), device.nome(), true), token, java.time.Instant.now().plus(validFor));
+            return new DeviceCreated(new DeviceView(device.usuarioId(), device.nome(), true, type), token, java.time.Instant.now().plus(validFor));
         });
     }
 

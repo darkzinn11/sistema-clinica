@@ -1,193 +1,53 @@
+import { Add, Copy, Trash } from "iconsax-reactjs";
 import { useState } from "react";
-import { Add, Copy, ExportSquare, ScanBarcode, Trash } from "iconsax-reactjs";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
-import { Tabs } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/overlay";
+import { useAuth } from "@/lib/auth/auth";
+import { useCreateDevice, useDevices, useRevokeDevice, type CreatedDevice } from "@/lib/api/dispositivos";
+import { useCounters, useSaveCounter, useSaveTicketType, useTicketTypes } from "@/lib/api/recepcao";
+import { ApiError } from "@/lib/api/client";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/cn";
-import { SeriesColorPicker } from "@/components/configuracoes/ColorField";
-import { SaveBar } from "@/components/configuracoes/SaveBar";
-import { useSettingsState } from "@/components/configuracoes/useSettingsState";
-import { defaultGuiches, defaultTicketTypes, type Guiche, type TicketType } from "@/lib/mock/configuracoes";
-import { locations } from "@/lib/mock/core";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 
-let nextTicketId = 100;
-let nextGuicheId = 100;
-
-interface State {
-  ticketTypes: TicketType[];
-  guiches: Guiche[];
-}
-
-function TicketTypesPanel({ value, onChange }: { value: TicketType[]; onChange: (v: TicketType[]) => void }) {
-  const [selectedId, setSelectedId] = useState(value[0]?.id);
-  const selected = value.find((t) => t.id === selectedId) ?? value[0];
-
-  function update(patch: Partial<TicketType>) {
-    if (!selected) return;
-    onChange(value.map((t) => (t.id === selected.id ? { ...t, ...patch } : t)));
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-      <div className="flex flex-col divide-y divide-border rounded-lg">
-        {value.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setSelectedId(t.id)}
-            className={cn("flex items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface", t.id === selected?.id && "bg-accent-muted")}
-          >
-            <span aria-hidden className="h-3 w-3 shrink-0 rounded-full" style={{ background: `var(--c-series-${t.color + 1})` }} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-text">{t.name}</span>
-              <span className="text-xs text-text-muted">Sigla {t.sigla} · inicia em {t.startNumber}</span>
-            </span>
-            {t.preferential && <Badge tone="warning" size="sm">Preferencial</Badge>}
-            {!t.active && <Badge tone="neutral" size="sm">Inativo</Badge>}
-          </button>
-        ))}
-        <button
-          type="button"
-          onClick={() => {
-            const t: TicketType = { id: `tt-${nextTicketId++}`, name: "Novo tipo de senha", color: 0, sigla: "N", startNumber: 1, preferential: false, active: true };
-            onChange([...value, t]);
-            setSelectedId(t.id);
-          }}
-          className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-sm font-medium text-accent hover:bg-accent-muted"
-        >
-          <Add size={21} variant="Linear" aria-hidden /> Novo tipo de senha
-        </button>
-      </div>
-
-      {selected && (
-        <div className="flex flex-col gap-3 rounded-lg p-4">
-          <Input label="Nome" value={selected.name} onChange={(e) => update({ name: e.target.value })} />
-          <Input label="Sigla" value={selected.sigla} maxLength={3} onChange={(e) => update({ sigla: e.target.value.toUpperCase() })} wrapperClassName="w-24" />
-          <Input label="Número inicial" type="number" value={selected.startNumber} onChange={(e) => update({ startNumber: Number(e.target.value) })} wrapperClassName="w-32" />
-          <SeriesColorPicker label="Cor de identificação" value={selected.color} onChange={(i) => update({ color: i })} />
-          <Switch label="Preferencial" description="Prioriza na fila de chamada." checked={selected.preferential} onChange={(c) => update({ preferential: c })} />
-          <Switch label="Ativo" checked={selected.active} onChange={(c) => update({ active: c })} />
-          <Button variant="ghost" size="sm" icon={Trash} className="self-start text-danger hover:bg-danger-bg" onClick={() => onChange(value.filter((t) => t.id !== selected.id))}>
-            Remover tipo
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function GuichesPanel({ value, onChange }: { value: Guiche[]; onChange: (v: Guiche[]) => void }) {
-  function update(id: string, patch: Partial<Guiche>) {
-    onChange(value.map((g) => (g.id === id ? { ...g, ...patch } : g)));
-  }
-  return (
-    <div className="flex flex-col gap-3">
-      {value.map((g) => (
-        <div key={g.id} className="flex flex-col gap-3 rounded-lg p-3 sm:flex-row sm:items-start">
-          <Input label="Nome do guichê" value={g.name} onChange={(e) => update(g.id, { name: e.target.value })} wrapperClassName="sm:w-52" />
-          <div className="flex-1">
-            <span className="mb-1.5 block text-sm font-medium text-text">Salas atendidas</span>
-            <div className="flex flex-wrap gap-1.5">
-              {locations.map((loc) => {
-                const active = g.rooms.includes(loc.id);
-                return (
-                  <button
-                    key={loc.id}
-                    type="button"
-                    onClick={() => update(g.id, { rooms: active ? g.rooms.filter((r) => r !== loc.id) : [...g.rooms, loc.id] })}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                      active ? "border-accent/40 bg-accent-muted text-accent" : "border-border-strong text-text-muted hover:text-text",
-                    )}
-                  >
-                    {loc.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 sm:mt-6">
-            <Switch label="Ativo" checked={g.active} onChange={(c) => update(g.id, { active: c })} />
-            <Button variant="ghost" iconOnly aria-label={`Remover ${g.name}`} icon={Trash} onClick={() => onChange(value.filter((x) => x.id !== g.id))} className="text-danger hover:bg-danger-bg" />
-          </div>
-        </div>
-      ))}
-      <Button
-        variant="secondary"
-        size="sm"
-        icon={Add}
-        className="self-start"
-        onClick={() => onChange([...value, { id: `g-${nextGuicheId++}`, name: `Guichê ${value.length + 1}`, rooms: [], active: true }])}
-      >
-        Novo guichê
-      </Button>
-    </div>
-  );
-}
-
-function PublicLinkRow({ label, url }: { label: string; url: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <div className="flex flex-col gap-3 rounded-lg p-4 sm:flex-row sm:items-center">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-dashed border-border-strong text-text-subtle" aria-hidden>
-        <ScanBarcode size={22} />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-text">{label}</p>
-        <p className="truncate font-mono text-sm text-text-muted">{url}</p>
-      </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          size="sm"
-          variant="secondary"
-          icon={Copy}
-          onClick={async () => {
-            try {
-              await navigator.clipboard.writeText(url);
-            } catch {
-              // sem permissão de área de transferência
-            }
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-        >
-          {copied ? "Copiado" : "Copiar"}
-        </Button>
-        <Button size="sm" variant="ghost" iconOnly aria-label={`Abrir ${label}`} icon={ExportSquare} onClick={() => window.open(url, "_blank", "noopener")} />
-      </div>
-    </div>
-  );
+function ErrorText({ error }: { error: unknown }) {
+  return error ? <p role="alert" className="text-sm text-danger">{error instanceof ApiError ? error.message : "Não foi possível concluir a operação."}</p> : null;
 }
 
 export default function TotemEGuiches() {
-  const s = useSettingsState<State>({ ticketTypes: defaultTicketTypes, guiches: defaultGuiches });
-  const v = s.value;
+  const { can } = useAuth();
+  const devices = useDevices();
+  const createDevice = useCreateDevice();
+  const revokeDevice = useRevokeDevice();
+  const types = useTicketTypes();
+  const counters = useCounters();
+  const saveType = useSaveTicketType();
+  const saveCounter = useSaveCounter();
+  const [name, setName] = useState("");
+  const [deviceType, setDeviceType] = useState<"totem" | "painel">("totem");
+  const [created, setCreated] = useState<CreatedDevice | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [newType, setNewType] = useState({ nome: "", prefixo: "", preferencial: false });
+  const [newCounter, setNewCounter] = useState("");
 
-  return (
-    <div>
-      <Card>
-        <CardHeader title="Totem e guichês" description="Tipos de senha, guichês de atendimento e os links públicos de totem e TV." />
-        <CardBody>
-          <Tabs tabs={[{ label: "Tipos de senha" }, { label: "Guichês" }, { label: "Links públicos" }]}>
-            {(active) =>
-              active === 0 ? (
-                <TicketTypesPanel value={v.ticketTypes} onChange={(tt) => s.set({ ...v, ticketTypes: tt })} />
-              ) : active === 1 ? (
-                <GuichesPanel value={v.guiches} onChange={(g) => s.set({ ...v, guiches: g })} />
-              ) : (
-                <div className="flex flex-col gap-3">
-                  <PublicLinkRow label="Totem de autoatendimento" url="https://totem.vidaplena.com.br/centro" />
-                  <PublicLinkRow label="Painel de chamada (TV)" url="https://tv.vidaplena.com.br/centro" />
-                </div>
-              )
-            }
-          </Tabs>
-        </CardBody>
-      </Card>
-      <SaveBar dirty={s.dirty} onDiscard={s.discard} onSave={s.save} />
-    </div>
-  );
+  if (!can("fila:configurar")) return <EmptyState title="Acesso restrito" description="Somente administradores podem configurar dispositivos, tipos e guichês." />;
+
+  async function copyToken() {
+    if (!created) return;
+    try { await navigator.clipboard.writeText(created.token); } catch { /* clipboard indisponível */ }
+    setCopied(true);
+  }
+
+  return <div className="mx-auto max-w-7xl"><PageHeader title="Totem e guichês" description="Configure a fila, os guichês e as credenciais dos dispositivos." breadcrumbs={[{ label: "Configurações" }, { label: "Totem e guichês" }]} />
+    <div className="flex flex-col gap-5">
+      <Card><CardHeader title="Dispositivos" description="O código secreto só aparece uma vez, no momento da criação." /><CardBody className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end gap-3"><Input label="Nome do dispositivo" placeholder={deviceType === "painel" ? "Painel da recepção" : "Totem da recepção"} value={name} onChange={(e) => setName(e.target.value)} wrapperClassName="w-72" /><label className="flex flex-col gap-1 text-sm text-text-muted"><span>Tipo</span><select className="h-10 rounded-md border border-border bg-surface px-3 text-text" value={deviceType} onChange={(e) => setDeviceType(e.target.value as "totem" | "painel")}><option value="totem">Totem</option><option value="painel">Painel de TV</option></select></label><Button icon={Add} disabled={!name.trim() || createDevice.isPending} loading={createDevice.isPending} onClick={() => createDevice.mutate({ nome: name.trim(), tipo: deviceType }, { onSuccess: (value) => { setCreated(value); setName(""); } })}>Novo dispositivo</Button></div>
+        <ErrorText error={devices.error ?? createDevice.error ?? revokeDevice.error} />
+        {created && <div className="rounded-lg border border-warning bg-warning-bg p-4"><p className="font-semibold text-warning">Código de {created.dispositivo.nome}</p><p className="mt-1 text-sm text-warning">Copie agora. Este código não será mostrado de novo.</p><div className="mt-3 flex items-center gap-2"><code className="min-w-0 flex-1 break-all rounded bg-surface px-3 py-2 text-xs text-text">{created.token}</code><Button variant="secondary" icon={Copy} onClick={() => void copyToken()}>{copied ? "Copiado" : "Copiar"}</Button><Button variant="ghost" onClick={() => setCreated(null)}>Fechar</Button></div></div>}
+        {(devices.data ?? []).length === 0 ? <p className="text-sm text-text-muted">Nenhum dispositivo cadastrado.</p> : <div className="flex flex-col divide-y divide-border">{devices.data?.map((device) => <div key={device.id} className="flex items-center justify-between gap-3 py-3"><div><p className="font-medium text-text">{device.nome}</p><p className="text-xs text-text-muted">{device.tipo === "painel" ? "Painel de TV" : "Totem"}</p><Badge tone={device.ativo ? "success" : "neutral"}>{device.ativo ? "Ativo" : "Revogado"}</Badge></div>{device.ativo && <Button variant="ghost" icon={Trash} className="text-danger" onClick={() => { if (window.confirm(`Revogar ${device.nome}?`)) revokeDevice.mutate(device.id); }}>Revogar</Button>}</div>)}</div>}
+      </CardBody></Card>
+      <Card><CardHeader title="Tipos de senha" description="A lista vem da configuração real da clínica." /><CardBody className="flex flex-col gap-3"><div className="flex flex-wrap items-end gap-2"><Input label="Nome" value={newType.nome} onChange={(e) => setNewType({ ...newType, nome: e.target.value })} /><Input label="Prefixo" maxLength={8} value={newType.prefixo} onChange={(e) => setNewType({ ...newType, prefixo: e.target.value.toUpperCase() })} wrapperClassName="w-28" /><label className="flex h-10 items-center gap-2 text-sm"><input type="checkbox" checked={newType.preferencial} onChange={(e) => setNewType({ ...newType, preferencial: e.target.checked })} /> Preferencial</label><Button icon={Add} disabled={!newType.nome || !newType.prefixo} onClick={() => saveType.mutate({ ...newType, ativo: true }, { onSuccess: () => setNewType({ nome: "", prefixo: "", preferencial: false }) })}>Adicionar</Button></div><ErrorText error={types.error ?? saveType.error} />{types.data?.map((type) => <div key={type.id} className="flex items-center justify-between border-b border-border py-2.5"><span className="font-medium">{type.nome} <span className="text-sm text-text-muted">({type.prefixo})</span></span><div className="flex items-center gap-2">{type.preferencial && <Badge tone="warning">Preferencial</Badge>}<Button size="xs" variant="ghost" onClick={() => saveType.mutate({ id: type.id, nome: type.nome, prefixo: type.prefixo, preferencial: type.preferencial, ativo: !type.ativo })}>{type.ativo ? "Desativar" : "Ativar"}</Button></div></div>)}</CardBody></Card>
+      <Card><CardHeader title="Guichês" description="Defina quais tipos cada guichê chama e a ordem da fila." /><CardBody className="flex flex-col gap-3"><div className="flex items-end gap-2"><Input label="Nome do guichê" value={newCounter} onChange={(e) => setNewCounter(e.target.value)} /><Button icon={Add} disabled={!newCounter.trim()} onClick={() => saveCounter.mutate({ nome: newCounter.trim(), ativo: true, tipos: (types.data ?? []).filter((t) => t.ativo).map((t, index) => ({ tipoId: t.id, ordem: index + 1 })) }, { onSuccess: () => setNewCounter("") })}>Adicionar</Button></div><ErrorText error={counters.error ?? saveCounter.error} />{counters.data?.map((counter) => <div key={counter.id} className="flex items-center justify-between border-b border-border py-3"><div><p className="font-medium">{counter.nome}</p><p className="text-sm text-text-muted">{counter.tipos.map((type) => type.tipoNome).join(" · ") || "Nenhum tipo configurado"}</p></div><Button size="xs" variant="ghost" onClick={() => saveCounter.mutate({ id: counter.id, nome: counter.nome, ativo: !counter.ativo, tipos: counter.tipos.map((type) => ({ tipoId: type.tipoId, ordem: type.ordem })) })}>{counter.ativo ? "Desativar" : "Ativar"}</Button></div>)}</CardBody></Card>
+    </div></div>;
 }

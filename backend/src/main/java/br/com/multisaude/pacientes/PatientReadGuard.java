@@ -21,10 +21,10 @@ public class PatientReadGuard {
     private final int fullPerMinute, fullPerHour, restrictedPerMinute, restrictedPerHour;
 
     public PatientReadGuard(VolumeLimiter limiter,
-            @Value("${app.limits.patients.full.requests-per-minute:120}") int fullPerMinute,
-            @Value("${app.limits.patients.full.records-per-hour:3000}") int fullPerHour,
-            @Value("${app.limits.patients.restricted.requests-per-minute:30}") int restrictedPerMinute,
-            @Value("${app.limits.patients.restricted.records-per-hour:300}") int restrictedPerHour) {
+            @Value("${app.limits.patients.full.requests-per-minute:600}") int fullPerMinute,
+            @Value("${app.limits.patients.full.records-per-hour:30000}") int fullPerHour,
+            @Value("${app.limits.patients.restricted.requests-per-minute:120}") int restrictedPerMinute,
+            @Value("${app.limits.patients.restricted.records-per-hour:5000}") int restrictedPerHour) {
         this.limiter = limiter;
         this.fullPerMinute = fullPerMinute;
         this.fullPerHour = fullPerHour;
