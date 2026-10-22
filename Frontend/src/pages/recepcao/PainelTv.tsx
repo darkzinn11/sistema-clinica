@@ -1,9 +1,36 @@
-import { Call, HeartTick, Location, TickCircle } from "iconsax-reactjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrandLogo } from "@/components/shell/brand-logo";
 import { buildTvCalls } from "@/lib/mock/recepcao";
 
 const CYCLE_MS = 6000;
+const HISTORY_LIMIT = 4;
+
+// Medidas em px do quadro do Figma (1920×1080). A escala segue a menor dimensão
+// e o quadro estica até preencher a tela; a coluna da direita mantém a largura
+// do design para o banner continuar 16:9, e o card principal absorve o excesso.
+const FRAME_W = 1920;
+const FRAME_H = 1080;
+
+function measureFrame() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  // Janela ainda sem tamanho (navegador da TV abrindo): evita escala 0 e largura NaN.
+  if (!w || !h) return { scale: 1, width: FRAME_W, height: FRAME_H };
+  const scale = Math.min(w / FRAME_W, h / FRAME_H);
+  return { scale, width: w / scale, height: h / scale };
+}
+
+function useFrame() {
+  const [frame, setFrame] = useState(measureFrame);
+  useEffect(() => {
+    const observer = new ResizeObserver(() => setFrame(measureFrame()));
+    observer.observe(document.documentElement);
+    return () => observer.disconnect();
+  }, []);
+  return frame;
+}
+
+const CARD_SHADOW = "shadow-[0_0_24px_rgba(0,0,0,0.12)]";
 
 export default function PainelTv() {
   const calls = useMemo(() => buildTvCalls(60), []);
@@ -11,6 +38,7 @@ export default function PainelTv() {
   const [flash, setFlash] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const flashTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const frame = useFrame();
 
   useEffect(() => {
     const clockId = setInterval(() => setNow(new Date()), 1000);
@@ -31,85 +59,67 @@ export default function PainelTv() {
   }, [calls.length]);
 
   const current = calls[idx];
-  const last5 = Array.from({ length: 5 }, (_, k) => calls[(idx - k - 1 + calls.length) % calls.length]);
+  const history = Array.from({ length: HISTORY_LIMIT }, (_, k) => calls[(idx - k - 1 + calls.length) % calls.length]);
 
   const clock = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   const dateLabel = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
 
   return (
-    <div className="flex min-h-screen flex-col gap-6 bg-bg p-8 text-text">
-      <header className="flex min-h-20 items-center justify-between gap-5">
-        <BrandLogo className="h-16 w-auto max-w-[55vw] shrink-0 object-contain" />
-        <div className="text-right">
-          <p className="font-display text-3xl font-semibold tabular">{clock}</p>
-          <p className="text-base capitalize text-text-muted">{dateLabel}</p>
-        </div>
-      </header>
-
-      <div className="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <div
-          key={current.id}
-          className={`flex flex-col items-center justify-center gap-6 rounded-xl bg-surface-raised p-10 text-center shadow-pop transition-colors duration-500 motion-reduce:transition-none ${
-            flash ? "motion-safe:bg-accent-muted" : ""
-          }`}
-        >
-          <p className="text-xl font-medium uppercase tracking-wide text-text-muted">Chamando agora</p>
-          <p className="font-display text-[6rem] font-semibold leading-none tracking-tight text-accent sm:text-[8rem]">{current.code}</p>
-          <p className="font-display text-4xl font-semibold">{current.patientFirstName}</p>
-          <p className="flex items-center gap-2 text-2xl text-text-muted">
-            <Location size={26} aria-hidden />
-            {current.place}
-          </p>
+    <div
+      className="h-screen overflow-hidden bg-cover bg-center text-text"
+      style={{ backgroundImage: "url(/illustrations/recepcao/painel-tv-fundo.webp)" }}
+    >
+      <div
+        className="flex flex-col gap-[20.7px] px-[44px] py-[32px]"
+        style={{ zoom: frame.scale, width: frame.width, height: frame.height }}
+      >
+        <div className="flex flex-col items-end">
+          <p className="font-display text-[51.5px] font-semibold leading-[61.8px] tabular">{clock}</p>
+          <p className="text-[24px] capitalize leading-[34.4px] text-text-muted">{dateLabel}</p>
         </div>
 
-        <div className="flex flex-col gap-6">
-          <div className="rounded-xl bg-surface-raised p-5 shadow-card">
-            <p className="mb-3 flex items-center gap-2 text-base font-semibold text-text-muted">
-              <Call size={18} aria-hidden />
-              Últimas chamadas
-            </p>
-            <ul className="flex flex-col divide-y divide-border">
-              {last5.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2.5 text-lg">
-                  <span className="font-medium text-text">{c.code}</span>
-                  <span className="truncate text-text-muted">{c.patientFirstName}</span>
-                  <span className="shrink-0 text-text-subtle">{c.place}</span>
-                </li>
-              ))}
-            </ul>
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_916px] gap-[23.7px]">
+          <div
+            key={current.id}
+            className={`flex flex-col items-center justify-center gap-[83px] rounded-[32px] bg-surface-raised px-[39.5px] text-center ${CARD_SHADOW} transition-colors duration-500 motion-reduce:transition-none ${
+              flash ? "motion-safe:bg-accent-muted" : ""
+            }`}
+          >
+            <BrandLogo className="h-[112px] w-auto shrink-0" />
+            <div className="flex flex-col items-center">
+              <p className="text-[44.4px] leading-[83.3px] text-text-muted">Chamando agora</p>
+              <p className="font-display text-[197px] font-semibold leading-[197px] tracking-[-0.025em] text-[var(--c-accent)]">{current.code}</p>
+              <p className="font-display text-[88.8px] font-semibold leading-[98px]">{current.patientFirstName}</p>
+              <p className="text-[44.4px] leading-[83.3px] text-text-muted">{current.place}</p>
+            </div>
           </div>
 
-          {/* Peça institucional fictícia: demonstra a área de publicidade do painel. */}
-          <section
-            aria-label="Anúncio demonstrativo da MultiSaúde"
-            className="relative isolate flex min-h-[320px] flex-1 overflow-hidden rounded-xl bg-[linear-gradient(125deg,#0E503C_0%,#168552_58%,#35B64B_100%)] p-7 text-white shadow-card sm:p-8"
-          >
-            <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full border-[36px] border-white/10" />
-            <div aria-hidden className="pointer-events-none absolute -bottom-32 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-            <div className="relative z-10 flex w-full max-w-[75%] flex-col items-start justify-between gap-5">
-              <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.11em] text-white/90">
-                Anúncio fictício
-              </span>
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#CAFFD9]">
-                  Clínica Popular MultiSaúde
-                </p>
-                <h2 className="font-display text-3xl font-semibold leading-[1.1] tracking-tight sm:text-[34px]">
-                  Seu cuidado começa aqui.
-                </h2>
-                <p className="mt-3 max-w-[280px] text-sm leading-relaxed text-white/85">
-                  Consultas, exames e atenção à sua saúde em cada etapa da vida.
-                </p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/95 px-3.5 py-2 text-xs font-semibold text-[#167A3D]">
-                <TickCircle size={17} variant="Bold" aria-hidden />
-                Prevenção e bem-estar
-              </div>
+          <div className="flex min-h-0 flex-col gap-[23.7px]">
+            <div className={`flex min-h-0 flex-1 flex-col gap-[11.8px] rounded-[32px] bg-surface-raised p-[31.6px] ${CARD_SHADOW}`}>
+              <p className="font-display text-[39.5px] font-semibold leading-[57.2px]">Últimas senhas chamadas</p>
+              <ul className="flex flex-col gap-[11.8px]">
+                {history.map((c) => (
+                  <li key={c.id} className="grid grid-cols-3 items-center gap-4 border-b border-border pb-[4.6px] pt-[3.9px] text-[31.6px] leading-[38px]">
+                    <span className="font-medium">{c.code}</span>
+                    <span className="truncate text-center text-text-muted">{c.patientFirstName}</span>
+                    <span className="truncate text-right text-text-subtle">{c.place}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div aria-hidden className="pointer-events-none absolute -bottom-7 -right-8 flex h-48 w-48 items-center justify-center rounded-full border border-white/20 bg-white/15 shadow-[inset_0_0_0_17px_rgba(255,255,255,0.05)] backdrop-blur-[2px] sm:bottom-2 sm:right-0 sm:h-52 sm:w-52">
-              <HeartTick size={89} variant="Bold" className="text-white/90" />
-            </div>
-          </section>
+
+            {/* Peça institucional fictícia: demonstra a área de publicidade do painel (slide 16:9). */}
+            <section
+              aria-label="Anúncio demonstrativo da MultiSaúde — campanha Outubro Rosa"
+              className={`aspect-video shrink-0 overflow-hidden rounded-[49.3px] ${CARD_SHADOW}`}
+            >
+              <img
+                src="/ads/outubro-rosa-slide.webp"
+                alt="Combo Outubro Rosa — cuidados essenciais para a saúde da mulher, 4x de R$ 90,00. Mais informações com nossos recepcionistas."
+                className="size-full object-cover"
+              />
+            </section>
+          </div>
         </div>
       </div>
     </div>
