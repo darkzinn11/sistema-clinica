@@ -1,112 +1,88 @@
 import { useEffect, useState } from "react";
 import { Route, Routes, useParams } from "react-router";
-import {
-  Add,
-  Calendar,
-  Chart2,
-  ClipboardText,
-  ClipboardTick,
-  DocumentText,
-  Folder2,
-  Hospital,
-  Personalcard,
-  ReceiptText,
-  Wallet2,
-} from "iconsax-reactjs";
+import { Add, Calendar, Chart2, Clock, Personalcard } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/misc";
 import { LinkTabs } from "@/components/ui/tabs";
-import { patientById } from "@/lib/mock/core";
-import { PerfilHeader } from "@/components/pacientes/perfil-header";
-import { Resumo } from "@/components/pacientes/perfil/Resumo";
-import { Dados } from "@/components/pacientes/perfil/Dados";
-import { Prontuario } from "@/components/pacientes/perfil/Prontuario";
-import { Prescricoes } from "@/components/pacientes/perfil/Prescricoes";
-import { Exames } from "@/components/pacientes/perfil/Exames";
-import { Documentos } from "@/components/pacientes/perfil/Documentos";
-import { Arquivos } from "@/components/pacientes/perfil/Arquivos";
-import { Agendamentos } from "@/components/pacientes/perfil/Agendamentos";
-import { Financeiro } from "@/components/pacientes/perfil/Financeiro";
-import { Convenios } from "@/components/pacientes/perfil/Convenios";
+import { DeactivateModal } from "@/components/pacientes/DeactivateModal";
+import { Agendamentos, Alteracoes, Dados, Resumo } from "@/components/pacientes/FichaTabs";
+import { PerfilHeader } from "@/components/pacientes/PerfilHeader";
+import { ApiError } from "@/lib/api/client";
+import { usePatient, usePriorities, useReactivatePatient } from "@/lib/api/pacientes";
+import { useAuth } from "@/lib/auth/auth";
 
 export default function Page() {
   const { id = "" } = useParams();
-  const patient = patientById(id);
+  const { can } = useAuth();
+  const patient = usePatient(id);
+  const priorities = usePriorities();
+  const reactivate = useReactivatePatient();
+  const [deactivating, setDeactivating] = useState(false);
   const [banner, setBanner] = useState<string | null>(null);
 
   useEffect(() => {
     if (!banner) return;
-    const t = setTimeout(() => setBanner(null), 3200);
+    const t = setTimeout(() => setBanner(null), 3500);
     return () => clearTimeout(t);
   }, [banner]);
 
-  if (!patient) {
+  if (patient.isPending) return <div className="mx-auto max-w-7xl"><Skeleton className="mb-4 h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
+  if (patient.isError) {
     return (
       <div className="mx-auto max-w-3xl">
         <EmptyState
           icon={Add}
           title="Paciente não encontrado"
-          description="O cadastro pode ter sido removido ou o link está incorreto."
-          action={
-            <ButtonLink to="/pacientes" variant="primary">
-              Voltar para a lista de pacientes
-            </ButtonLink>
-          }
+          description={patient.error instanceof ApiError && patient.error.status !== 404 ? patient.error.message : "O cadastro pode ter sido removido ou o link está incorreto."}
+          action={<ButtonLink to="/pacientes" variant="primary">Voltar para a lista de pacientes</ButtonLink>}
         />
       </div>
     );
   }
 
-  const base = `/pacientes/${patient.id}`;
+  const p = patient.data;
+  const base = `/pacientes/${p.id}`;
+  const full = can("pacientes:ler");
+  const tabs = [
+    { label: "Resumo", href: base, icon: Chart2 },
+    { label: "Dados", href: `${base}/dados`, icon: Personalcard },
+    ...(full ? [{ label: "Agendamentos", href: `${base}/agendamentos`, icon: Calendar }, { label: "Alterações", href: `${base}/alteracoes`, icon: Clock }] : []),
+  ];
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title={patient.name}
-        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes", href: "/pacientes" }, { label: patient.name }]}
+        title={p.nome}
+        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes", href: "/pacientes" }, { label: p.nome }]}
       />
 
-      <PerfilHeader patient={patient} onAction={setBanner} />
-
-      {banner && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent-muted px-4 py-2.5 text-sm text-accent">
-          {banner}
-          <button type="button" onClick={() => setBanner(null)} aria-label="Fechar aviso" className="text-accent/70 hover:text-accent">
-            <Add size={14} aria-hidden className="rotate-45" />
-          </button>
-        </div>
-      )}
-
-      <LinkTabs
-        tabs={[
-          { label: "Resumo", href: base, icon: Chart2 },
-          { label: "Dados", href: `${base}/dados`, icon: Personalcard },
-          { label: "Prontuário", href: `${base}/prontuario`, icon: ClipboardText },
-          { label: "Prescrições", href: `${base}/prescricoes`, icon: ReceiptText },
-          { label: "Exames", href: `${base}/exames`, icon: ClipboardTick },
-          { label: "Documentos", href: `${base}/documentos`, icon: DocumentText },
-          { label: "Arquivos", href: `${base}/arquivos`, icon: Folder2 },
-          { label: "Agendamentos", href: `${base}/agendamentos`, icon: Calendar },
-          { label: "Financeiro", href: `${base}/financeiro`, icon: Wallet2 },
-          { label: "Convênios", href: `${base}/convenios`, icon: Hospital },
-        ]}
+      <PerfilHeader
+        patient={p}
+        priority={priorities.data?.find((x) => x.id === p.prioridadeId)?.nome}
+        canEdit={can("pacientes:editar")}
+        canInactivate={can("pacientes:inativar")}
+        reactivating={reactivate.isPending}
+        onDeactivate={() => setDeactivating(true)}
+        onReactivate={() => reactivate.mutateAsync(p.id).then(() => setBanner("Cadastro reativado.")).catch((e) => setBanner(e instanceof ApiError ? e.message : "Não foi possível reativar."))}
       />
+
+      {banner && <div role="status" className="mb-4 rounded-lg border border-accent/30 bg-accent-muted px-4 py-2.5 text-sm text-accent">{banner}</div>}
+
+      <LinkTabs tabs={tabs} />
 
       <div className="pt-6">
         <Routes>
-          <Route index element={<Resumo patient={patient} />} />
-          <Route path="dados" element={<Dados patient={patient} />} />
-          <Route path="prontuario" element={<Prontuario patient={patient} />} />
-          <Route path="prescricoes" element={<Prescricoes patient={patient} />} />
-          <Route path="exames" element={<Exames patient={patient} />} />
-          <Route path="documentos" element={<Documentos patient={patient} />} />
-          <Route path="arquivos" element={<Arquivos patient={patient} />} />
-          <Route path="agendamentos" element={<Agendamentos patient={patient} />} />
-          <Route path="financeiro" element={<Financeiro patient={patient} />} />
-          <Route path="convenios" element={<Convenios patient={patient} />} />
+          <Route index element={<Resumo patient={p} canSeeAppointments={full} />} />
+          <Route path="dados" element={<Dados patient={p} />} />
+          {full && <Route path="agendamentos" element={<Agendamentos patientId={p.id} />} />}
+          {full && <Route path="alteracoes" element={<Alteracoes patientId={p.id} />} />}
+          <Route path="*" element={<EmptyState title="Página não encontrada" description="Use as abas acima." />} />
         </Routes>
       </div>
+
+      <DeactivateModal patient={deactivating ? p : null} onClose={() => setDeactivating(false)} onDone={() => { setDeactivating(false); setBanner("Cadastro inativado."); }} />
     </div>
   );
 }

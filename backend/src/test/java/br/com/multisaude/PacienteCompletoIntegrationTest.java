@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.JsonNode;
@@ -196,7 +197,7 @@ class PacienteCompletoIntegrationTest extends AgendaTestBase {
         body.put("parentes", List.of(Map.of("nome", "Parente Novo")));
         update(token, id, body).andExpect(status().isOk()).andExpect(jsonPath("cidade").value("Caucaia"));
         ResultActions history = read(token, "/" + id + "/historico");
-        history.andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].usuarioId").exists());
+        history.andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].usuarioId").exists()).andExpect(jsonPath("$[0].usuarioNome").value("Admin pacientes"));
         String text = history.andReturn().getResponse().getContentAsString();
         for (String field : List.of("cidade", "observacoes", "parentes")) org.junit.jupiter.api.Assertions.assertTrue(text.contains("\"" + field + "\""), field);
         org.junit.jupiter.api.Assertions.assertFalse(text.contains("Caucaia") || text.contains("Nova observação"), "o histórico guarda só os nomes dos campos");
@@ -419,6 +420,67 @@ class PacienteCompletoIntegrationTest extends AgendaTestBase {
             org.junit.jupiter.api.Assertions.assertFalse(text.contains(hidden), hidden);
         read(tokenFor(doctor), "/" + id + "/historico").andExpect(status().isForbidden());
         read(tokenFor(doctor), "/duplicados?cpf=" + CPF_A).andExpect(status().isForbidden());
+    }
+
+    // ---- paginação, números do topo e agendamentos do paciente ----
+
+    @Test
+    void theSearchIsPaginatedAndTheTotalFollowsTheFilters() throws Exception {
+        String token = admin();
+        String[] cpfs = {CPF_A, CPF_B, CPF_C, "45317828791", "11122233396"};
+        for (int i = 0; i < 5; i++) newPatient(token, form("Paciente Paginado " + (char) ('A' + i), cpfs[i]));
+        // A fixture base já tem o "Paciente Ficticio": são 6 no total, e ele vem antes dos "Paciente Paginado" na ordem alfabética.
+        read(token, "?tamanho=2&pagina=0").andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].nome").value("Paciente Ficticio"))
+            .andExpect(jsonPath("$[1].nome").value("Paciente Paginado A")).andExpect(header().string("X-Total-Count", "6"));
+        read(token, "?tamanho=2&pagina=1").andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[0].nome").value("Paciente Paginado B"));
+        read(token, "?tamanho=2&pagina=2").andExpect(jsonPath("$.length()").value(2)).andExpect(jsonPath("$[1].nome").value("Paciente Paginado E"));
+        read(token, "?tamanho=2&pagina=3").andExpect(jsonPath("$.length()").value(0)).andExpect(header().string("X-Total-Count", "6"));
+        read(token, "?busca=paginado b&tamanho=10").andExpect(jsonPath("$.length()").value(1)).andExpect(header().string("X-Total-Count", "1"));
+        read(token, "?limite=3").andExpect(jsonPath("$.length()").value(3)).andExpect(header().string("X-Total-Count", "6"));    // `limite` continua valendo
+        read(token, "?tamanho=1000").andExpect(jsonPath("$.length()").value(6));                                               // teto de 100 por página
+    }
+
+    @Test
+    void theNumbersOnTopOfTheListAreActiveInactiveNewThisMonthAndBirthdays() throws Exception {
+        String token = admin();
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("America/Fortaleza"));
+        Map<String, Object> birthday = form("Aniversariante da semana", CPF_A);
+        birthday.put("nascimento", today.plusDays(2).minusYears(30).toString());
+        newPatient(token, birthday);
+        Map<String, Object> far = form("Aniversário longe", CPF_B);
+        far.put("nascimento", today.plusDays(20).minusYears(30).toString());
+        UUID inactive = newPatient(token, far);
+        send(post("/api/v1/pacientes/" + inactive + "/inativar"), token, Map.of("motivo", "sem_motivo")).andExpect(status().isNoContent());
+        transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.pacientes (id, tenant_id, nome, criado_em) VALUES (?, ?, 'Cadastrado mês passado', now() - interval '40 days')", UUID.randomUUID(), tenant));
+        read(token, "/resumo").andExpect(status().isOk()).andExpect(jsonPath("ativos").value(3))   // inclui o "Paciente Ficticio" da fixture
+            .andExpect(jsonPath("inativos").value(1))
+            .andExpect(jsonPath("novosNoMes").value(Matchers.greaterThanOrEqualTo(1))).andExpect(jsonPath("aniversariantesSemana").value(1));
+        read(creatorOnly(), "/resumo").andExpect(status().isForbidden());
+    }
+
+    @Test
+    void thePatientsAppointmentsComeFromEveryUnitNewestFirstWithThePriceOnlyForWhoMaySeeIt() throws Exception {
+        UUID id = newPatient(admin(), form("Com agendamentos", CPF_A));
+        UUID inOtherUnit = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> { insertProfessional(inOtherUnit, tenant, "Dr. Outra Unidade", "6001", otherUnit); return null; });
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.unidades SET nome = 'Unidade Principal' WHERE id = ?", unit));
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.procedimentos SET valor_centavos = 15000 WHERE id = ?", procedure));
+        insertAppointmentFor(tenant, unit, professional, id, procedure, "atendido", start.minusDays(30), start.minusDays(30).plusMinutes(30));
+        insertAppointmentFor(tenant, otherUnit, inOtherUnit, id, procedure, "agendado", start.plusDays(5), start.plusDays(5).plusMinutes(30));
+        UUID withValues = userWith("Ver valores", "pacientes:ler", "agenda:ler", "agenda:ver_valores");
+        String token = tokenFor(withValues);
+        read(token, "/" + id + "/agendamentos").andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[0].status").value("agendado")).andExpect(jsonPath("$[1].status").value("atendido"))
+            .andExpect(jsonPath("$[1].unidadeNome").value("Unidade Principal")).andExpect(jsonPath("$[0].valorCentavos").value(15000))
+            .andExpect(jsonPath("$[0].inicio").value(Matchers.endsWith("-03:00")));
+        read(tokenFor(userWith("Sem valores", "pacientes:ler", "agenda:ler")), "/" + id + "/agendamentos").andExpect(jsonPath("$[0].valorCentavos").doesNotExist());
+        read(token, "/" + UUID.randomUUID() + "/agendamentos").andExpect(status().isNotFound());
+        read(creatorOnly(), "/" + id + "/agendamentos").andExpect(status().isForbidden());
+        read(tokenFor(userWith("Só pacientes", "pacientes:ler")), "/" + id + "/agendamentos").andExpect(status().isForbidden());
+        transactions.inTenant(tenant, () -> {
+            org.junit.jupiter.api.Assertions.assertTrue(jdbc.queryForObject("SELECT count(*) FROM clinica.acessos_prontuario WHERE paciente_id = ? AND usuario_id = ? AND acao = 'ver_paciente'", Integer.class, id, withValues) >= 1);
+            return null;
+        });
     }
 
     private UUID userWith(String name, String... permissions) {

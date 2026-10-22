@@ -5,10 +5,14 @@ import java.util.List;
 import java.util.UUID;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import br.com.multisaude.agenda.AgendaViewModels.PatientAppointment;
+import br.com.multisaude.agenda.AgendaViewRepository;
+import br.com.multisaude.agenda.ScheduleRepository;
 import br.com.multisaude.auditoria.AccessAudit;
 import br.com.multisaude.identidade.IdentityModels.Session;
 import br.com.multisaude.profissionais.ProfessionalRepository;
@@ -23,27 +27,61 @@ public class PatientController {
     private final ProfessionalRepository professionals;
     private final PatientReadGuard guard;
     private final AccessAudit audit;
-    public PatientController(PatientRepository repository, TenantTransactions transactions, ProfessionalRepository professionals, PatientReadGuard guard, AccessAudit audit) {
+    private final AgendaViewRepository agendaView;
+    private final ScheduleRepository schedule;
+    public PatientController(PatientRepository repository, TenantTransactions transactions, ProfessionalRepository professionals, PatientReadGuard guard, AccessAudit audit,
+        AgendaViewRepository agendaView, ScheduleRepository schedule) {
         this.repository = repository; this.transactions = transactions; this.professionals = professionals; this.guard = guard; this.audit = audit;
+        this.agendaView = agendaView; this.schedule = schedule;
     }
 
     private static final String PRIORITIES = "prioridades", ORIGINS = "origens_paciente";
 
+    /** Busca paginada: `pagina` (a partir de 0) e `tamanho` (ou `limite`, mais antigo); o total vem em X-Total-Count. */
     @GetMapping
     @PreAuthorize("hasAnyAuthority('pacientes:ler', 'pacientes:ler_vinculados')")
-    public List<PatientSummary> search(@AuthenticationPrincipal Session session,
+    public ResponseEntity<List<PatientSummary>> search(@AuthenticationPrincipal Session session,
         @RequestParam(defaultValue = "") String busca, @RequestParam(defaultValue = "") String inicial,
-        @RequestParam(defaultValue = "ativos") String situacao, @RequestParam(defaultValue = "50") int limite) {
-        int safeLimit = Math.max(1, Math.min(limite, 100));
+        @RequestParam(defaultValue = "ativos") String situacao, @RequestParam(defaultValue = "50") int limite,
+        @RequestParam(required = false) Integer tamanho, @RequestParam(defaultValue = "0") int pagina) {
+        int size = Math.max(1, Math.min(tamanho != null ? tamanho : limite, 100));
+        int offset = Math.max(0, pagina) * size;
         boolean full = seesEveryPatient(session);
         guard.request(session.identity().tenantId(), session.identity().usuarioId(), full);
         return transactions.inTenant(session.identity().tenantId(), () -> {
-            List<PatientSummary> found = full
-                ? repository.search(busca, inicial, situacao, safeLimit, null)
-                : professionals.idOfUser(session.identity().usuarioId()).map(p -> repository.search(busca, inicial, situacao, safeLimit, p)).orElse(List.of());
+            UUID professional = full ? null : professionals.idOfUser(session.identity().usuarioId()).orElse(null);
+            if (!full && professional == null) return ResponseEntity.ok().header("X-Total-Count", "0").body(List.<PatientSummary>of());
+            List<PatientSummary> found = repository.search(busca, inicial, situacao, size, offset, professional);
+            int total = repository.count(busca, inicial, situacao, professional);
             // Dentro da transação: se o orçamento por hora recusar, nada é entregue nem registrado.
             guard.records(session.identity().tenantId(), session.identity().usuarioId(), full, found.size());
             audit.patients(session.identity().tenantId(), session.identity().usuarioId(), found.stream().map(PatientSummary::id).toList(), "listar_pacientes");
+            return ResponseEntity.ok().header("X-Total-Count", String.valueOf(total)).body(found);
+        });
+    }
+
+    /** Números do topo da lista de pacientes (sem dados individuais). */
+    @GetMapping("/resumo")
+    @PreAuthorize("hasAuthority('pacientes:ler')")
+    public PatientStats stats(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            java.time.ZoneId zone = schedule.unitZone(session.identity().unidadeId());
+            LocalDate today = LocalDate.now(zone);
+            return repository.stats(today.withDayOfMonth(1).atStartOfDay(zone).toOffsetDateTime(), today);
+        });
+    }
+
+    /** Agendamentos do paciente (passados e futuros, de todas as unidades da clínica). */
+    @GetMapping("/{id}/agendamentos")
+    @PreAuthorize("hasAuthority('pacientes:ler') and hasAnyAuthority('agenda:ler', 'agenda:ler_proprios')")
+    public List<PatientAppointment> appointments(@AuthenticationPrincipal Session session, @PathVariable UUID id) {
+        var identity = session.identity();
+        guard.request(identity.tenantId(), identity.usuarioId(), true);
+        return transactions.inTenant(identity.tenantId(), () -> {
+            repository.findOptional(id).orElseThrow(PatientController::notFound);
+            List<PatientAppointment> found = agendaView.ofPatient(id, identity.permissoes().contains("agenda:ver_valores"));
+            guard.records(identity.tenantId(), identity.usuarioId(), true, 1);
+            audit.patients(identity.tenantId(), identity.usuarioId(), List.of(id), "ver_paciente");
             return found;
         });
     }

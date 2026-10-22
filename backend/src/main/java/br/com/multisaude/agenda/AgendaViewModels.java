@@ -18,4 +18,8 @@ public final class AgendaViewModels {
 
     /** Ocupação de um profissional num dia: blocos da grade do dia e quantos estão tomados. Dia sem grade não aparece. */
     public record OcupacaoDia(UUID profissionalId, LocalDate data, int blocos, int ocupados) {}
+
+    /** Um agendamento visto da ficha do paciente (de qualquer unidade da clínica), com a hora da unidade onde foi marcado. */
+    public record PatientAppointment(UUID id, LocalDate data, OffsetDateTime inicio, OffsetDateTime fim, String status, String unidadeNome,
+        UUID profissionalId, String profissionalNome, String procedimentoNome, Long valorCentavos) {}
 }

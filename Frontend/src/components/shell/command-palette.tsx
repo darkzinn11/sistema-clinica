@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { searchableLinks } from "@/lib/nav";
 import { QUICK_ACTIONS } from "@/lib/quick-actions";
-import { insuranceName, patients } from "@/lib/mock/core";
+import { usePatientSearch } from "@/lib/api/agenda";
+import { formatCpf } from "@/lib/pacientes/options";
 import { Avatar } from "@/components/ui/avatar";
 import { Kbd } from "@/components/ui/misc";
 import { cn } from "@/lib/cn";
@@ -25,6 +26,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const links = useMemo(() => searchableLinks(), []);
+  // Pacientes de verdade: a busca vai ao backend (com um pequeno atraso para não consultar a cada letra).
+  const [typed, setTyped] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setTyped(query), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+  const found = usePatientSearch(typed).data;
 
   const groups = useMemo(() => {
     const q = norm(query.trim());
@@ -35,17 +43,14 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       .slice(0, q ? 8 : 6)
       .map((l) => ({ kind: "page", id: l.href + l.trail, label: l.label, sub: l.trail, href: l.href, icon: l.icon, external: l.external }));
     const pats: Result[] = q.length >= 2
-      ? patients
-          .filter((p) => match(p.name, p.cpf.replace(/\D/g, ""), p.cpf, p.phone))
-          .slice(0, 6)
-          .map((p) => ({ kind: "patient", id: p.id, label: p.name, sub: `${p.cpf} · ${insuranceName(p.insuranceId)}`, href: `/pacientes/${p.id}` }))
+      ? (found ?? []).slice(0, 6).map((p) => ({ kind: "patient", id: p.id, label: p.nome, sub: [p.cpf ? formatCpf(p.cpf) : "Sem CPF", p.celular].filter(Boolean).join(" · "), href: `/pacientes/${p.id}` }))
       : [];
     return [
       { title: "Ações rápidas", items: actions },
       { title: "Pacientes", items: pats },
       { title: "Telas", items: pages },
     ].filter((g) => g.items.length > 0);
-  }, [query, links]);
+  }, [query, links, found]);
 
   const flat = groups.flatMap((g) => g.items);
 

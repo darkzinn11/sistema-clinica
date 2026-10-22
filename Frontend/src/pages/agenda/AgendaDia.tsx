@@ -138,6 +138,8 @@ function AgendaDiaView() {
     if (searchParams.get("novo")) {
       const next = new URLSearchParams(searchParams);
       next.delete("novo");
+      next.delete("paciente");
+      next.delete("nome");
       setSearchParams(next, { replace: true });
     }
   }
@@ -433,6 +435,7 @@ function AgendaDiaView() {
         defaultDate={date}
         defaultProfessionalId={newPrefill.professionalId}
         defaultTime={newPrefill.time}
+        defaultPatient={searchParams.get("paciente") && searchParams.get("nome") ? { id: searchParams.get("paciente")!, name: searchParams.get("nome")! } : undefined}
       />
     </div>
   );

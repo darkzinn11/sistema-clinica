@@ -30,6 +30,7 @@ export const routes: RouteObject[] = [
       { path: "/atendimento/:id", Component: lazy(() => import("@/pages/atendimento/Atendimento")) },
       { path: "/pacientes", Component: lazy(() => import("@/pages/pacientes/PacientesLista")) },
       { path: "/pacientes/novo", Component: lazy(() => import("@/pages/pacientes/PacienteNovo")) },
+      { path: "/pacientes/:id/editar", Component: lazy(() => import("@/pages/pacientes/PacienteEditar")) },
       { path: "/pacientes/:id/*", Component: lazy(() => import("@/pages/pacientes/PacientePerfil")) },
       { path: "/financeiro", Component: lazy(() => import("@/pages/financeiro/FinanceiroVisao")) },
       { path: "/financeiro/receber", Component: lazy(() => import("@/pages/financeiro/ContasReceber")) },

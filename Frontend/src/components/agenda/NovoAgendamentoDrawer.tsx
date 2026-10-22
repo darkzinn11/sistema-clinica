@@ -37,13 +37,15 @@ function useDebounced(value: string, ms = 300) {
  * que o backend diz estarem livres (grade, bloqueios e agendamentos já considerados). Aberto pelo botão ou por ?novo=1.
  */
 export function NovoAgendamentoDrawer({
-  open, onClose, defaultDate, defaultProfessionalId, defaultTime,
+  open, onClose, defaultDate, defaultProfessionalId, defaultTime, defaultPatient,
 }: {
   open: boolean;
   onClose: () => void;
   defaultDate: string;
   defaultProfessionalId?: string;
   defaultTime?: string;
+  /** Vindo da ficha do paciente ("Agendar"): o paciente já vem escolhido. */
+  defaultPatient?: { id: string; name: string };
 }) {
   const { professionals, procedureById, unitId } = useCatalog();
   const create = useCreateAppointment();
@@ -71,8 +73,8 @@ export function NovoAgendamentoDrawer({
 
   useEffect(() => {
     if (!open) return;
-    setQuery("");
-    setPatient(null);
+    setQuery(defaultPatient?.name ?? "");
+    setPatient(defaultPatient ? { id: defaultPatient.id, name: defaultPatient.name, phone: null } : null);
     setShowNew(false);
     setNewName("");
     setNewPhone("");

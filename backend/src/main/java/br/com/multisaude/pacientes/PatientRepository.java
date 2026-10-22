@@ -36,7 +36,9 @@ public class PatientRepository {
      * Nome ou nome social sem acento, CPF, telefones (só dígitos), número do prontuário. {@code inicial} filtra pela primeira
      * letra do nome. {@code situacao}: ativos (padrão), inativos ou todos. {@code professional} restringe ao vínculo.
      */
-    public List<PatientSummary> search(String query, String inicial, String situacao, int limit, UUID professional) {
+    private record Filtered(String where, List<Object> args) {}
+
+    private Filtered filtered(String query, String inicial, String situacao, UUID professional) {
         StringBuilder where = new StringBuilder("WHERE 1 = 1");
         List<Object> args = new ArrayList<>();
         switch (situacao == null ? "ativos" : situacao) {
@@ -75,9 +77,34 @@ public class PatientRepository {
             where.append(" AND ").append(CONNECTED);
             args.add(professional);
         }
+        return new Filtered(where.toString(), args);
+    }
+
+    /**
+     * Nome ou nome social sem acento, CPF, telefones (só dígitos), número do prontuário. {@code inicial} filtra pela primeira
+     * letra do nome. {@code situacao}: ativos (padrão), inativos ou todos. {@code professional} restringe ao vínculo.
+     */
+    public List<PatientSummary> search(String query, String inicial, String situacao, int limit, int offset, UUID professional) {
+        Filtered f = filtered(query, inicial, situacao, professional);
+        List<Object> args = new ArrayList<>(f.args());
         args.add(limit);
-        return jdbc.query("SELECT " + SUMMARY + " FROM clinica.pacientes p " + where + " ORDER BY p.nome, p.id LIMIT ?",
+        args.add(offset);
+        return jdbc.query("SELECT " + SUMMARY + " FROM clinica.pacientes p " + f.where() + " ORDER BY p.nome, p.id LIMIT ? OFFSET ?",
             (rs, row) -> summary(rs), args.toArray());
+    }
+
+    public int count(String query, String inicial, String situacao, UUID professional) {
+        Filtered f = filtered(query, inicial, situacao, professional);
+        return jdbc.queryForObject("SELECT count(*) FROM clinica.pacientes p " + f.where(), Integer.class, f.args().toArray());
+    }
+
+    /** Números do topo da lista: ativos, inativos, novos no mês (a partir de monthStart) e aniversariantes de hoje até daqui a 6 dias. */
+    public PatientStats stats(java.time.OffsetDateTime monthStart, java.time.LocalDate today) {
+        return jdbc.queryForObject("SELECT count(*) FILTER (WHERE ativo), count(*) FILTER (WHERE NOT ativo), count(*) FILTER (WHERE ativo AND criado_em >= ?), "
+            + "count(*) FILTER (WHERE ativo AND nascimento IS NOT NULL AND EXISTS (SELECT 1 FROM generate_series(0, 6) g WHERE extract(month FROM nascimento) = extract(month FROM (?::date + g)) "
+            + "AND extract(day FROM nascimento) = extract(day FROM (?::date + g)))) FROM clinica.pacientes",
+            (rs, n) -> new PatientStats(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getInt(4)),
+            java.sql.Timestamp.from(monthStart.toInstant()), java.sql.Date.valueOf(today), java.sql.Date.valueOf(today));
     }
 
     /** Candidatos a duplicado de um cadastro: mesmo CPF, mesmo telefone ou mesmo nome com a mesma data de nascimento. */
@@ -191,8 +218,9 @@ public class PatientRepository {
     }
 
     public List<HistoryView> history(UUID id) {
-        return jdbc.query("SELECT id, usuario_id, campos, criado_em FROM clinica.paciente_historico WHERE paciente_id = ? ORDER BY criado_em DESC, id DESC LIMIT 200",
-            (rs, row) -> new HistoryView(rs.getObject("id", UUID.class), rs.getObject("usuario_id", UUID.class),
+        return jdbc.query("SELECT h.id, h.usuario_id, u.nome, h.campos, h.criado_em FROM clinica.paciente_historico h "
+            + "LEFT JOIN clinica.usuarios u ON u.tenant_id = h.tenant_id AND u.id = h.usuario_id WHERE h.paciente_id = ? ORDER BY h.criado_em DESC, h.id DESC LIMIT 200",
+            (rs, row) -> new HistoryView(rs.getObject("id", UUID.class), rs.getObject("usuario_id", UUID.class), rs.getString("nome"),
                 List.of((String[]) rs.getArray("campos").getArray()), rs.getObject("criado_em", java.time.OffsetDateTime.class)), id);
     }
 

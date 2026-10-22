@@ -40,7 +40,7 @@ function url(path: string, query?: Query): string {
   return `/api/v1${path}${qs ? `?${qs}` : ""}`;
 }
 
-export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+async function request(path: string, options: RequestOptions): Promise<{ body: unknown; headers: Headers }> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = options.public ? null : tokenProvider();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -71,5 +71,16 @@ export async function api<T = unknown>(path: string, options: RequestOptions = {
       : `Erro ${response.status}`;
     throw new ApiError(response.status, message, body);
   }
-  return body as T;
+  return { body, headers: response.headers };
+}
+
+export async function api<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+  return (await request(path, options)).body as T;
+}
+
+/** Lista paginada: o total vem no cabeçalho X-Total-Count. */
+export async function apiPage<T>(path: string, options: RequestOptions = {}): Promise<{ items: T[]; total: number }> {
+  const { body, headers } = await request(path, options);
+  const items = (body ?? []) as T[];
+  return { items, total: Number(headers.get("X-Total-Count") ?? items.length) };
 }

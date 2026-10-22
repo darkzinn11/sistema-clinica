@@ -70,4 +70,19 @@ public class AgendaViewRepository {
             + "WHERE true" + filter + " ORDER BY cap.dia, pr.nome, pr.id",
             (rs, n) -> new OcupacaoDia(rs.getObject(2, UUID.class), rs.getObject(1, LocalDate.class), rs.getInt(3), rs.getInt(4)), args.toArray());
     }
+
+    /** Todos os agendamentos do paciente na clínica (mais recentes primeiro), cada um no fuso da sua unidade. */
+    public List<PatientAppointment> ofPatient(UUID patient, boolean withValues) {
+        return jdbc.query("SELECT a.id, lower(a.periodo), upper(a.periodo), a.status, un.nome, un.fuso, pr.id, pr.nome, pc.nome, pc.valor_centavos "
+            + "FROM clinica.agendamentos a JOIN clinica.unidades un ON un.tenant_id = a.tenant_id AND un.id = a.unidade_id "
+            + "JOIN clinica.profissionais pr ON pr.tenant_id = a.tenant_id AND pr.id = a.profissional_id "
+            + "JOIN clinica.procedimentos pc ON pc.tenant_id = a.tenant_id AND pc.id = a.procedimento_id "
+            + "WHERE a.paciente_id = ? ORDER BY lower(a.periodo) DESC, a.id LIMIT 300", (rs, n) -> {
+                ZoneId zone = ZoneId.of(rs.getString(6));
+                OffsetDateTime start = local(rs.getObject(2, OffsetDateTime.class), zone);
+                Long price = rs.getObject(10) == null ? null : rs.getLong(10);
+                return new PatientAppointment(rs.getObject(1, UUID.class), start.toLocalDate(), start, local(rs.getObject(3, OffsetDateTime.class), zone), rs.getString(4),
+                    rs.getString(5), rs.getObject(7, UUID.class), rs.getString(8), rs.getString(9), withValues ? price : null);
+            }, patient);
+    }
 }

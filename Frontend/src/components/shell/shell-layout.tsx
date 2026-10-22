@@ -19,6 +19,11 @@ const REAL_ROUTES = [
   "/agenda/equipamentos", "/agenda/valores", "/cadastros/locais", "/cadastros/equipamentos",
 ];
 
+function isReal(pathname: string): boolean {
+  const clean = pathname.replace(/\/$/, "") || "/";
+  return REAL_ROUTES.includes(clean) || clean.startsWith("/pacientes");
+}
+
 function DemoNotice() {
   return (
     <div role="note" className="mb-4 rounded-lg bg-warning-bg px-4 py-2.5 text-sm text-warning">
@@ -36,7 +41,7 @@ export function ShellLayout() {
   return (
     <AppShell>
       <div key={pathname} className="ui-page-enter">
-        {!REAL_ROUTES.includes(pathname.replace(/\/$/, "") || "/") && <DemoNotice />}
+        {!isReal(pathname) && <DemoNotice />}
         <Suspense fallback={<PageFallback />}>
           <Outlet />
         </Suspense>

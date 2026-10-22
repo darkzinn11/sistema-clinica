@@ -66,7 +66,8 @@ public final class PatientModels {
         }
     }
 
+    public record PatientStats(int ativos, int inativos, int novosNoMes, int aniversariantesSemana) {}
     public record DuplicateView(PatientSummary paciente, List<String> motivos) {}
     public record DeactivateRequest(@NotBlank @Pattern(regexp = "sem_vinculo|obito|sem_motivo") String motivo, @Size(max = 500) String observacao) {}
-    public record HistoryView(UUID id, UUID usuarioId, List<String> campos, OffsetDateTime criadoEm) {}
+    public record HistoryView(UUID id, UUID usuarioId, String usuarioNome, List<String> campos, OffsetDateTime criadoEm) {}
 }
