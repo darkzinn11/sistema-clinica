@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Publica a API pelo Caddy do VPS (HTTPS automático). Rode DEPOIS de criar o registro DNS "sistema-api.sitw.tech" -> 187.127.53.226.
-# Faz backup do Caddyfile, acrescenta o bloco de ops/Caddyfile.sistema-api, valida e só então recarrega (reload é sem queda).
+# Publica a API pelo Caddy do VPS (HTTPS automático). Rode DEPOIS de criar o registro DNS "api.multisaude.sitw.tech" -> 187.127.53.226.
+# Faz backup do Caddyfile, acrescenta o bloco de ops/Caddyfile.api-multisaude, valida e só então recarrega (reload é sem queda).
 # Se a validação falhar, restaura o Caddyfile e não recarrega. Não altera nenhum outro site.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HOST="${DEPLOY_HOST:-sitw-tech-vps}"
-NAME="sistema-api.sitw.tech"
+NAME="api.multisaude.sitw.tech"
 IP="$(ssh -o BatchMode=yes "$HOST" 'curl -s -4 ifconfig.me')"
 RESOLVED="$(dig +short "$NAME" | head -1)"
 if [ "$RESOLVED" != "$IP" ]; then echo "O DNS de $NAME ainda não aponta para $IP (resolve para: '${RESOLVED:-nada}'). Crie o registro A e tente de novo." >&2; exit 1; fi
-scp -q -o BatchMode=yes ops/Caddyfile.sistema-api "$HOST:/tmp/Caddyfile.sistema-api"
+scp -q -o BatchMode=yes ops/Caddyfile.api-multisaude "$HOST:/tmp/Caddyfile.api-multisaude"
 ssh -o BatchMode=yes "$HOST" 'set -e
   CF=/etc/caddy/Caddyfile
-  if sudo grep -q "^sistema-api.sitw.tech" $CF; then echo "bloco já existe no Caddyfile; nada a fazer"; rm -f /tmp/Caddyfile.sistema-api; exit 0; fi
-  sudo cp -p $CF $CF.bak-$(date +%Y%m%d-%H%M%S)-sistema-api
-  { echo; sudo cat /tmp/Caddyfile.sistema-api; } | sudo tee -a $CF >/dev/null
-  rm -f /tmp/Caddyfile.sistema-api
+  if sudo grep -q "^api.multisaude.sitw.tech" $CF; then echo "bloco já existe no Caddyfile; nada a fazer"; rm -f /tmp/Caddyfile.api-multisaude; exit 0; fi
+  sudo cp -p $CF $CF.bak-$(date +%Y%m%d-%H%M%S)-api-multisaude
+  { echo; sudo cat /tmp/Caddyfile.api-multisaude; } | sudo tee -a $CF >/dev/null
+  rm -f /tmp/Caddyfile.api-multisaude
   if ! sudo caddy validate --config $CF --adapter caddyfile >/tmp/_caddy_validate.log 2>&1; then
     echo "Caddyfile inválido, restaurando o backup:" >&2; tail -5 /tmp/_caddy_validate.log >&2
-    sudo cp -p $(ls -t $CF.bak-*-sistema-api | head -1) $CF; exit 1
+    sudo cp -p $(ls -t $CF.bak-*-api-multisaude | head -1) $CF; exit 1
   fi
   sudo systemctl reload caddy && echo "Caddy recarregado"'
 echo "Aguardando o certificado (até 90 s)..."
