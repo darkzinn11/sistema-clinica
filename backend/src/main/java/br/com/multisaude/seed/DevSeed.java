@@ -31,6 +31,8 @@ import br.com.multisaude.pacientes.PatientModels.RelativeForm;
 import br.com.multisaude.pacientes.PatientRepository;
 import br.com.multisaude.profissionais.ProfessionalModels.CreateProfessionalRequest;
 import br.com.multisaude.profissionais.ProfessionalRepository;
+import br.com.multisaude.salas.SalaModels.EquipmentRequest;
+import br.com.multisaude.salas.SalaRepository;
 import br.com.multisaude.shared.TenantTransactions;
 
 /**
@@ -46,9 +48,15 @@ public class DevSeed implements ApplicationRunner {
     record Procedure(String name, String type, int minutes, long cents, String specialty) {}
     record Professional(String name, String specialty, String council, String number, int startHour, int endHour, int blockMin) {}
     record Account(String name, String email, String role, List<String> units, String professional) {}
+    record Equipment(String name, int quantity, String room, List<String> procedures) {}
     record Clinic(String code, String name, List<String> units, List<Account> accounts, List<String> specialties,
         List<Procedure> procedures, List<Professional> professionals, String saturdayUnit, List<String> saturdayProfessionals,
-        List<String> patientNames, int patientOffset) {}
+        List<String> patientNames, int patientOffset, List<String> rooms, List<Equipment> equipment, Map<String, String> professionalRooms) {
+        /** Mesma clínica com outro código (os testes semeiam com códigos próprios). */
+        Clinic withCode(String newCode) {
+            return new Clinic(newCode, name, units, accounts, specialties, procedures, professionals, saturdayUnit, saturdayProfessionals, patientNames, patientOffset, rooms, equipment, professionalRooms);
+        }
+    }
 
     private static final String[] COLORS = {"#0F766E", "#B45309", "#7C3AED", "#BE123C", "#1D4ED8", "#4D7C0F", "#C2410C", "#0E7490"};
     private static final String[] CHANNELS = {"clinica", "telefone", "whatsapp", "online"};
@@ -66,12 +74,13 @@ public class DevSeed implements ApplicationRunner {
     private final AgendaRepository agenda;
     private final FilaRepository fila;
     private final PatientRepository patients;
+    private final SalaRepository rooms;
 
     public DevSeed(TenantTransactions tx, JdbcTemplate jdbc, PasswordEncoder passwords, Environment env, IdentityRepository identity,
         SpecialtyRepository specialties, ProcedureRepository procedures, ProfessionalRepository professionals, ScheduleRepository schedule,
-        AgendaRepository agenda, FilaRepository fila, PatientRepository patients) {
+        AgendaRepository agenda, FilaRepository fila, PatientRepository patients, SalaRepository rooms) {
         this.tx = tx; this.jdbc = jdbc; this.passwords = passwords; this.env = env; this.identity = identity; this.specialties = specialties;
-        this.procedures = procedures; this.professionals = professionals; this.schedule = schedule; this.agenda = agenda; this.fila = fila; this.patients = patients;
+        this.procedures = procedures; this.professionals = professionals; this.schedule = schedule; this.agenda = agenda; this.fila = fila; this.patients = patients; this.rooms = rooms;
     }
 
     @Override
@@ -88,7 +97,7 @@ public class DevSeed implements ApplicationRunner {
         for (Clinic clinic : clinics) {
             Optional<UUID> existing = jdbc.query("SELECT tenant_id FROM clinica.codigos_clinica WHERE codigo = ?", (rs, n) -> rs.getObject(1, UUID.class), clinic.code()).stream().findFirst();
             UUID tenant = existing.orElseGet(() -> create(clinic, hash));
-            tx.inTenant(tenant, () -> { refreshDay(tenant); return null; });
+            tx.inTenant(tenant, () -> { ensureRoomsAndExtras(tenant, clinic); refreshDay(tenant); return null; });
         }
     }
 
@@ -180,6 +189,29 @@ public class DevSeed implements ApplicationRunner {
             var created = patients.create(form, tenant);
             if (i == c.patientNames().size() - 1) patients.deactivate(created.id(), "sem_vinculo", "Cadastro de demonstração inativo.", tenant, admin);
         }
+    }
+
+    // ---- salas, equipamentos e orientações (também para clínicas semeadas antes de existirem) ----
+
+    /** Cria salas, equipamentos e sala padrão dos profissionais se a unidade principal ainda não tem sala; preenche o preparo dos exames que não têm. */
+    void ensureRoomsAndExtras(UUID tenant, Clinic clinic) {
+        var admin = jdbc.queryForMap("SELECT v.unidade_id FROM clinica.usuarios u JOIN clinica.vinculos v ON v.tenant_id = u.tenant_id AND v.usuario_id = u.id "
+            + "JOIN clinica.papeis p ON p.tenant_id = v.tenant_id AND p.id = v.papel_id WHERE p.nome = 'Administrador' AND NOT u.dispositivo ORDER BY u.id LIMIT 1");
+        UUID unit = (UUID) admin.get("unidade_id");
+        if (rooms.rooms(unit).isEmpty() && !clinic.rooms().isEmpty()) {
+            Map<String, UUID> roomIds = new HashMap<>();
+            for (String name : clinic.rooms()) roomIds.put(name, rooms.createRoom(tenant, unit, name).id());
+            for (Equipment e : clinic.equipment()) {
+                List<UUID> procedureIds = e.procedures().stream().map(n -> jdbc.queryForList("SELECT id FROM clinica.procedimentos WHERE nome = ?", UUID.class, n)).filter(l -> !l.isEmpty()).map(l -> l.get(0)).toList();
+                rooms.createEquipment(tenant, unit, new EquipmentRequest(e.name(), e.quantity(), roomIds.get(e.room()), true, procedureIds));
+            }
+            clinic.professionalRooms().forEach((professional, room) -> {
+                List<UUID> ids = jdbc.queryForList("SELECT id FROM clinica.profissionais WHERE nome = ?", UUID.class, professional);
+                if (!ids.isEmpty() && roomIds.containsKey(room)) rooms.setProfessionalRoom(tenant, ids.get(0), unit, roomIds.get(room));
+            });
+        }
+        SeedData.preparation().forEach((procedure, text) ->
+            jdbc.update("UPDATE clinica.procedimentos SET preparo = ? WHERE nome = ? AND preparo IS NULL", text, procedure));
     }
 
     // ---- o dia (renovado a cada execução) ----

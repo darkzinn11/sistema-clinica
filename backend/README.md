@@ -510,15 +510,15 @@ Com `seed.enabled=true` (`SEED_ENABLED=true`) a aplicação cria duas clínicas 
 
 | Clínica | Código | Usuários (todos com `SEED_PASSWORD`) |
 |---|---|---|
-| Clínica Vida Plena (2 unidades) | `vida-plena` | `admin@vidaplena.test` (Administrador), `igor.leonardo@vidaplena.test` (Recepção, nas duas unidades: o login pede a unidade), `camila.esteves@vidaplena.test` (Médico, ligada à Dra. Camila Esteves) |
+| Clínica Popular MultiSaúde (2 unidades) | `multisaude` | `admin@multisaude.test` (Administrador), `igor.leonardo@multisaude.test` (Recepção, nas duas unidades: o login pede a unidade), `camila.esteves@multisaude.test` (Médico, ligada à Dra. Camila Esteves) |
 | Clínica Bem Viver (1 unidade) | `bem-viver` | `admin@bemviver.test`, `recepcao@bemviver.test` |
 
-A Vida Plena espelha o mock do front: 8 especialidades, 20 procedimentos, 8 profissionais com procedimentos habilitados e grade de segunda a
+A Clínica Popular MultiSaúde espelha o mock do front: 8 especialidades, 20 procedimentos, 8 profissionais com procedimentos habilitados e grade de segunda a
 sexta (e sábado na Unidade Norte para dois deles), 28 pacientes (um sem CPF, um estrangeiro, um inativo, alguns com prioridade, aviso ou
 parentes), agenda de dois dias úteis atrás a dois à frente com todos os status, tipos de senha (C, E, R, P), dois guichês e cinco senhas do
 dia. A Bem Viver é menor (3 profissionais, 10 pacientes) e serve para ver o isolamento entre clínicas.
 
-- **Idempotente:** clínica cujo código já existe não é recriada. A cada execução, se não houver agenda daqui para a frente ou senhas do dia,
+- **Idempotente:** clínica cujo código já existe não é recriada. (Uma clínica semeada antes de uma troca de código/nome continua no banco: o código é imutável e não há `DELETE`; ela fica como dado de desenvolvimento sem uso.) A cada execução, se não houver agenda daqui para a frente ou senhas do dia,
   elas são renovadas (a demonstração não envelhece).
 - **Não existe "reset":** as tabelas de histórico e de acesso são somente-inserção, de propósito, e a aplicação não tem `DELETE`. Para recomeçar,
   `docker compose -f docker-compose.dev.yml down -v` e suba de novo.
@@ -527,6 +527,26 @@ dia. A Bem Viver é menor (3 profissionais, 10 pacientes) e serve para ver o iso
 - **Não semeado:** procedimentos sem código TUSS (evita levar código licenciado para o seed), dispositivo/totem (crie pelo
   `POST /dispositivos`), financeiro, estoque, convênios.
 - O teste `DevSeedIntegrationTest` roda os seeds dentro da transação do teste, com códigos de clínica próprios, e desfaz tudo: não suja o banco.
+
+## Telas da recepção sem mock: início, agenda, ocupação, salas e equipamentos (V32)
+
+Endpoints que alimentam as telas (todos restritos à unidade da sessão; ver sempre exige a permissão indicada):
+
+| Rota | Permissão | O que devolve |
+|---|---|---|
+| `GET /inicio` | `agenda:ler` e `pacientes:ler` | Resumo do dia: agendamentos hoje e ontem, taxa de confirmação, sala de espera (com minutos), faturamento previsto (só com `agenda:ver_valores`), próximos, ocupação, aniversariantes, amanhã sem confirmação. Mostra nomes: conta no limite de volume e entra na trilha de acesso. |
+| `GET /agenda/agendamentos?de&ate&profissionalId` | `agenda:ler` ou `agenda:ler_proprios` | Agendamentos já com nome de paciente, profissional e procedimento, hora da clínica no texto, preço só com `agenda:ver_valores`. Máximo de 31 dias. Médico (`ler_proprios`) só vê o próprio profissional. Auditado como `listar_pacientes`. |
+| `GET /agenda/ocupacao?de&ate` | idem | Blocos da grade do dia e quantos estão tomados, por profissional e dia (cancelado, remarcado e falta liberam o horário). Máximo de 62 dias. Sem dados de paciente. |
+| `GET/POST/PUT /salas` | ver: `agenda:ler`; mudar: `agenda:configurar` | Salas da unidade (nome único por unidade, sem diferenciar maiúsculas). |
+| `GET/POST/PUT /equipamentos` | idem | Aparelho com quantidade (unidades simultâneas), sala e os procedimentos que o ocupam. A sala precisa ser da mesma unidade (chave composta no banco). |
+| `GET /profissionais-salas`, `PUT /profissionais/{id}/sala` | ver: `agenda:ler`; mudar: `profissionais:editar` | Sala padrão do profissional na unidade (alimenta a agenda por sala). `salaId` nulo remove. |
+| `GET /agenda/equipamentos?data=` | `agenda:ler` | Para cada equipamento ativo, os agendamentos do dia que o ocupam (sem paciente). O choque de horário (mais usos que unidades) a tela calcula. |
+
+- **Confirmações** não têm endpoint próprio: usam `/agenda/agendamentos` e `POST /agendamentos/{id}/status`. **O sistema não envia mensagens**: o botão abre
+  o WhatsApp com a mensagem pronta (link `wa.me`) e quem clica envia; o modelo da mensagem fica salvo só no navegador. Registrar tentativas de contato ou
+  envio automático exige um módulo de mensagens que não existe.
+- **Consultar valores** usa `GET /procedimentos` (preço particular). Não há tabelas de preço por convênio: o módulo de convênios não existe.
+- **Ficaram de fora, de propósito:** reservas avulsas de equipamento (manutenção, calibração) e bloqueio de sala; encaixe, retorno e convênio no agendamento.
 
 ### CORS e navegador
 

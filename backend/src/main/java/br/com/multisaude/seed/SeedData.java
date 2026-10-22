@@ -1,6 +1,7 @@
 package br.com.multisaude.seed;
 
 import java.util.List;
+import java.util.Map;
 import br.com.multisaude.seed.DevSeed.*;
 
 /** Conteúdo dos seeds. Tudo fictício: nomes, telefones e e-mails (domínio .test). Os CPFs são gerados e só servem para passar na validação. */
@@ -49,7 +50,16 @@ final class SeedData {
             new Account("Igor Leonardo", "igor.leonardo@multisaude.test", "Recepção", List.of("Unidade Centro", "Unidade Norte"), null),
             new Account("Camila Esteves", "camila.esteves@multisaude.test", "Médico", List.of("Unidade Centro"), "Dra. Camila Esteves"));
         return new Clinic("multisaude", "Clínica Popular MultiSaúde", List.of("Unidade Centro", "Unidade Norte"), accounts, specialties, procedures, professionals,
-            "Unidade Norte", List.of("Dra. Larissa Moura", "Dr. Gustavo Pimentel"), names(28, 0), 0);
+            "Unidade Norte", List.of("Dra. Larissa Moura", "Dr. Gustavo Pimentel"), names(28, 0), 0,
+            List.of("Consultório 1", "Consultório 2", "Consultório 3", "Consultório 4", "Sala de Ultrassom", "Sala de Exames Cardiológicos", "Sala de Procedimentos", "Sala de Psicologia"),
+            List.of(new Equipment("Aparelho de ultrassom", 1, "Sala de Ultrassom", List.of("US abdome total", "US obstétrico", "US morfológico 1º trimestre", "US transvaginal", "US mamas e axilas")),
+                new Equipment("Eletrocardiógrafo", 1, "Sala de Exames Cardiológicos", List.of("Eletrocardiograma", "Consulta cardiológica")),
+                new Equipment("Ecocardiógrafo", 1, "Sala de Exames Cardiológicos", List.of("Ecocardiograma")),
+                new Equipment("Holter e MAPA (3 unidades)", 3, "Sala de Exames Cardiológicos", List.of("Holter 24h", "MAPA 24h")),
+                new Equipment("Aparelho de crioterapia", 1, "Sala de Procedimentos", List.of("Crioterapia de lesão"))),
+            Map.of("Dra. Camila Esteves", "Sala de Ultrassom", "Dra. Beatriz Nogueira", "Consultório 1", "Dr. Rafael Montenegro", "Sala de Psicologia",
+                "Dr. Henrique Lacerda", "Sala de Exames Cardiológicos", "Dra. Larissa Moura", "Sala de Procedimentos", "Dr. Thiago Barreto", "Consultório 2",
+                "Dra. Fernanda Quintela", "Consultório 3", "Dr. Gustavo Pimentel", "Consultório 4"));
     }
 
     private static Clinic bemViver() {
@@ -60,7 +70,16 @@ final class SeedData {
         var accounts = List.of(new Account("Administração Bem Viver", "admin@bemviver.test", "Administrador", List.of("Sede"), null),
             new Account("Paula Recepção", "recepcao@bemviver.test", "Recepção", List.of("Sede"), null));
         return new Clinic("bem-viver", "Clínica Bem Viver", List.of("Sede"), accounts, List.of("Clínica geral", "Pediatria", "Nutrição"), procedures, professionals,
-            "Sede", List.of(), names(10, 100), 500);
+            "Sede", List.of(), names(10, 100), 500,
+            List.of("Consultório A", "Consultório B"), List.of(),
+            Map.of("Dr. Otávio Lemos", "Consultório A", "Dra. Helena Cordeiro", "Consultório B", "Dra. Bianca Furtado", "Consultório A"));
+    }
+
+    /** Orientações de preparo de alguns exames (texto de demonstração). */
+    static Map<String, String> preparation() {
+        return Map.of("US abdome total", "Jejum de 8 horas.", "US obstétrico", "Bexiga cheia: beber 1 litro de água uma hora antes.",
+            "US transvaginal", "Esvaziar a bexiga antes do exame.", "Ecocardiograma", "Sem preparo. Levar exames cardiológicos anteriores.",
+            "Holter 24h", "Banho antes de chegar: o aparelho não pode molhar durante as 24 horas.", "Preventivo (Papanicolau)", "Evitar relações e cremes vaginais nas 48 horas anteriores.");
     }
 
     private static final String[] FIRST = {"Ana", "Bruno", "Carla", "Diego", "Eduarda", "Felipe", "Gabriela", "Heitor", "Isabela", "João", "Karina", "Lucas", "Marina", "Nathan",

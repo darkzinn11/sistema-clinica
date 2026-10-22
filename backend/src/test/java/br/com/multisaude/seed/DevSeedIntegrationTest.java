@@ -29,6 +29,7 @@ import br.com.multisaude.identidade.IdentityRepository;
 import br.com.multisaude.identidade.LoginRateLimiter;
 import br.com.multisaude.pacientes.PatientRepository;
 import br.com.multisaude.profissionais.ProfessionalRepository;
+import br.com.multisaude.salas.SalaRepository;
 import br.com.multisaude.seed.DevSeed.Clinic;
 import br.com.multisaude.shared.TenantTransactions;
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,6 +58,7 @@ class DevSeedIntegrationTest {
     @Autowired AgendaRepository agenda;
     @Autowired FilaRepository fila;
     @Autowired PatientRepository patients;
+    @Autowired SalaRepository salas;
     private final JsonMapper json = JsonMapper.builder().build();
     private final String suffix = UUID.randomUUID().toString().substring(0, 8);
     private String first, second;
@@ -64,15 +66,14 @@ class DevSeedIntegrationTest {
     @BeforeEach
     void seed() {
         ((Map<?, ?>) ReflectionTestUtils.getField(limiter, "windows")).clear();
-        List<Clinic> clinics = SeedData.clinics().stream().map(c -> new Clinic(c.code() + "-" + suffix, c.name(), c.units(), c.accounts(), c.specialties(),
-            c.procedures(), c.professionals(), c.saturdayUnit(), c.saturdayProfessionals(), c.patientNames(), c.patientOffset())).toList();
+        List<Clinic> clinics = SeedData.clinics().stream().map(c -> c.withCode(c.code() + "-" + suffix)).toList();
         first = clinics.get(0).code();
         second = clinics.get(1).code();
         seeder().seed(clinics, passwords.encode(PASSWORD));
     }
 
     private DevSeed seeder() {
-        return new DevSeed(tx, jdbc, passwords, new MockEnvironment(), identity, specialties, procedures, professionals, schedule, agenda, fila, patients);
+        return new DevSeed(tx, jdbc, passwords, new MockEnvironment(), identity, specialties, procedures, professionals, schedule, agenda, fila, patients, salas);
     }
 
     private UUID tenantOf(String code) {
@@ -189,18 +190,17 @@ class DevSeedIntegrationTest {
     @Test
     void runningTheSeedAgainDoesNotDuplicateAnythingAndNeverNeedsAPasswordInTheCode() throws Exception {
         Long before = inClinic(first, () -> jdbc.queryForObject("SELECT (SELECT count(*) FROM clinica.pacientes) + (SELECT count(*) FROM clinica.agendamentos) + (SELECT count(*) FROM clinica.senhas) + (SELECT count(*) FROM clinica.usuarios)", Long.class));
-        List<Clinic> same = SeedData.clinics().stream().map(c -> new Clinic(c.code() + "-" + suffix, c.name(), c.units(), c.accounts(), c.specialties(),
-            c.procedures(), c.professionals(), c.saturdayUnit(), c.saturdayProfessionals(), c.patientNames(), c.patientOffset())).toList();
+        List<Clinic> same = SeedData.clinics().stream().map(c -> c.withCode(c.code() + "-" + suffix)).toList();
         seeder().seed(same, passwords.encode(PASSWORD));
         Long after = inClinic(first, () -> jdbc.queryForObject("SELECT (SELECT count(*) FROM clinica.pacientes) + (SELECT count(*) FROM clinica.agendamentos) + (SELECT count(*) FROM clinica.senhas) + (SELECT count(*) FROM clinica.usuarios)", Long.class));
         assertEquals(before, after);
         // Sem a senha, o runner recusa; com senha curta também.
         assertThrows(IllegalArgumentException.class, () -> seeder().run(new DefaultApplicationArguments()));
         MockEnvironment shortPassword = new MockEnvironment().withProperty("SEED_PASSWORD", "curta");
-        assertThrows(IllegalArgumentException.class, () -> new DevSeed(tx, jdbc, passwords, shortPassword, identity, specialties, procedures, professionals, schedule, agenda, fila, patients).run(new DefaultApplicationArguments()));
+        assertThrows(IllegalArgumentException.class, () -> new DevSeed(tx, jdbc, passwords, shortPassword, identity, specialties, procedures, professionals, schedule, agenda, fila, patients, salas).run(new DefaultApplicationArguments()));
         MockEnvironment prod = new MockEnvironment().withProperty("SEED_PASSWORD", PASSWORD);
         prod.setActiveProfiles("prod");
-        assertThrows(IllegalStateException.class, () -> new DevSeed(tx, jdbc, passwords, prod, identity, specialties, procedures, professionals, schedule, agenda, fila, patients).run(new DefaultApplicationArguments()));
+        assertThrows(IllegalStateException.class, () -> new DevSeed(tx, jdbc, passwords, prod, identity, specialties, procedures, professionals, schedule, agenda, fila, patients, salas).run(new DefaultApplicationArguments()));
     }
 
     @Test
@@ -215,6 +215,23 @@ class DevSeedIntegrationTest {
         inClinic(first, () -> { seeder().refreshDay(tenant, later); return null; });          // de novo: nada muda
         assertEquals(appointmentsAfter, inClinic(first, () -> jdbc.queryForObject("SELECT count(*) FROM clinica.agendamentos", Long.class)));
         assertEquals(5L, inClinic(first, () -> jdbc.queryForObject("SELECT count(*) FROM clinica.senhas WHERE dia = ?", Long.class, later)));
+    }
+
+    @Test
+    void theSeededClinicHasRoomsEquipmentAndTheProfessionalsDefaultRooms() throws Exception {
+        String admin = token(first, "admin@multisaude.test");
+        get(admin, "/salas").andExpect(jsonPath("$.length()").value(8));
+        get(admin, "/equipamentos").andExpect(jsonPath("$.length()").value(5));
+        get(admin, "/profissionais-salas").andExpect(jsonPath("$.length()").value(8));
+        String other = token(second, "admin@bemviver.test");
+        get(other, "/salas").andExpect(jsonPath("$.length()").value(2));
+        get(other, "/equipamentos").andExpect(jsonPath("$.length()").value(0));
+        // As orientações de preparo dos exames aparecem no cadastro de procedimentos.
+        get(admin, "/procedimentos?tamanho=100&busca=abdome").andExpect(jsonPath("$[0].preparo").value("Jejum de 8 horas."));
+        // Rodar de novo não duplica salas nem equipamentos.
+        seeder().seed(SeedData.clinics().stream().map(c -> c.withCode(c.code() + "-" + suffix)).toList(), passwords.encode(PASSWORD));
+        get(admin, "/salas").andExpect(jsonPath("$.length()").value(8));
+        get(admin, "/equipamentos").andExpect(jsonPath("$.length()").value(5));
     }
 
     @Test

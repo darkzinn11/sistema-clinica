@@ -1,12 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Chart, Clock, TickCircle, Warning2 } from "iconsax-reactjs";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/charts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
+import { DateNav } from "@/components/agenda/DateNav";
 import { cn } from "@/lib/cn";
-import { EQUIP_CAPACITY, NOW_MIN, type EquipmentAllocation, equipmentAllocations, equipmentConflicts, toMin } from "@/lib/mock/agenda";
-import { TODAY, equipment, locations, professionalById } from "@/lib/mock/core";
+import { useEquipmentDay, type EquipmentDay } from "@/lib/api/salas";
+import { clock, nowMin, todayIso, toMin } from "@/lib/agenda/time";
+import { addDaysIso, dateLong } from "@/lib/format";
+
+/** Um uso do equipamento já com a hora da clínica. */
+interface Allocation { id: string; start: string; end: string; label: string; professional: string }
 
 const DAY_START = 7;
 const DAY_END = 19;
@@ -24,7 +31,7 @@ interface Segment {
 }
 
 /** Trechos ocupados do dia (usos encostados viram um trecho só); `over` = mais usos que unidades. */
-function occupancy(allocs: EquipmentAllocation[], capacity: number): Segment[] {
+function occupancy(allocs: Allocation[], capacity: number): Segment[] {
   const points = allocs.flatMap((a) => [
     { t: toMin(a.start), d: 1 },
     { t: toMin(a.end), d: -1 },
@@ -46,35 +53,42 @@ function occupancy(allocs: EquipmentAllocation[], capacity: number): Segment[] {
   return segs;
 }
 
+/** Usos que passam da quantidade do equipamento no mesmo horário. */
+function conflictingUses(allocs: Allocation[], capacity: number): Set<string> {
+  const conflicts = new Set<string>();
+  for (const a of allocs) {
+    const overlapping = allocs.filter((b) => toMin(b.start) < toMin(a.end) && toMin(a.start) < toMin(b.end));
+    if (overlapping.length > capacity) conflicts.add(a.id);
+  }
+  return conflicts;
+}
+
+function toAllocations(equipment: EquipmentDay): Allocation[] {
+  return equipment.usos.map((u) => ({ id: u.agendamentoId, start: clock(u.inicio), end: clock(u.fim), label: u.procedimentoNome, professional: u.profissionalNome }));
+}
+
 export default function Page() {
-  const allocs = equipmentAllocations(TODAY);
+  const [date, setDate] = useState(todayIso);
+  const day = useEquipmentDay(date);
+  const isToday = date === todayIso();
+  const NOW_MIN = nowMin();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const rows = equipment.map((eq) => {
-    const eqAllocs = allocs.filter((a) => a.equipmentId === eq.id).sort((a, b) => toMin(a.start) - toMin(b.start));
-    const capacity = EQUIP_CAPACITY[eq.id] ?? 1;
-    const conflicts = equipmentConflicts(eqAllocs, capacity);
+  const rows = useMemo(() => (day.data?.equipamentos ?? []).map((eq) => {
+    const eqAllocs = toAllocations(eq).sort((a, b) => toMin(a.start) - toMin(b.start));
+    const capacity = eq.quantidade;
+    const conflicts = conflictingUses(eqAllocs, capacity);
     const busyMin = eqAllocs.reduce((s, a) => s + (toMin(a.end) - toMin(a.start)), 0);
     const utilization = Math.min(100, Math.round((busyMin / (TOTAL_MIN * capacity)) * 100));
-    const current = eqAllocs.filter((a) => toMin(a.start) <= NOW_MIN && toMin(a.end) > NOW_MIN);
-    const upcoming = eqAllocs.filter((a) => toMin(a.end) > NOW_MIN);
-    const next = eqAllocs.find((a) => toMin(a.start) > NOW_MIN);
-    return {
-      eq,
-      capacity,
-      allocs: eqAllocs,
-      upcoming,
-      conflicts,
-      utilization,
-      current,
-      next,
-      segments: occupancy(eqAllocs, capacity),
-      location: locations.find((l) => l.id === eq.location)?.name,
-    };
-  });
+    const current = isToday ? eqAllocs.filter((a) => toMin(a.start) <= NOW_MIN && toMin(a.end) > NOW_MIN) : [];
+    const upcoming = isToday ? eqAllocs.filter((a) => toMin(a.end) > NOW_MIN) : eqAllocs;
+    const next = isToday ? eqAllocs.find((a) => toMin(a.start) > NOW_MIN) : eqAllocs[0];
+    return { eq, capacity, allocs: eqAllocs, upcoming, conflicts, utilization, current, next, segments: occupancy(eqAllocs, capacity), location: eq.salaNome ?? "Sem sala" };
+  }), [day.data, isToday, NOW_MIN]);
 
+  const usesTotal = rows.reduce((s, r) => s + r.allocs.length, 0);
   const conflictCount = rows.filter((r) => r.conflicts.size > 0).length;
-  const avgUtil = Math.round(rows.reduce((s, r) => s + r.utilization, 0) / rows.length);
+  const avgUtil = rows.length ? Math.round(rows.reduce((s, r) => s + r.utilization, 0) / rows.length) : 0;
   const inUseNow = rows.filter((r) => r.current.length > 0).length;
 
   function toggle(id: string) {
@@ -91,18 +105,45 @@ export default function Page() {
       <PageHeader
         title="Equipamentos"
         breadcrumbs={[{ label: "Agenda", href: "/agenda" }, { label: "Equipamentos" }]}
-        description="O que está em uso agora, o que vem a seguir e onde há choque de horário."
+        description="O que está em uso, o que vem a seguir e onde há choque de horário. O uso vem dos agendamentos dos procedimentos que ocupam cada aparelho."
       />
 
+      <Card className="mb-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <DateNav
+            date={date}
+            label={dateLong(date)}
+            prevLabel="Dia anterior"
+            nextLabel="Próximo dia"
+            onPrev={() => setDate((v) => addDaysIso(v, -1))}
+            onToday={() => setDate(todayIso())}
+            onNext={() => setDate((v) => addDaysIso(v, 1))}
+          />
+        </div>
+      </Card>
+
+      {day.isPending ? (
+        <Skeleton className="h-96 w-full" />
+      ) : day.isError ? (
+        <Card><EmptyState title="Não foi possível carregar os equipamentos." description={day.error.message} /></Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="Nenhum equipamento cadastrado nesta unidade"
+            description="Cadastre os aparelhos e os procedimentos que usam cada um em Cadastros > Equipamentos."
+          />
+        </Card>
+      ) : (
+        <>
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 ui-stat-strip" data-columns="4">
-        <StatCard label="Em uso agora" value={`${inUseNow} de ${rows.length}`} icon={<Clock />} footer={<span className="text-text-muted">Equipamentos ocupados às {fmt(NOW_MIN)}</span>} />
-        <StatCard label="Usos hoje" value={allocs.length.toLocaleString("pt-BR")} icon={<Box />} footer={<span className="text-text-muted">Exames e reservas com equipamento</span>} />
+        <StatCard label={isToday ? "Em uso agora" : "Em uso"} value={isToday ? `${inUseNow} de ${rows.length}` : "—"} icon={<Clock />} footer={<span className="text-text-muted">{isToday ? `Equipamentos ocupados às ${fmt(NOW_MIN)}` : "Escolha hoje para ver o uso em tempo real"}</span>} />
+        <StatCard label="Usos no dia" value={usesTotal.toLocaleString("pt-BR")} icon={<Box />} footer={<span className="text-text-muted">Agendamentos que ocupam aparelhos</span>} />
         <StatCard label="Ocupação média" value={`${avgUtil}%`} icon={<Chart />} footer={<span className="text-text-muted">Das 7h às 19h</span>} />
         <StatCard
           label="Com choque de horário"
           value={`${conflictCount} de ${rows.length}`}
           icon={conflictCount > 0 ? <Warning2 /> : <TickCircle />}
-          footer={<span className={conflictCount > 0 ? "text-danger" : "text-text-muted"}>{conflictCount > 0 ? "Mais exames que unidades no mesmo horário" : "Nenhum choque hoje"}</span>}
+          footer={<span className={conflictCount > 0 ? "text-danger" : "text-text-muted"}>{conflictCount > 0 ? "Mais exames que unidades no mesmo horário" : "Nenhum choque no dia"}</span>}
         />
       </div>
 
@@ -121,7 +162,7 @@ export default function Page() {
             <Card key={r.eq.id} className="flex flex-col">
               <div className="flex items-start justify-between gap-3 px-5 pt-5">
                 <div className="min-w-0">
-                  <h2 className="truncate text-md font-semibold text-text">{r.eq.name}</h2>
+                  <h2 className="truncate text-md font-semibold text-text">{r.eq.nome}</h2>
                   <p className="truncate text-sm text-text-muted">
                     {r.location} · {r.capacity === 1 ? "1 unidade" : `${r.capacity} unidades`}
                   </p>
@@ -161,7 +202,7 @@ export default function Page() {
                       className={cn(
                         "absolute inset-y-0 rounded-full",
                         s.over ? "bg-danger" : "bg-accent",
-                        s.end <= NOW_MIN && "opacity-40",
+                        isToday && s.end <= NOW_MIN && "opacity-40",
                       )}
                       style={{
                         left: `calc(${pctX(s.start)}% + 1px)`,
@@ -169,7 +210,7 @@ export default function Page() {
                       }}
                     />
                   ))}
-                  {NOW_MIN > DAY_START * 60 && NOW_MIN < DAY_END * 60 && (
+                  {isToday && NOW_MIN > DAY_START * 60 && NOW_MIN < DAY_END * 60 && (
                     <span
                       aria-hidden
                       className="absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-text ring-2 ring-surface-raised"
@@ -192,13 +233,13 @@ export default function Page() {
                   <ul className="divide-y divide-border">
                     {list.map((a) => {
                       const conflict = r.conflicts.has(a.id);
-                      const past = toMin(a.end) <= NOW_MIN;
+                      const past = isToday && toMin(a.end) <= NOW_MIN;
                       return (
                         <li key={a.id} className={cn("flex items-center gap-3 px-5 py-2.5 text-sm", past && "opacity-55", conflict && "bg-danger-bg/60")}>
                           <span className="tabular w-[92px] shrink-0 font-medium text-text">{a.start}–{a.end}</span>
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-text">{a.label}</span>
-                            <span className="block truncate text-xs text-text-muted">{professionalById(a.professionalId)?.name}</span>
+                            <span className="block truncate text-xs text-text-muted">{a.professional}</span>
                           </span>
                           {conflict && (
                             <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-danger">
@@ -227,6 +268,8 @@ export default function Page() {
           );
         })}
       </div>
+        </>
+      )}
     </div>
   );
 }

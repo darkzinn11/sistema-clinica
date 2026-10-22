@@ -14,7 +14,10 @@ function PageFallback() {
 }
 
 /** Telas já ligadas ao backend. As demais ainda mostram dados de exemplo e avisam. */
-const REAL_ROUTES = ["/inicio", "/agenda", "/agenda/semana", "/agenda/salas", "/agenda/check-in"];
+const REAL_ROUTES = [
+  "/inicio", "/agenda", "/agenda/semana", "/agenda/salas", "/agenda/check-in", "/agenda/mapa", "/agenda/confirmacoes",
+  "/agenda/equipamentos", "/agenda/valores", "/cadastros/locais", "/cadastros/equipamentos",
+];
 
 function DemoNotice() {
   return (
