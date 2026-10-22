@@ -41,9 +41,12 @@ public class SecurityConfig {
             .sessionManagement(config -> config.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(new SessionAuthenticationFilter(identity), UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // Negado vira 403 e o servidor refaz a requisição em /error; sem isto o denyAll bloqueia o /error e a resposta sai 401
+                // (o front trata 401 como "sessão acabou" e deslogaria quem só não tem permissão). O corpo do erro não traz mensagem nem pilha.
+                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
-                .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/unidades").authenticated()
+                .requestMatchers("/api/v1/auth/me", "/api/v1/auth/logout", "/api/v1/unidades", "/api/v1/auth/senha", "/api/v1/auth/sessoes", "/api/v1/auth/sessoes/*", "/api/v1/auth/sessoes/encerrar-outras").authenticated()
                 .requestMatchers(HttpMethod.GET, "/api/v1/inicio").hasAuthority("agenda:ler")
                 .requestMatchers(HttpMethod.GET, "/api/v1/salas", "/api/v1/equipamentos", "/api/v1/profissionais-salas", "/api/v1/agenda/equipamentos").hasAuthority("agenda:ler")
                 .requestMatchers(HttpMethod.POST, "/api/v1/salas", "/api/v1/equipamentos").hasAuthority("agenda:configurar")
@@ -89,6 +92,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/senhas").hasAuthority("fila:gerar")
                 .requestMatchers(HttpMethod.GET, "/api/v1/totem/tipos").hasAuthority("totem:usar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/totem/senhas").hasAuthority("totem:usar")
+                .requestMatchers(HttpMethod.GET, "/api/v1/painel/chamadas").hasAuthority("painel:ver")
                 .requestMatchers(HttpMethod.GET, "/api/v1/dispositivos").hasAuthority("fila:configurar")
                 .requestMatchers(HttpMethod.POST, "/api/v1/dispositivos").hasAuthority("fila:configurar")
                 .requestMatchers(HttpMethod.DELETE, "/api/v1/dispositivos/*").hasAuthority("fila:configurar")

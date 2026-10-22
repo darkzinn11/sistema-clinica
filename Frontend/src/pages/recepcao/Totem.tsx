@@ -1,220 +1,39 @@
-import { ArrowLeft2, Calendar, ChemicalGlass, Eraser, Health, Personalcard, Refresh2, Scanning, TickCircle, Ticket2, UserTick } from "iconsax-reactjs";
-import { IconCircle } from "@/components/ui/icon-circle";
-import type { Icon as IconType } from "iconsax-reactjs";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BrandLogo } from "@/components/shell/brand-logo";
-import { patients } from "@/lib/mock/core";
-import type { TicketTypeCode } from "@/lib/mock/recepcao";
-import { TICKET_TYPES } from "@/lib/mock/recepcao";
+import { Button } from "@/components/ui/button";
+import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ApiError } from "@/lib/api/client";
+import { PareamentoDispositivo } from "@/components/recepcao/PareamentoDispositivo";
+import { clearDevice, loadDevice, type StoredDevice } from "@/lib/device/storage";
+import { useGenerateTotemTicket, useTotemTypes } from "@/lib/api/recepcao";
 
-type Step = "inicio" | "cpf" | "servico" | "preferencial" | "confirmacao";
-
-const SERVICE_ICON: Record<TicketTypeCode, IconType> = {
-  CON: Health,
-  EXM: Scanning,
-  LAB: ChemicalGlass,
-  RET: Refresh2,
-};
-
-const SERVICE_SERIES: Record<TicketTypeCode, number> = { CON: 1, EXM: 2, LAB: 3, RET: 4 };
-
-const AUTO_RETURN_MS = 8000;
-const CPF_LENGTH = 11;
-
-function formatCpf(digitsStr: string): string {
-  const d = digitsStr.padEnd(CPF_LENGTH, "_");
-  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9, 11)}`;
+function validCpf(value: string) {
+  const cpf = value.replace(/\D/g, "");
+  if (cpf.length !== 11 || /^([0-9])\1+$/.test(cpf)) return false;
+  let sum = 0; for (let i = 0; i < 9; i++) sum += Number(cpf[i]) * (10 - i);
+  let digit = (sum * 10) % 11; if (digit === 10) digit = 0; if (digit !== Number(cpf[9])) return false;
+  sum = 0; for (let i = 0; i < 10; i++) sum += Number(cpf[i]) * (11 - i);
+  digit = (sum * 10) % 11; if (digit === 10) digit = 0; return digit === Number(cpf[10]);
 }
 
-const KEYPAD_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"] as const;
+function formatCpf(value: string) { const digits = value.replace(/\D/g, "").slice(0, 11); return digits.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2"); }
 
 export default function Totem() {
-  const [step, setStep] = useState<Step>("inicio");
-  const [type, setType] = useState<TicketTypeCode | null>(null);
+  const [device, setDevice] = useState<StoredDevice | null>(() => loadDevice("totem"));
   const [cpf, setCpf] = useState("");
-  const [visitorName, setVisitorName] = useState<string | null>(null);
-  const [ticket, setTicket] = useState<{ code: string; waitMin: number } | null>(null);
-  const [counters, setCounters] = useState<Record<TicketTypeCode, number>>({ CON: 18, EXM: 9, LAB: 6, RET: 4 });
-  const [now, setNow] = useState(() => new Date());
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [step, setStep] = useState<"cpf" | "tipo" | "resultado">("cpf");
+  const [result, setResult] = useState<{ codigo: string; tipoNome: string } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const types = useTotemTypes(device?.token);
+  const generate = useGenerateTotemTicket();
 
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  useEffect(() => { const id = window.setTimeout(() => { setCpf(""); setStep("cpf"); setResult(null); setMessage(null); }, 60_000); return () => window.clearTimeout(id); }, [step, cpf, result]);
+  useEffect(() => { if (types.error instanceof ApiError && types.error.status === 401) { clearDevice("totem"); setDevice(null); } }, [types.error]);
 
-  function reset() {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    setStep("inicio");
-    setType(null);
-    setCpf("");
-    setVisitorName(null);
-    setTicket(null);
-  }
-
-  function pressKey(key: (typeof KEYPAD_KEYS)[number]) {
-    if (key === "back") return setCpf((prev) => prev.slice(0, -1));
-    if (key === "clear") return setCpf("");
-    setCpf((prev) => (prev.length < CPF_LENGTH ? prev + key : prev));
-  }
-
-  function confirmCpf() {
-    const found = patients.find((p) => p.cpf.replace(/\D/g, "") === cpf);
-    setVisitorName(found ? found.name.split(" ")[0] : null);
-    setStep("servico");
-  }
-
-  function skipCpf() {
-    setCpf("");
-    setVisitorName(null);
-    setStep("servico");
-  }
-
-  function chooseType(t: TicketTypeCode) {
-    setType(t);
-    setStep("preferencial");
-  }
-
-  function choosePreferential(pref: boolean) {
-    if (!type) return;
-    const n = counters[type] + 1;
-    setCounters((prev) => ({ ...prev, [type]: n }));
-    const code = `${type}${pref ? " P" : ""} ${String(n).padStart(2, "0")}`;
-    setTicket({ code, waitMin: 4 + n * 2 });
-    setStep("confirmacao");
-    timeoutRef.current = setTimeout(reset, AUTO_RETURN_MS);
-  }
-
-  const clock = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const dateLabel = now.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
-
-  return (
-    <div className="flex min-h-screen flex-col bg-bg text-text">
-      <header className="flex min-h-24 items-center justify-between gap-4 px-6 py-5 sm:px-10">
-        <BrandLogo className="h-14 w-auto max-w-[52vw] shrink-0 object-contain" />
-        <div className="text-right">
-          <p className="font-display text-2xl font-semibold tabular">{clock}</p>
-          <p className="text-sm capitalize text-text-muted">{dateLabel}</p>
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col items-center justify-center px-6 pb-10">
-        {step === "inicio" && (
-          <button
-            type="button"
-            onClick={() => setStep("cpf")}
-            className="flex min-h-[420px] w-full max-w-3xl flex-col items-center justify-center gap-6 rounded-xl bg-surface-raised shadow-pop transition-transform active:scale-[0.99]"
-          >
-            <IconCircle tone="accent" size="hero"><Ticket2 size={42} aria-hidden /></IconCircle>
-            <p className="font-display text-display font-semibold tracking-tight">Bem-vindo</p>
-            <p className="max-w-md text-center text-lg text-text-muted">Toque na tela para retirar sua senha de atendimento</p>
-          </button>
-        )}
-
-        {step === "cpf" && (
-          <div className="flex w-full max-w-xl flex-col items-center gap-5">
-            <IconCircle tone="accent" size="hero"><Personalcard size={38} aria-hidden /></IconCircle>
-            <div className="flex flex-col items-center gap-1.5 text-center">
-              <p className="font-display text-2xl font-semibold">Informe seu CPF</p>
-              <p className="max-w-sm text-base text-text-muted">Agiliza seu atendimento e mantém seu histórico atualizado</p>
-            </div>
-
-            <p className="font-display text-4xl font-semibold tracking-[0.08em] tabular text-text">{formatCpf(cpf)}</p>
-
-            <div className="grid w-full max-w-xs grid-cols-3 gap-3">
-              {KEYPAD_KEYS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => pressKey(key)}
-                  aria-label={key === "back" ? "Apagar" : key === "clear" ? "Limpar" : key}
-                  className="flex h-16 items-center justify-center rounded-xl bg-surface-raised text-2xl font-semibold text-text shadow-pop transition-transform active:scale-[0.96]"
-                >
-                  {key === "back" ? <ArrowLeft2 size={22} aria-hidden /> : key === "clear" ? <Eraser size={20} aria-hidden /> : key}
-                </button>
-              ))}
-            </div>
-
-            <div className="mt-2 flex w-full max-w-xs flex-col items-center gap-3">
-              <button
-                type="button"
-                onClick={confirmCpf}
-                disabled={cpf.length !== CPF_LENGTH}
-                className="ms-gradient-button flex h-14 w-full items-center justify-center rounded-full text-lg font-semibold text-on-accent shadow-card disabled:pointer-events-none disabled:opacity-40"
-              >
-                Confirmar
-              </button>
-              <button type="button" onClick={skipCpf} className="text-sm font-medium text-text-subtle underline-offset-4 hover:text-text-muted hover:underline">
-                Prefiro não informar
-              </button>
-            </div>
-
-            <p className="max-w-sm text-center text-xs text-text-subtle">O CPF é opcional, conforme a legislação, mas recomendamos informar.</p>
-          </div>
-        )}
-
-        {step === "servico" && (
-          <div className="flex w-full max-w-4xl flex-col gap-8">
-            <p className="text-center font-display text-2xl font-semibold">
-              {visitorName ? `Olá, ${visitorName}! Qual atendimento você deseja?` : "Qual atendimento você deseja?"}
-            </p>
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              {TICKET_TYPES.map((t) => {
-                const Icon = SERVICE_ICON[t.code];
-                return (
-                  <button
-                    key={t.code}
-                    type="button"
-                    onClick={() => chooseType(t.code)}
-                    style={{ background: `var(--c-series-${SERVICE_SERIES[t.code]})` }}
-                    className="flex min-h-[160px] flex-col items-center justify-center gap-3 rounded-xl text-on-accent shadow-pop transition-transform active:scale-[0.98]"
-                  >
-                    <Icon size={40} aria-hidden />
-                    <span className="font-display text-xl font-semibold">{t.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {step === "preferencial" && (
-          <div className="flex w-full max-w-2xl flex-col items-center gap-8">
-            <IconCircle tone="accent" size="hero"><UserTick size={40} aria-hidden /></IconCircle>
-            <p className="text-center font-display text-2xl font-semibold">Atendimento preferencial?</p>
-            <p className="max-w-md text-center text-base text-text-muted">Idoso, gestante, pessoa com deficiência ou lactante</p>
-            <div className="grid w-full grid-cols-2 gap-5">
-              <button
-                type="button"
-                onClick={() => choosePreferential(true)}
-                className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-success-bg text-success shadow-pop transition-transform active:scale-[0.98]"
-              >
-                <IconCircle tone="success" size="3xl"><TickCircle size={26} aria-hidden /></IconCircle>
-                <span className="font-display text-xl font-semibold">Sim</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => choosePreferential(false)}
-                className="flex min-h-[140px] flex-col items-center justify-center gap-2 rounded-xl bg-surface-raised text-text shadow-pop transition-transform active:scale-[0.98]"
-              >
-                <IconCircle tone="neutral" size="3xl"><ArrowLeft2 size={26} className="rotate-180" aria-hidden /></IconCircle>
-                <span className="font-display text-xl font-semibold">Não</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === "confirmacao" && ticket && (
-          <button type="button" onClick={reset} className="flex w-full max-w-3xl flex-col items-center gap-6 rounded-xl bg-surface-raised p-10 text-center shadow-pop">
-            <IconCircle tone="success" size="hero"><Calendar size={40} aria-hidden /></IconCircle>
-            <p className="text-lg text-text-muted">{visitorName ? `Obrigado, ${visitorName}! Sua senha é` : "Sua senha é"}</p>
-            <p className="font-display text-display font-semibold tracking-tight text-accent">{ticket.code}</p>
-            <p className="text-xl font-medium">Retire seu comprovante</p>
-            <p className="text-base text-text-muted">Espera estimada: cerca de {ticket.waitMin} minutos</p>
-            <p className="text-sm text-text-subtle">Toque na tela para voltar ao início</p>
-          </button>
-        )}
-      </main>
-    </div>
-  );
+  if (!device) return <PareamentoDispositivo onPaired={setDevice} />;
+  if (step === "resultado" && result) return <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-bg p-6 text-center"><BrandLogo className="h-14 w-auto" /><Card className="w-full max-w-2xl"><CardBody className="flex flex-col items-center gap-5 py-14"><p className="text-xl text-text-muted">Sua senha é</p><p className="font-display text-8xl font-semibold text-accent">{result.codigo}</p><p className="text-xl font-medium">{result.tipoNome}</p><p className="text-lg text-text-muted">Aguarde ser chamado no painel.</p></CardBody></Card></main>;
+  return <main className="flex min-h-screen flex-col bg-bg p-6 text-text"><header className="flex items-center justify-between"><BrandLogo className="h-14 w-auto" /><Button variant="ghost" size="sm" onClick={() => { clearDevice("totem"); setDevice(null); }}>Trocar dispositivo</Button></header><div className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center gap-8 py-8">
+    {step === "cpf" ? <Card><CardHeader title="Digite o CPF do paciente" description="O CPF é usado somente para vincular a senha depois do chamado. O totem não consulta o cadastro." /><CardBody className="flex flex-col items-center gap-6"><input aria-label="CPF do paciente" inputMode="numeric" autoFocus value={formatCpf(cpf)} onChange={(e) => { setCpf(e.target.value.replace(/\D/g, "").slice(0, 11)); setMessage(null); }} className="w-full rounded-xl border border-border bg-surface p-5 text-center font-display text-4xl tracking-widest outline-none focus:border-accent" placeholder="000.000.000-00" />{message && <p role="alert" className="text-danger">{message}</p>}<Button size="lg" className="w-full justify-center" disabled={cpf.length !== 11} onClick={() => { if (!validCpf(cpf)) { setMessage("CPF inválido, confira os números."); return; } setStep("tipo"); }}>Continuar</Button><Button variant="secondary" size="lg" className="w-full justify-center" onClick={() => { setCpf(""); setStep("tipo"); }}>Não tenho / não quero informar o CPF</Button></CardBody></Card> : <Card><CardHeader title="Escolha o atendimento" description="Selecione uma opção para retirar sua senha." /><CardBody className="grid grid-cols-1 gap-4 sm:grid-cols-2">{types.isPending ? <p>Carregando opções…</p> : types.isError ? <EmptyState title="Não foi possível carregar os atendimentos" description={types.error.message} /> : (types.data ?? []).map((type) => <Button key={type.id} size="lg" variant={type.preferencial ? "primary" : "secondary"} className="min-h-24 justify-center text-lg" disabled={generate.isPending} onClick={() => { setMessage(null); generate.mutate({ tipoId: type.id, cpf: cpf || undefined, token: device.token }, { onSuccess: (value) => { setCpf(""); setResult(value); setStep("resultado"); window.setTimeout(() => { setResult(null); setStep("cpf"); }, 8_000); }, onError: (error) => setMessage(error instanceof ApiError && error.status === 429 ? "Aguarde um instante e tente de novo." : error instanceof ApiError ? error.message : "Não foi possível gerar a senha.") }); }}>{type.nome}{type.preferencial ? " · Preferencial" : ""}</Button>)}{message && <p role="alert" className="col-span-full text-center text-danger">{message}</p>}</CardBody></Card>}
+  </div></main>;
 }

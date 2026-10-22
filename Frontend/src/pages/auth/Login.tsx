@@ -45,6 +45,15 @@ export default function Login() {
       } else if (e instanceof UnitChoiceRequired) {
         setClinics(null);
         setUnits(e.units);
+      } else if (e instanceof ApiError && e.status === 409 && e.body && typeof e.body === "object") {
+        // Fallback para hot reload/bundles duplicados: mesmo que o instanceof
+        // das classes de domínio não coincida, o contrato HTTP continua sendo
+        // suficiente para mostrar a escolha em vez de deixar o usuário preso
+        // no formulário de login.
+        const body = e.body as { clinicas?: ClinicOption[]; unidades?: UnitOption[] };
+        if (Array.isArray(body.clinicas)) setClinics(body.clinicas);
+        else if (Array.isArray(body.unidades)) { setClinics(null); setUnits(body.unidades); }
+        else setError("É necessário escolher a clínica ou unidade.");
       } else if (e instanceof ApiError && e.status === 401) {
         reset();
         setError("E-mail ou senha incorretos.");

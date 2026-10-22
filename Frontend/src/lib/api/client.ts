@@ -29,6 +29,8 @@ export interface RequestOptions {
   signal?: AbortSignal;
   /** Login e afins: um 401 aqui é "senha errada", não "sessão expirada". */
   public?: boolean;
+  /** Credencial de um dispositivo, sem afetar a sessão da pessoa. */
+  token?: string;
 }
 
 function url(path: string, query?: Query): string {
@@ -42,7 +44,8 @@ function url(path: string, query?: Query): string {
 
 async function request(path: string, options: RequestOptions): Promise<{ body: unknown; headers: Headers }> {
   const headers: Record<string, string> = { Accept: "application/json" };
-  const token = options.public ? null : tokenProvider();
+  const userToken = options.public ? null : tokenProvider();
+  const token = options.token ?? userToken;
   if (token) headers.Authorization = `Bearer ${token}`;
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
@@ -65,7 +68,10 @@ async function request(path: string, options: RequestOptions): Promise<{ body: u
     try { body = JSON.parse(text); } catch { body = text; }
   }
   if (!response.ok) {
-    if (response.status === 401 && !options.public) unauthorizedHandler();
+    // Um request sem sessão ainda não é motivo para limpar o localStorage. Isso
+    // evita logout em uma aba recém-aberta, antes do AuthProvider terminar de
+    // registrar o token. Credenciais de dispositivo nunca encerram a sessão humana.
+    if (response.status === 401 && Boolean(userToken) && !options.token) unauthorizedHandler();
     const message = (body && typeof body === "object" && "erro" in body && typeof (body as { erro: unknown }).erro === "string")
       ? (body as { erro: string }).erro
       : `Erro ${response.status}`;

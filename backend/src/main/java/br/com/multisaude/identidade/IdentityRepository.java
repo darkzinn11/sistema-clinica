@@ -74,6 +74,41 @@ public class IdentityRepository {
             """, user.tenantId(), user.usuarioId(), user.unidadeId(), hash, java.sql.Timestamp.from(expires));
     }
 
+    // ---- meu perfil (só pessoas: dispositivo não tem perfil, senha nem sessão para gerir) ----
+
+    public boolean isPerson(UUID userId) {
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM clinica.usuarios WHERE id = ? AND ativo AND NOT dispositivo)", Boolean.class, userId));
+    }
+
+    public Optional<String> personPasswordHash(UUID userId) {
+        return jdbc.queryForList("SELECT senha_hash FROM clinica.usuarios WHERE id = ? AND ativo AND NOT dispositivo", String.class, userId).stream().findFirst();
+    }
+
+    public boolean updateName(UUID userId, String name) {
+        return jdbc.update("UPDATE clinica.usuarios SET nome = ?, atualizado_em = now() WHERE id = ? AND ativo AND NOT dispositivo", name.trim(), userId) == 1;
+    }
+
+    public void setPassword(UUID userId, String hash) {
+        jdbc.update("UPDATE clinica.usuarios SET senha_hash = ?, atualizado_em = now() WHERE id = ? AND NOT dispositivo", hash, userId);
+    }
+
+    /** Encerra todas as sessões da pessoa, menos a indicada. Devolve quantas encerrou. */
+    public int revokeOtherSessions(UUID userId, UUID keep) {
+        return jdbc.update("UPDATE clinica.sessoes SET revogada_em = now() WHERE usuario_id = ? AND id <> ? AND revogada_em IS NULL", userId, keep);
+    }
+
+    public List<SessionView> sessions(UUID userId, UUID current) {
+        return jdbc.query("SELECT s.id, s.criada_em, s.expira_em, un.nome FROM clinica.sessoes s JOIN clinica.unidades un ON un.tenant_id = s.tenant_id AND un.id = s.unidade_id "
+            + "WHERE s.usuario_id = ? AND s.revogada_em IS NULL AND s.expira_em > now() ORDER BY s.criada_em DESC, s.id",
+            (rs, row) -> new SessionView(rs.getObject(1, UUID.class), rs.getObject(2, java.time.OffsetDateTime.class), rs.getObject(3, java.time.OffsetDateTime.class),
+                rs.getString(4), rs.getObject(1, UUID.class).equals(current)), userId);
+    }
+
+    /** Só sessões da própria pessoa. */
+    public boolean revokeSessionOf(UUID userId, UUID sessionId) {
+        return jdbc.update("UPDATE clinica.sessoes SET revogada_em = now() WHERE id = ? AND usuario_id = ? AND revogada_em IS NULL", sessionId, userId) == 1;
+    }
+
     public void revoke(UUID sessionId) {
         jdbc.update("UPDATE clinica.sessoes SET revogada_em = now() WHERE id = ? AND revogada_em IS NULL", sessionId);
     }
@@ -121,19 +156,28 @@ public class IdentityRepository {
             + "ON CONFLICT (tenant_id, nome) DO UPDATE SET permissoes = ARRAY['totem:usar'] RETURNING id", UUID.class, UUID.randomUUID(), tenant);
     }
 
-    public Identity createDevice(UUID tenant, UUID unit, UUID role, String name) {
+    /** Papel exclusivo do painel: somente leitura das chamadas públicas da fila. */
+    public UUID panelRole(UUID tenant) {
+        return jdbc.queryForObject("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Painel de TV', ARRAY['painel:ver']) "
+            + "ON CONFLICT (tenant_id, nome) DO UPDATE SET permissoes = ARRAY['painel:ver'] RETURNING id", UUID.class, UUID.randomUUID(), tenant);
+    }
+
+    public Identity createDevice(UUID tenant, UUID unit, UUID role, String name, String type) {
         UUID id = UUID.randomUUID();
         // Senha inutilizável: não é um hash válido, então nenhum login com este usuário passa.
-        jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash, dispositivo) VALUES (?, ?, ?, ?, '!', true)",
-            id, tenant, name.trim(), "totem-" + id + "@dispositivo.invalid");
+        String normalizedType = "painel".equals(type) ? "painel" : "totem";
+        jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash, dispositivo, dispositivo_tipo) VALUES (?, ?, ?, ?, '!', true, ?)",
+            id, tenant, name.trim(), normalizedType + "-" + id + "@dispositivo.invalid", normalizedType);
         jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, id, unit, role);
-        return new Identity(id, tenant, unit, name.trim(), "totem-" + id + "@dispositivo.invalid", "Totem", List.of("totem:usar"));
+        return new Identity(id, tenant, unit, name.trim(), normalizedType + "-" + id + "@dispositivo.invalid",
+            "painel".equals(normalizedType) ? "Painel de TV" : "Totem",
+            "painel".equals(normalizedType) ? List.of("painel:ver") : List.of("totem:usar"));
     }
 
     public List<DeviceView> devices(UUID unit) {
-        return jdbc.query("SELECT u.id, u.nome, u.ativo FROM clinica.usuarios u JOIN clinica.vinculos v ON v.tenant_id = u.tenant_id AND v.usuario_id = u.id "
+        return jdbc.query("SELECT u.id, u.nome, u.ativo, u.dispositivo_tipo FROM clinica.usuarios u JOIN clinica.vinculos v ON v.tenant_id = u.tenant_id AND v.usuario_id = u.id "
             + "WHERE u.dispositivo AND v.unidade_id = ? ORDER BY u.nome, u.id LIMIT 200",
-            (rs, row) -> new DeviceView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getBoolean("ativo")), unit);
+            (rs, row) -> new DeviceView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getBoolean("ativo"), rs.getString("dispositivo_tipo")), unit);
     }
 
     /** Desativa o dispositivo e derruba os tokens. Só dispositivos da unidade da sessão. */
