@@ -54,11 +54,13 @@ public class BootstrapAdmin implements ApplicationRunner {
                 throw new IllegalStateException("Clínica já cadastrada; bootstrap não altera dados existentes.");
             }
             jdbc.update("INSERT INTO clinica.tenants (id, nome) VALUES (?, ?)", tenant, required("BOOTSTRAP_CLINIC_NAME"));
+            // Código para entrar (BOOTSTRAP_CLINIC_CODE); se não vier, deriva do id da clínica.
+            String code = env.getProperty("BOOTSTRAP_CLINIC_CODE");
+            if (code == null || code.isBlank()) code = "clinica-" + tenant.toString().replace("-", "").substring(0, 8);
+            jdbc.update("INSERT INTO clinica.codigos_clinica (codigo, tenant_id) VALUES (?, ?)", code.trim().toLowerCase(), tenant);
             jdbc.update("INSERT INTO clinica.unidades (id, tenant_id, nome) VALUES (?, ?, ?)", unit, tenant, required("BOOTSTRAP_UNIT_NAME"));
-            jdbc.update("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Administrador', ARRAY['usuarios:ler','usuarios:criar','pacientes:ler','pacientes:criar'])",
-                request.papelId(), tenant);
-            jdbc.update("INSERT INTO clinica.papeis (tenant_id, nome, permissoes) VALUES (?, 'Recepção', ARRAY[]::text[])", tenant);
-            repository.createUser(tenant, request, hash);
+            var roles = DefaultRoles.insert(jdbc, tenant);
+            repository.createUser(tenant, new CreateUserRequest(name, email, password, unit, roles.administrador()), hash);
             return null;
         });
         System.out.println("Clínica, unidade e administrador cadastrados. Nenhuma credencial será exibida.");

@@ -29,10 +29,35 @@ public class IdentityRepository {
         """;
     private static final String IDENTITY_FIELDS = "u.id, u.tenant_id, v.unidade_id, u.nome, u.email, p.nome AS papel, p.permissoes";
 
-    public Optional<Credentials> credentials(String email, UUID unit) {
+    /** Todos os vínculos ativos do e-mail na clínica em contexto (uma linha por unidade). */
+    public List<Credentials> credentials(String email) {
         return jdbc.query("SELECT " + IDENTITY_FIELDS + ", u.senha_hash " + MEMBERSHIP
-            + " WHERE u.ativo AND u.email = ? AND v.unidade_id = ?",
-            (rs, row) -> new Credentials(identity(rs), rs.getString("senha_hash")), email, unit).stream().findFirst();
+            + " WHERE u.ativo AND u.email = ? ORDER BY n.nome, n.id",
+            (rs, row) -> new Credentials(identity(rs), rs.getString("senha_hash")), email);
+    }
+
+    /** Fora de qualquer clínica: em quais clínicas o e-mail tem conta (índice mantido pelo banco; só consulta por igualdade). */
+    public List<UUID> tenantsForEmail(String email) {
+        return jdbc.queryForList("SELECT tenant_id FROM clinica.emails_login WHERE email = ? ORDER BY tenant_id LIMIT 20", UUID.class, email);
+    }
+
+    public Optional<String> clinicName(UUID tenant) {
+        return jdbc.queryForList("SELECT nome FROM clinica.tenants WHERE id = ?", String.class, tenant).stream().findFirst();
+    }
+
+    /** Fora de qualquer clínica: `codigos_clinica` não tem segurança por linha. Só consulta por igualdade. */
+    public Optional<UUID> tenantByCode(String code) {
+        return jdbc.queryForList("SELECT tenant_id FROM clinica.codigos_clinica WHERE codigo = ?", UUID.class, code).stream().findFirst();
+    }
+
+    public Optional<String> codeOf(UUID tenant) {
+        return jdbc.queryForList("SELECT codigo FROM clinica.codigos_clinica WHERE tenant_id = ?", String.class, tenant).stream().findFirst();
+    }
+
+    /** Nomes da clínica e da unidade da sessão. Dentro do contexto da clínica. */
+    public Optional<String[]> names(UUID unit) {
+        return jdbc.query("SELECT t.nome, n.nome FROM clinica.unidades n JOIN clinica.tenants t ON t.id = n.tenant_id WHERE n.id = ?",
+            (rs, row) -> new String[] {rs.getString(1), rs.getString(2)}, unit).stream().findFirst();
     }
 
     public Optional<Session> session(byte[] hash) {
@@ -54,7 +79,7 @@ public class IdentityRepository {
     }
 
     public List<UserView> users() {
-        return jdbc.query("SELECT id, nome, email, ativo FROM clinica.usuarios ORDER BY nome, id LIMIT 200",
+        return jdbc.query("SELECT id, nome, email, ativo FROM clinica.usuarios WHERE NOT dispositivo ORDER BY nome, id LIMIT 200",
             (rs, row) -> new UserView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getString("email"), rs.getBoolean("ativo")));
     }
 
@@ -86,6 +111,37 @@ public class IdentityRepository {
         jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)",
             tenant, id, request.unidadeId(), request.papelId());
         return new UserView(id, request.nome().trim(), email, true);
+    }
+
+    // ---- dispositivos (totem) ----
+
+    /** Papel do totem: uma única permissão. É regravado a cada cadastro para ninguém ampliar o que um totem alcança. */
+    public UUID totemRole(UUID tenant) {
+        return jdbc.queryForObject("INSERT INTO clinica.papeis (id, tenant_id, nome, permissoes) VALUES (?, ?, 'Totem', ARRAY['totem:usar']) "
+            + "ON CONFLICT (tenant_id, nome) DO UPDATE SET permissoes = ARRAY['totem:usar'] RETURNING id", UUID.class, UUID.randomUUID(), tenant);
+    }
+
+    public Identity createDevice(UUID tenant, UUID unit, UUID role, String name) {
+        UUID id = UUID.randomUUID();
+        // Senha inutilizável: não é um hash válido, então nenhum login com este usuário passa.
+        jdbc.update("INSERT INTO clinica.usuarios (id, tenant_id, nome, email, senha_hash, dispositivo) VALUES (?, ?, ?, ?, '!', true)",
+            id, tenant, name.trim(), "totem-" + id + "@dispositivo.invalid");
+        jdbc.update("INSERT INTO clinica.vinculos (tenant_id, usuario_id, unidade_id, papel_id) VALUES (?, ?, ?, ?)", tenant, id, unit, role);
+        return new Identity(id, tenant, unit, name.trim(), "totem-" + id + "@dispositivo.invalid", "Totem", List.of("totem:usar"));
+    }
+
+    public List<DeviceView> devices(UUID unit) {
+        return jdbc.query("SELECT u.id, u.nome, u.ativo FROM clinica.usuarios u JOIN clinica.vinculos v ON v.tenant_id = u.tenant_id AND v.usuario_id = u.id "
+            + "WHERE u.dispositivo AND v.unidade_id = ? ORDER BY u.nome, u.id LIMIT 200",
+            (rs, row) -> new DeviceView(rs.getObject("id", UUID.class), rs.getString("nome"), rs.getBoolean("ativo")), unit);
+    }
+
+    /** Desativa o dispositivo e derruba os tokens. Só dispositivos da unidade da sessão. */
+    public boolean revokeDevice(UUID id, UUID unit) {
+        int changed = jdbc.update("UPDATE clinica.usuarios SET ativo = false WHERE id = ? AND dispositivo AND EXISTS "
+            + "(SELECT 1 FROM clinica.vinculos v WHERE v.tenant_id = clinica.usuarios.tenant_id AND v.usuario_id = clinica.usuarios.id AND v.unidade_id = ?)", id, unit);
+        if (changed == 1) jdbc.update("UPDATE clinica.sessoes SET revogada_em = now() WHERE usuario_id = ? AND revogada_em IS NULL", id);
+        return changed == 1;
     }
 
     private static Identity identity(ResultSet rs) throws SQLException {

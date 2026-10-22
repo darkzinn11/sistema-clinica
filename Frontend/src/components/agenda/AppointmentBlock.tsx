@@ -1,5 +1,5 @@
-import { Clock, Flash, Refresh2, UserAdd } from "iconsax-reactjs";
-import { insuranceName, patientById, procedureById, type Appointment } from "@/lib/mock/core";
+import { Clock } from "iconsax-reactjs";
+import type { AgendaAppointment as Appointment } from "@/lib/agenda/model";
 import { APPOINTMENT_STATUS } from "@/lib/status";
 import { cn } from "@/lib/cn";
 
@@ -22,15 +22,21 @@ export function AppointmentBlock({
   height,
   onClick,
   selected = false,
+  lane,
+  accent,
 }: {
   appointment: Appointment;
   top: number;
   height: number;
   onClick: () => void;
   selected?: boolean;
+  /** Visão geral: agendamentos de profissionais diferentes ao mesmo tempo dividem a largura da coluna. */
+  lane?: { index: number; count: number };
+  /** Cor do profissional (visão geral), para saber de quem é cada bloco. */
+  accent?: string;
 }) {
-  const patient = patientById(appointment.patientId);
-  const proc = procedureById(appointment.procedureId);
+  const patientName = appointment.patientName;
+  const procName = appointment.procedureName;
   const status = APPOINTMENT_STATUS[appointment.status];
   // Densidade por altura: 1 linha (nome + hora) → nome / hora → + procedimento → + status e marcadores.
   const compact = height < 46;
@@ -42,13 +48,17 @@ export function AppointmentBlock({
     <button
       type="button"
       onClick={onClick}
-      data-kind={proc?.kind ?? "consulta"}
-      data-return={appointment.isRetorno || undefined}
+      data-kind={appointment.procedureKind}
       data-cancelled={["cancelado_pelo_profissional", "desmarcado_pelo_paciente"].includes(appointment.status) || undefined}
       data-selected={selected || undefined}
-      aria-label={[appointment.start, patient?.name ?? "Paciente", proc?.name ?? "Agendamento", status.label].join(", ")}
-      title={[appointment.start + "–" + appointment.end, patient?.name ?? "Paciente", proc?.name ?? "Agendamento", status.label].join(" · ")}
-      style={{ top, height }}
+      aria-label={[appointment.start, patientName, procName, status.label].join(", ")}
+      title={[appointment.start + "–" + appointment.end, patientName, procName, accent ? appointment.professionalName : null, status.label].filter(Boolean).join(" · ")}
+      style={{
+        top,
+        height,
+        ...(lane ? { left: `calc(${(lane.index / lane.count) * 100}% + 2px)`, width: `calc(${100 / lane.count}% - 4px)`, right: "auto" } : {}),
+        ...(accent ? { borderLeft: `3px solid ${accent}` } : {}),
+      }}
       className={cn(
         "ms-appointment absolute inset-x-1 z-10 flex flex-col overflow-hidden text-left focus-visible:outline-none",
         compact ? "justify-center rounded-md px-2.5" : "gap-0.5 rounded-lg px-3 py-1.5",
@@ -57,13 +67,13 @@ export function AppointmentBlock({
       {compact ? (
         <span className="flex min-w-0 items-center gap-1.5 text-[12px] leading-tight">
           {statusDot}
-          <span className="ms-appointment__name truncate font-semibold text-text">{patient?.name ?? "Paciente"}</span>
+          <span className="ms-appointment__name truncate font-semibold text-text">{patientName}</span>
           <span className="ms-appointment__meta ml-auto shrink-0 tabular text-[11px] font-medium">{appointment.start}</span>
         </span>
       ) : (
         <>
           <span className={cn("ms-appointment__name text-[13px] font-semibold leading-snug text-text", showFooter ? "line-clamp-2" : "truncate")}>
-            {patient?.name ?? "Paciente"}
+            {patientName}
           </span>
           <span className="ms-appointment__meta flex min-w-0 items-center gap-1.5 text-[11px] font-medium">
             <Clock size={12} aria-hidden className="shrink-0" />
@@ -73,17 +83,11 @@ export function AppointmentBlock({
         </>
       )}
       {showProc && (
-        <span className="ms-appointment__meta truncate text-[11px]">{proc?.name}</span>
+        <span className="ms-appointment__meta truncate text-[11px]">{procName}{accent ? ` · ${appointment.professionalName}` : ""}</span>
       )}
       {showFooter && (
         <span className="mt-auto flex flex-wrap items-center gap-1 pt-0.5">
           <span className="ms-appointment__meta truncate text-[10px] font-medium">{status.label}</span>
-          {appointment.isEncaixe && <Flash size={11} variant="Bold" className="text-warning" aria-label="Encaixe" />}
-          {appointment.isRetorno && <Refresh2 size={11} className="text-info" aria-label="Retorno" />}
-          {appointment.isFirstVisit && <UserAdd size={11} className="text-accent" aria-label="1ª consulta" />}
-          {appointment.insuranceId !== "i0" && (
-            <span className="truncate rounded-full bg-surface-raised/70 px-1.5 text-[10px] text-text-subtle">{insuranceName(appointment.insuranceId)}</span>
-          )}
         </span>
       )}
     </button>

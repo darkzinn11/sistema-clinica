@@ -1,5 +1,5 @@
-import { Calendar2, CloseCircle, SearchNormal1, TickCircle, Timer1, Warning2 } from "iconsax-reactjs";
-import { useState } from "react";
+import { Calendar2, CloseCircle, SearchNormal1, TickCircle, Timer1 } from "iconsax-reactjs";
+import { useMemo, useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,18 +11,21 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR, TableFooter } from "@/components/ui/table";
 import { Segmented } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useAgendaStore } from "@/components/agenda/store";
-import { NOW_MIN, hasPendingPayment, isCancelled, norm, toMin } from "@/lib/mock/agenda";
-import { NOW_TIME, TODAY, insuranceName, patientById, procedureById, professionalById, type Appointment } from "@/lib/mock/core";
+import { Skeleton } from "@/components/ui/misc";
+import { useAgendaItems, useChangeStatus } from "@/lib/api/agenda";
+import { isCancelled, toAppointment, type AgendaAppointment as Appointment } from "@/lib/agenda/model";
+import { nowMin, todayIso, toMin } from "@/lib/agenda/time";
+
+const norm = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 type RowState = "aguardando_chegada" | "chegou" | "atrasado" | "faltou" | "cancelado";
 type FilterState = "todos" | Exclude<RowState, "cancelado">;
 
-function rowState(a: Appointment): RowState {
-  if (a.status === "nao_compareceu") return "faltou";
+function rowState(a: Appointment, now: number): RowState {
+  if (a.backendStatus === "nao_compareceu") return "faltou";
   if (isCancelled(a.status)) return "cancelado";
-  if (a.status === "atendido" || ["aguardando", "aguardando_pagamento", "chamando", "em_atendimento"].includes(a.status)) return "chegou";
-  if (toMin(a.start) < NOW_MIN - 5) return "atrasado";
+  if (["check_in", "em_atendimento", "atendido"].includes(a.backendStatus)) return "chegou";
+  if (toMin(a.start) < now - 5) return "atrasado";
   return "aguardando_chegada";
 }
 
@@ -35,27 +38,28 @@ const STATE_LABEL: Record<RowState, string> = {
 };
 
 export default function Page() {
-  const { apptsOn, update } = useAgendaStore();
+  const today = todayIso();
+  const now = nowMin();
+  const items = useAgendaItems(today, today);
+  const changeStatus = useChangeStatus();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterState>("todos");
-  const appts = apptsOn(TODAY)
-    .filter((a) => !isCancelled(a.status))
-    .sort((a, b) => a.start.localeCompare(b.start));
+  const all = useMemo(() => (items.data ?? []).map(toAppointment), [items.data]);
+  const appts = all.filter((a) => !isCancelled(a.status) || a.backendStatus === "nao_compareceu").filter((a) => a.backendStatus !== "remarcado");
 
-  const previstos = appts.length;
-  const chegaram = appts.filter((a) => rowState(a) === "chegou").length;
-  const atrasados = appts.filter((a) => rowState(a) === "atrasado").length;
-  const faltas = apptsOn(TODAY).filter((a) => a.status === "nao_compareceu").length;
+  const previstos = all.filter((a) => !isCancelled(a.status)).length;
+  const chegaram = appts.filter((a) => rowState(a, now) === "chegou").length;
+  const atrasados = appts.filter((a) => rowState(a, now) === "atrasado").length;
+  const faltas = all.filter((a) => a.backendStatus === "nao_compareceu").length;
 
   const filtered = appts.filter((a) => {
-    if (filter !== "todos" && rowState(a) !== filter) return false;
+    if (filter !== "todos" && rowState(a, now) !== filter) return false;
     if (!query) return true;
-    const patient = patientById(a.patientId);
-    return patient ? norm(patient.name).includes(norm(query)) : false;
+    return norm(a.patientName).includes(norm(query));
   });
 
   function checkIn(a: Appointment) {
-    update(a.id, { status: "aguardando", arrivedAt: NOW_TIME });
+    changeStatus.mutate({ id: a.id, status: "check_in", versao: a.version });
   }
 
   return (
@@ -91,7 +95,11 @@ export default function Page() {
             />
           </div>
         </CardBody>
-        {filtered.length === 0 ? (
+        {items.isPending ? (
+          <div className="p-5"><Skeleton className="h-64 w-full" /></div>
+        ) : items.isError ? (
+          <EmptyState title="Não foi possível carregar os agendamentos." description={items.error.message} />
+        ) : filtered.length === 0 ? (
           <EmptyState title="Nenhum agendamento encontrado" description="Ajuste a busca ou o filtro de situação." />
         ) : (
           <>
@@ -102,7 +110,6 @@ export default function Page() {
                   <TH>Paciente</TH>
                   <TH>Profissional</TH>
                   <TH>Procedimento</TH>
-                  <TH>Convênio</TH>
                   <TH>Chegada</TH>
                   <TH align="right">Espera</TH>
                   <TH align="right">Ação</TH>
@@ -110,36 +117,27 @@ export default function Page() {
               </THead>
               <TBody>
                 {filtered.map((a) => {
-                  const patient = patientById(a.patientId);
-                  const state = rowState(a);
-                  const waitMin = a.arrivedAt && state === "chegou" ? NOW_MIN - toMin(a.arrivedAt) : null;
-                  const pending = hasPendingPayment(a);
+                  const state = rowState(a, now);
+                  const waitMin = a.arrivedAt && a.backendStatus === "check_in" ? Math.max(0, now - toMin(a.arrivedAt)) : null;
                   return (
                     <TR key={a.id}>
                       <TD className="tabular">{a.start}</TD>
                       <TD>
                         <div className="flex items-center gap-2.5">
-                          <Avatar name={patient?.name ?? "Paciente"} size="sm" />
+                          <Avatar name={a.patientName} size="sm" />
                           <div className="min-w-0">
-                            <p className="flex items-center gap-1 truncate text-text">
-                              {patient?.name}
-                              {patient && patient.alerts.length > 0 && <Warning2 size={14} variant="Bold" className="shrink-0 text-danger" aria-label="Paciente com alerta clínico" />}
-                            </p>
-                            {pending && (
-                              <Badge tone="warning" size="sm">Pagamento pendente</Badge>
-                            )}
+                            <p className="truncate text-text">{a.patientName}</p>
                           </div>
                         </div>
                       </TD>
-                      <TD>{professionalById(a.professionalId)?.name}</TD>
-                      <TD className="text-text-muted">{procedureById(a.procedureId)?.name}</TD>
-                      <TD className="text-text-muted">{insuranceName(a.insuranceId)}</TD>
+                      <TD>{a.professionalName}</TD>
+                      <TD className="text-text-muted">{a.procedureName}</TD>
                       <TD className="tabular">{a.arrivedAt ?? "—"}</TD>
                       <TD align="right">
                         {waitMin !== null ? (
                           <Badge tone={waitMin > 20 ? "danger" : waitMin > 10 ? "warning" : "neutral"} size="sm">{waitMin} min</Badge>
                         ) : state === "atrasado" ? (
-                          <Badge tone="danger" size="sm">{NOW_MIN - toMin(a.start)} min de atraso</Badge>
+                          <Badge tone="danger" size="sm">{now - toMin(a.start)} min de atraso</Badge>
                         ) : (
                           "—"
                         )}
@@ -150,7 +148,7 @@ export default function Page() {
                         ) : state === "faltou" ? (
                           <Badge tone="danger" size="sm">{STATE_LABEL.faltou}</Badge>
                         ) : (
-                          <Button size="sm" variant="primary" icon={TickCircle} onClick={() => checkIn(a)}>
+                          <Button size="sm" variant="primary" icon={TickCircle} disabled={changeStatus.isPending} onClick={() => checkIn(a)}>
                             Fazer check-in
                           </Button>
                         )}

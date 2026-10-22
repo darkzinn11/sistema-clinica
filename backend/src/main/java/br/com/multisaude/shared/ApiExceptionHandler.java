@@ -2,6 +2,7 @@ package br.com.multisaude.shared;
 
 import java.util.Map;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -20,6 +21,27 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<?> conflict(DataIntegrityViolationException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Cadastro duplicado ou referência inválida."));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    ResponseEntity<?> tooManyRequests(RateLimitExceededException exception) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).header("Retry-After", String.valueOf(exception.retryAfterSeconds()))
+            .body(Map.of("erro", "Muitas consultas em pouco tempo. Aguarde e tente novamente."));
+    }
+
+    @ExceptionHandler(UnitChoiceRequiredException.class)
+    ResponseEntity<?> chooseUnit(UnitChoiceRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Escolha a unidade.", "unidades", exception.units()));
+    }
+
+    @ExceptionHandler(ClinicChoiceRequiredException.class)
+    ResponseEntity<?> chooseClinic(ClinicChoiceRequiredException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("erro", "Escolha a clínica.", "clinicas", exception.clinics()));
+    }
+
+    @ExceptionHandler(EmptyResultDataAccessException.class)
+    ResponseEntity<?> notFound(EmptyResultDataAccessException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("erro", "Registro não encontrado."));
     }
 
     @ExceptionHandler(ResponseStatusException.class)

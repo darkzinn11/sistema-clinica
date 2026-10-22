@@ -1,7 +1,7 @@
 import { Add } from "iconsax-reactjs";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import type { Appointment } from "@/lib/mock/core";
-import { toMin, NOW_MIN } from "@/lib/mock/agenda";
+import type { AgendaAppointment as Appointment } from "@/lib/agenda/model";
+import { toMin, nowMin } from "@/lib/agenda/time";
 import { AppointmentBlock } from "@/components/agenda/AppointmentBlock";
 import { cn } from "@/lib/cn";
 
@@ -34,6 +34,37 @@ function OffHours({ top, height, label }: { top: number; height: number; label?:
   );
 }
 
+/**
+ * Posição lateral dos blocos de uma coluna. Sem lanes, todos ocupam a largura toda. Com lanes, cada grupo de blocos que se
+ * sobrepõem divide a largura entre as "faixas" necessárias (primeira faixa livre para cada bloco).
+ */
+function laneLayout(list: Appointment[], enabled: boolean): { appointment: Appointment; lane?: { index: number; count: number } }[] {
+  if (!enabled) return list.map((appointment) => ({ appointment }));
+  const sorted = [...list].sort((a, b) => toMin(a.start) - toMin(b.start) || toMin(a.end) - toMin(b.end));
+  const placed: { appointment: Appointment; index: number; cluster: number }[] = [];
+  const clusterCount: number[] = [];
+  let laneEnds: number[] = [];
+  let clusterEnd = -1;
+  let cluster = -1;
+  for (const appointment of sorted) {
+    const start = toMin(appointment.start);
+    if (start >= clusterEnd) {
+      cluster += 1;
+      clusterCount[cluster] = 0;
+      laneEnds = [];
+      clusterEnd = toMin(appointment.end);
+    } else {
+      clusterEnd = Math.max(clusterEnd, toMin(appointment.end));
+    }
+    let index = laneEnds.findIndex((end) => end <= start);
+    if (index === -1) index = laneEnds.length;
+    laneEnds[index] = toMin(appointment.end);
+    clusterCount[cluster] = Math.max(clusterCount[cluster], index + 1);
+    placed.push({ appointment, index, cluster });
+  }
+  return placed.map((p) => ({ appointment: p.appointment, lane: { index: p.index, count: clusterCount[p.cluster] } }));
+}
+
 /** Agendamentos cancelados/desmarcados não entram na contagem do cabeçalho. */
 const CANCELLED = ["cancelado_pelo_profissional", "desmarcado_pelo_paciente"];
 
@@ -55,6 +86,8 @@ export function DayGrid({
   onAppointmentClick,
   minColWidth = 200,
   selectedAppointmentId,
+  overlapLanes = false,
+  accentFor,
 }: {
   columns: GridColumn[];
   dayStart?: number;
@@ -69,11 +102,15 @@ export function DayGrid({
   onAppointmentClick: (appt: Appointment) => void;
   minColWidth?: number;
   selectedAppointmentId?: string | null;
+  /** Visão geral (vários profissionais na mesma coluna): blocos que se sobrepõem dividem a largura. */
+  overlapLanes?: boolean;
+  accentFor?: (appt: Appointment) => string | undefined;
 }) {
   const dayStartMin = dayStart * 60;
   const totalHeight = (dayEnd - dayStart) * 60 * pxPerMin;
   const hours = Array.from({ length: dayEnd - dayStart + 1 }, (_, i) => dayStart + i);
   const y = (min: number) => (min - dayStartMin) * pxPerMin;
+  const NOW_MIN = nowMin();
   const showNow = columns.some((c) => c.isToday) && NOW_MIN >= dayStartMin && NOW_MIN <= dayEnd * 60;
   const nowY = Math.round(y(NOW_MIN));
   const nowLabel = `${String(Math.floor(NOW_MIN / 60)).padStart(2, "0")}:${String(NOW_MIN % 60).padStart(2, "0")}`;
@@ -204,10 +241,12 @@ export function DayGrid({
                   ))}
 
                 {!closed &&
-                  appointmentsFor(col.id).map((a) => (
+                  laneLayout(appointmentsFor(col.id), overlapLanes).map(({ appointment: a, lane }) => (
                     <AppointmentBlock
                       key={a.id}
                       appointment={a}
+                      lane={lane}
+                      accent={accentFor?.(a)}
                       top={y(toMin(a.start)) + 1}
                       height={Math.max(18, (toMin(a.end) - toMin(a.start)) * pxPerMin - 3)}
                       onClick={() => onAppointmentClick(a)}

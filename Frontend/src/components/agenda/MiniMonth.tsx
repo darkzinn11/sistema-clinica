@@ -1,6 +1,6 @@
 import { ArrowLeft2, ArrowRight2 } from "iconsax-reactjs";
 import { useState } from "react";
-import { TODAY } from "@/lib/mock/core";
+import { todayIso } from "@/lib/agenda/time";
 import { cn } from "@/lib/cn";
 
 const WEEKDAYS = ["D", "S", "T", "Q", "Q", "S", "S"];
@@ -54,7 +54,7 @@ export function MiniMonth({ value, onSelect }: { value: string; onSelect: (iso: 
         ))}
         {cells.map((iso, i) => {
           if (!iso) return <span key={`b-${i}`} />;
-          const isToday = iso === TODAY;
+          const isToday = iso === todayIso();
           const isSelected = iso === value;
           const isSunday = new Date(`${iso}T12:00:00`).getDay() === 0;
           return (

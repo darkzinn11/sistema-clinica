@@ -33,12 +33,16 @@ public class IdentityController {
     @PostMapping("/auth/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
         // Não confiar em X-Forwarded-For enviado pelo cliente.
-        limiter.check(http.getRemoteAddr(), request.tenantId() + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
+        String clinic = request.tenantId() != null ? request.tenantId().toString()
+            : request.codigoClinica() != null && !request.codigoClinica().isBlank() ? "codigo:" + request.codigoClinica().trim().toLowerCase(java.util.Locale.ROOT) : "email";
+        limiter.check(http.getRemoteAddr(), clinic + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
         return service.login(request);
     }
 
     @GetMapping("/auth/me")
-    public Identity me(@AuthenticationPrincipal Session session) { return session.identity(); }
+    public MeView me(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> service.me(session.identity()));
+    }
 
     @PostMapping("/auth/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
@@ -59,6 +63,34 @@ public class IdentityController {
     @PreAuthorize("hasAuthority('usuarios:ler')")
     public List<RoleView> roles(@AuthenticationPrincipal Session session) {
         return transactions.inTenant(session.identity().tenantId(), repository::roles);
+    }
+
+    // ---- dispositivos (totem) ----
+
+    @PostMapping("/dispositivos")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public DeviceCreated createDevice(@AuthenticationPrincipal Session session, @Valid @RequestBody CreateDeviceRequest request) {
+        java.time.Duration validFor = java.time.Duration.ofDays(365);
+        return transactions.inTenant(session.identity().tenantId(), () -> {
+            Identity device = repository.createDevice(session.identity().tenantId(), session.identity().unidadeId(), repository.totemRole(session.identity().tenantId()), request.nome());
+            String token = service.openDeviceSession(device, validFor);
+            return new DeviceCreated(new DeviceView(device.usuarioId(), device.nome(), true), token, java.time.Instant.now().plus(validFor));
+        });
+    }
+
+    @GetMapping("/dispositivos")
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public List<DeviceView> devices(@AuthenticationPrincipal Session session) {
+        return transactions.inTenant(session.identity().tenantId(), () -> repository.devices(session.identity().unidadeId()));
+    }
+
+    @DeleteMapping("/dispositivos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAuthority('fila:configurar')")
+    public void revokeDevice(@AuthenticationPrincipal Session session, @PathVariable java.util.UUID id) {
+        boolean revoked = transactions.inTenant(session.identity().tenantId(), () -> repository.revokeDevice(id, session.identity().unidadeId()));
+        if (!revoked) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dispositivo não encontrado.");
     }
 
     @PostMapping("/usuarios")

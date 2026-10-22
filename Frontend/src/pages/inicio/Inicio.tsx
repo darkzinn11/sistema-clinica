@@ -28,10 +28,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { useAgendaStore } from "@/components/agenda/store";
-import { addDaysIso, brl, dateLong, dateShort, pct } from "@/lib/format";
-import { IN_CLINIC, NOW_MIN, PENDENCIAS, birthdaysThisWeek, isCancelled, occupancy, professionalsWorking, toMin, trendEndingAt } from "@/lib/mock/agenda";
-import { TODAY, appointmentsOn, currentUser, patientById, procedureById, professionalById } from "@/lib/mock/core";
+import { Skeleton } from "@/components/ui/misc";
+import { useAuth } from "@/lib/auth/auth";
+import { useInicio } from "@/lib/api/inicio";
+import { statusFromBackend } from "@/lib/api/status-map";
+import { brl, dateLong, dateShort, pct } from "@/lib/format";
+import { PENDENCIAS } from "@/lib/mock/agenda";
 
 type DashboardDelta = { value: number; period: string; goodWhenUp?: boolean };
 
@@ -74,53 +76,55 @@ function DashboardMetric({
 }
 
 function greeting() {
-  const hour = Math.floor(NOW_MIN / 60);
+  const hour = new Date().getHours();
   if (hour < 12) return "Bom dia";
   if (hour < 18) return "Boa tarde";
   return "Boa noite";
 }
 
+/** O backend manda a hora da unidade com o deslocamento ("2026-10-21T14:20:00-03:00"): a hora está no próprio texto. */
+const clock = (iso: string) => iso.slice(11, 16);
+const percentChange = (now: number, before: number) => (before ? Math.round(((now - before) / before) * 100) : 0);
+const seriesColor = (hex: string | null) => hex ?? "var(--c-series-1)";
+
+function InicioLoading() {
+  return (
+    <div className="mx-auto flex max-w-7xl flex-col gap-5" aria-busy="true" aria-label="Carregando o início">
+      <Skeleton className="h-9 w-64" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-40 w-full" />)}
+      </div>
+      <Skeleton className="h-72 w-full" />
+    </div>
+  );
+}
+
 export default function Page() {
-  const { apptsOn } = useAgendaStore();
-  const today = apptsOn(TODAY);
-  const nonCancelled = today.filter((a) => !isCancelled(a.status));
+  const { session } = useAuth();
+  const inicio = useInicio();
+  const firstName = session?.usuario.nome.split(" ")[0] ?? "";
 
-  // --- indicadores -----------------------------------------------------------
-  const yesterday = appointmentsOn(addDaysIso(TODAY, -1)).filter((a) => !isCancelled(a.status)).length;
-  const agendamentosDelta = yesterday ? Math.round(((nonCancelled.length - yesterday) / yesterday) * 100) : 0;
-
-  const decided = nonCancelled.filter((a) => a.status === "confirmado" || a.status === "nao_confirmado");
-  const confirmedPct = decided.length ? Math.round((decided.filter((a) => a.status === "confirmado").length / decided.length) * 100) : 0;
-
-  const waitingNow = today.filter((a) => IN_CLINIC.includes(a.status));
-
-  const revenueToday = nonCancelled.reduce((s, a) => s + a.priceCents, 0);
-  const revenueYesterday = appointmentsOn(addDaysIso(TODAY, -1))
-    .filter((a) => !isCancelled(a.status))
-    .reduce((s, a) => s + a.priceCents, 0);
-  const revenueDelta = revenueYesterday ? Math.round(((revenueToday - revenueYesterday) / revenueYesterday) * 100) : 0;
-
-  // --- próximos atendimentos --------------------------------------------------
-  const proximos = nonCancelled
-    .filter((a) => toMin(a.start) >= NOW_MIN)
-    .sort((a, b) => a.start.localeCompare(b.start))
-    .slice(0, 6);
-
-  // --- ocupação por profissional ----------------------------------------------
-  const working = professionalsWorking(TODAY);
-
-  // --- pendências amanhã --------------------------------------------------------
-  const tomorrow = addDaysIso(TODAY, 1);
-  const unconfirmedTomorrow = appointmentsOn(tomorrow).filter((a) => a.status === "nao_confirmado").length;
-
-  // --- aniversariantes ---------------------------------------------------------
-  const birthdays = birthdaysThisWeek();
+  if (inicio.isPending) return <InicioLoading />;
+  if (inicio.isError) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <PageHeader title={`${greeting()}, ${firstName}`} />
+        <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<button type="button" className="text-accent underline" onClick={() => void inicio.refetch()}>Tentar de novo</button>} />
+      </div>
+    );
+  }
+  const d = inicio.data;
+  const agendamentosDelta = percentChange(d.agendamentosHoje, d.agendamentosOntem);
+  const revenueDelta = d.faturamentoPrevistoCentavos !== null && d.faturamentoOntemCentavos !== null ? percentChange(d.faturamentoPrevistoCentavos, d.faturamentoOntemCentavos) : 0;
+  const tomorrow = new Date(d.data + "T12:00:00");
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowIso = tomorrow.toISOString().slice(0, 10);
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
-        title={`${greeting()}, ${currentUser.name.split(" ")[0]}`}
-        description={<span>{dateLong(TODAY)}</span>}
+        title={`${greeting()}, ${firstName}`}
+        description={<span>{dateLong(d.data)}</span>}
       />
 
       <div className="flex flex-col gap-5">
@@ -130,33 +134,34 @@ export default function Page() {
               featured
               tone="accent"
               label="Agendamentos hoje"
-              value={nonCancelled.length}
+              value={d.agendamentosHoje}
               icon={<Calendar size={21} variant="Bold" />}
               delta={{ value: agendamentosDelta, period: "vs. ontem", goodWhenUp: true }}
-              footer={<>Ontem: <strong className="tabular-nums">{yesterday}</strong></>}
+              footer={<>Ontem: <strong className="tabular-nums">{d.agendamentosOntem}</strong></>}
             />
             <DashboardMetric
               tone="dark"
               label="Taxa de confirmação"
-              value={pct(confirmedPct)}
+              value={pct(d.taxaConfirmacaoPct)}
               icon={<CalendarTick size={21} variant="Bold" />}
-              delta={{ value: confirmedPct - trendEndingAt(7, confirmedPct)[0], period: "vs. início do dia", goodWhenUp: true }}
-              footer={<>Início do dia: <strong className="tabular-nums">{pct(trendEndingAt(7, confirmedPct)[0])}</strong></>}
+              footer={<><strong className="tabular-nums">{d.confirmados}</strong> já confirmados</>}
             />
             <DashboardMetric
               tone="blue"
               label="Na sala de espera agora"
-              value={waitingNow.length}
+              value={d.naSalaDeEspera}
               icon={<People size={21} variant="Bold" />}
               footer={<Link to="/espera" className="ms-home-metric__link">Ver sala de espera <ArrowRight2 size={14} variant="Linear" aria-hidden /></Link>}
             />
             <DashboardMetric
               tone="royal"
               label="Faturamento previsto do dia"
-              value={brl(revenueToday)}
+              value={d.faturamentoPrevistoCentavos === null ? "—" : brl(d.faturamentoPrevistoCentavos)}
               currency
               icon={<Wallet2 size={21} variant="Bold" />}
-              footer={<>Ontem: <strong className="tabular-nums">{brl(revenueYesterday)}</strong> <span className="ms-home-metric__revenue-delta">({revenueDelta > 0 ? "+" : ""}{revenueDelta}%)</span></>}
+              footer={d.faturamentoPrevistoCentavos === null || d.faturamentoOntemCentavos === null
+                ? <>Valores restritos ao seu perfil</>
+                : <>Ontem: <strong className="tabular-nums">{brl(d.faturamentoOntemCentavos)}</strong> <span className="ms-home-metric__revenue-delta">({revenueDelta > 0 ? "+" : ""}{revenueDelta}%)</span></>}
             />
           </div>
         </section>
@@ -165,51 +170,43 @@ export default function Page() {
           <Card className="xl:col-span-2">
             <CardHeader title="Próximos atendimentos" description="A partir de agora, nesta ordem" actions={<ButtonLink to="/agenda" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver agenda</ButtonLink>} />
             <CardBody className="flex flex-col gap-1">
-              {proximos.length === 0 ? (
+              {d.proximos.length === 0 ? (
                 <EmptyState title="Não há mais atendimentos previstos pra hoje." illustration="agenda/nenhum-agendamento" compact className="py-4" />
               ) : (
-                proximos.map((a) => {
-                  const patient = patientById(a.patientId);
-                  const prof = professionalById(a.professionalId);
-                  return (
-                    <Link key={a.id} to="/agenda" className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 hover:bg-surface">
-                      <span className="w-12 shrink-0 tabular text-sm font-medium text-text">{a.start}</span>
-                      <Avatar name={patient?.name ?? "Paciente"} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-text">{patient?.name}</p>
-                        <p className="flex items-center gap-1.5 truncate text-xs text-text-muted">
-                          <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: `var(--c-series-${(prof?.color ?? 0) + 1})` }} />
-                          {prof?.name} · {procedureById(a.procedureId)?.name}
-                        </p>
-                      </div>
-                      <StatusBadge status={a.status} size="sm" />
-                    </Link>
-                  );
-                })
+                d.proximos.map((a) => (
+                  <Link key={a.id} to="/agenda" className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 hover:bg-surface">
+                    <span className="w-12 shrink-0 tabular text-sm font-medium text-text">{clock(a.inicio)}</span>
+                    <Avatar name={a.pacienteNome} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-text">{a.pacienteNome}</p>
+                      <p className="flex items-center gap-1.5 truncate text-xs text-text-muted">
+                        <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: seriesColor(a.profissionalCor) }} />
+                        {a.profissionalNome} · {a.procedimentoNome}
+                      </p>
+                    </div>
+                    <StatusBadge status={statusFromBackend(a.status)} size="sm" />
+                  </Link>
+                ))
               )}
             </CardBody>
           </Card>
 
           <Card>
-            <CardHeader title="Sala de espera agora" description={`${waitingNow.length} paciente(s)`} actions={<ButtonLink to="/espera" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver tudo</ButtonLink>} />
+            <CardHeader title="Sala de espera agora" description={`${d.naSalaDeEspera} paciente(s)`} actions={<ButtonLink to="/espera" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver tudo</ButtonLink>} />
             <CardBody className="flex flex-col gap-1">
-              {waitingNow.length === 0 ? (
+              {d.espera.length === 0 ? (
                 <p className="py-4 text-sm text-text-muted">Ninguém esperando no momento.</p>
               ) : (
-                waitingNow.slice(0, 6).map((a) => {
-                  const patient = patientById(a.patientId);
-                  const waitMin = a.arrivedAt ? NOW_MIN - toMin(a.arrivedAt) : 0;
-                  return (
-                    <div key={a.id} className="flex items-center gap-3 px-2 py-2 -mx-2">
-                      <Avatar name={patient?.name ?? "Paciente"} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-text">{patient?.name}</p>
-                        <p className="truncate text-xs text-text-muted">{professionalById(a.professionalId)?.name}</p>
-                      </div>
-                      <Badge tone={waitMin > 20 ? "danger" : waitMin > 10 ? "warning" : "neutral"} size="sm">{waitMin} min</Badge>
+                d.espera.map((w) => (
+                  <div key={w.agendamentoId} className="flex items-center gap-3 px-2 py-2 -mx-2">
+                    <Avatar name={w.pacienteNome} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-text">{w.pacienteNome}</p>
+                      <p className="truncate text-xs text-text-muted">{w.profissionalNome}</p>
                     </div>
-                  );
-                })
+                    <Badge tone={w.aguardandoMin > 20 ? "danger" : w.aguardandoMin > 10 ? "warning" : "neutral"} size="sm">{w.aguardandoMin} min</Badge>
+                  </div>
+                ))
               )}
             </CardBody>
           </Card>
@@ -219,23 +216,30 @@ export default function Page() {
           <Card className="xl:col-span-2">
             <CardHeader title="Ocupação por profissional hoje" />
             <CardBody className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-              {working.map((p) => {
-                const occ = occupancy(p, TODAY);
-                return (
-                  <div key={p.id} className="flex items-center gap-3">
-                    <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: `var(--c-series-${p.color + 1})` }} />
-                    <div className="min-w-0 flex-1">
-                      <Meter value={Math.round(occ.pct * 100)} label={p.name} showValue={`${Math.round(occ.pct * 100)}%`} tone={occ.pct >= 0.95 ? "danger" : occ.pct >= 0.8 ? "warning" : "accent"} />
-                    </div>
+              {d.ocupacao.length === 0 && <p className="text-sm text-text-muted">Nenhum profissional com grade hoje nesta unidade.</p>}
+              {d.ocupacao.map((p) => (
+                <div key={p.profissionalId} className="flex items-center gap-3">
+                  <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: seriesColor(p.cor) }} />
+                  <div className="min-w-0 flex-1">
+                    <Meter value={p.ocupacaoPct} label={p.nome} showValue={`${p.ocupacaoPct}%`} tone={p.ocupacaoPct >= 95 ? "danger" : p.ocupacaoPct >= 80 ? "warning" : "accent"} />
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </CardBody>
           </Card>
 
           <Card>
             <CardHeader title="Pendências" />
             <CardBody className="flex flex-col gap-1">
+              <Link to="/agenda/confirmacoes" className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 hover:bg-surface">
+                <IconCircle tone="info" size="2xl"><ClipboardTick size={22} /></IconCircle>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-text">{d.semConfirmacaoAmanha} agendamentos de amanhã sem confirmação</p>
+                  <p className="text-xs text-text-muted">{dateShort(tomorrowIso)}</p>
+                </div>
+                <ArrowRight2 size={16} className="shrink-0 text-text-subtle" />
+              </Link>
+              <p className="mt-2 px-2 text-xs font-medium uppercase tracking-wide text-text-subtle">Demonstração (módulos ainda não ligados)</p>
               <Link to="/faturamento/retorno" className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 hover:bg-surface">
                 <IconCircle tone="danger" size="2xl"><ReceiptItem size={22} /></IconCircle>
                 <div className="min-w-0 flex-1">
@@ -249,14 +253,6 @@ export default function Page() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-text">{PENDENCIAS.estoqueBaixo} itens com estoque baixo</p>
                   <p className="text-xs text-text-muted">Reposição recomendada</p>
-                </div>
-                <ArrowRight2 size={16} className="shrink-0 text-text-subtle" />
-              </Link>
-              <Link to="/agenda/confirmacoes" className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 hover:bg-surface">
-                <IconCircle tone="info" size="2xl"><ClipboardTick size={22} /></IconCircle>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-text">{unconfirmedTomorrow} agendamentos de amanhã sem confirmação</p>
-                  <p className="text-xs text-text-muted">{dateShort(tomorrow)}</p>
                 </div>
                 <ArrowRight2 size={16} className="shrink-0 text-text-subtle" />
               </Link>
@@ -276,14 +272,15 @@ export default function Page() {
           <Card>
             <CardHeader title="Aniversariantes" description="Hoje até os próximos 6 dias" />
             <CardBody className="flex flex-col gap-1">
-              {birthdays.map((b) => (
-                <div key={b.patient.id} className="flex items-center gap-3 px-2 py-2 -mx-2">
-                  <Avatar name={b.patient.name} size="sm" />
+              {d.aniversariantes.length === 0 && <p className="py-2 text-sm text-text-muted">Nenhum aniversariante nesta semana.</p>}
+              {d.aniversariantes.map((b) => (
+                <div key={b.pacienteId} className="flex items-center gap-3 px-2 py-2 -mx-2">
+                  <Avatar name={b.nome} size="sm" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-text">{b.patient.name}</p>
-                    <p className="text-xs text-text-muted">Completa {b.turning} anos</p>
+                    <p className="truncate text-sm text-text">{b.nome}</p>
+                    <p className="text-xs text-text-muted">Completa {b.idade} anos</p>
                   </div>
-                  <Badge tone="accent" icon={Cake} size="sm">{dateShort(b.date)}</Badge>
+                  <Badge tone="accent" icon={Cake} size="sm">{dateShort(b.dia)}</Badge>
                 </div>
               ))}
             </CardBody>
