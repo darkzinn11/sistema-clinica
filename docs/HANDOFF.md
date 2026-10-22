@@ -30,6 +30,8 @@ cd backend && ./scripts/deploy_vps.sh           # compila, envia, reinicia, conf
 ```
 Detalhes do que está no VPS: serviço em `/etc/systemd/system/multisaude-backend.service`, jar em `/opt/multisaude-backend/` (usuário de sistema `multisaude`, sem login), senhas em `/etc/multisaude/backend.env` (root, modo 600; **nunca** copie esse arquivo para o repositório nem leia o conteúdo). Seeds e bootstrap estão **desligados** lá. O VPS é compartilhado com outros sistemas (inclusive o painel de TV da clínica, atrás do Caddy): não mexa no Caddy nem em outros serviços sem o dono pedir; abrir o backend para a internet (HTTPS pelo Caddy) é uma decisão em aberto.
 
+**API pública (HTTPS) — em andamento:** a ideia é `https://sistema-api.sitw.tech` apontando para o backend do VPS, para quem quiser usar o front local contra o backend hospedado **sem túnel**: `API_PROXY_TARGET=https://sistema-api.sitw.tech npm run dev` (ou a mesma linha em `Frontend/.env.local`, ignorado pelo Git). O Vite repassa `/api`, então não precisa abrir CORS. Depende de **criar o registro DNS** `sistema-api` (tipo A, `187.127.53.226`) no DNS do `sitw.tech` (Hostinger); depois rode `backend/scripts/publicar_api_caddy.sh` (backup do Caddyfile, valida, recarrega, espera o certificado). Só `/api/*` e `/actuator/health` ficam públicos (`backend/ops/Caddyfile.sistema-api`). O backend já confia só no proxy local para ler o IP real do cliente (o limite de tentativas de login por IP depende disso).
+
 Para rodar um backend **local** (testes, ou quando o VPS estiver fora): feche o túnel do backend (mesma porta) e use o banco por túnel SSH:
 ```sh
 ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -L 127.0.0.1:15432:127.0.0.1:5432 sitw-tech-vps   # banco (os TESTES sempre precisam deste)

@@ -32,7 +32,7 @@ public class IdentityController {
 
     @PostMapping("/auth/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
-        // Não confiar em X-Forwarded-For enviado pelo cliente.
+        // getRemoteAddr já é o IP real do cliente: o Tomcat só aceita X-Forwarded-For do proxy local (application.yml); o que o cliente mandar é descartado.
         String clinic = request.tenantId() != null ? request.tenantId().toString()
             : request.codigoClinica() != null && !request.codigoClinica().isBlank() ? "codigo:" + request.codigoClinica().trim().toLowerCase(java.util.Locale.ROOT) : "email";
         limiter.check(http.getRemoteAddr(), clinic + ":" + request.email().trim().toLowerCase(java.util.Locale.ROOT));
