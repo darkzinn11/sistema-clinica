@@ -72,6 +72,7 @@ Docker: `backend/docker-compose.dev.yml` (Postgres local) está escrito mas **nu
 - **Suíte completa de testes não rodou inteira desde a V29** (cada classe nova passou isolada). Rodar antes de qualquer PR; o teste de seeds é o mais lento (~20 min).
 - Faltam: reservas avulsas de equipamento (manutenção) e bloqueio de sala; encaixe/retorno/convênio no agendamento; mensagens automáticas (WhatsApp) e registro de tentativas de contato.
 - Fora do código: ICP-Brasil e LGPD pendentes; licença TUSS 22 (risco aceito, procedimentos semeados sem código TUSS); revisão jurídica.
+- **Senha de demonstração pública (decisão do dono em 22/10/2026: manter por enquanto).** `demo-multisaude-2026` está no repositório e a API está aberta em `https://api.multisaude.sitw.tech`: quem lê o repositório entra nas clínicas de demonstração (dados fictícios). Não trocar sem o dono pedir; **trocar antes de qualquer dado real ou de uma apresentação a terceiros que não deveriam ter acesso**.
 - `LoginRateLimiter` é em memória (10 chaves/conta e 40 por IP em 15 min); pode travar logins se alguém variar muitas chaves.
 
 ## Armadilhas já pagas (economize o tempo)
