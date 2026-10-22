@@ -88,7 +88,7 @@ export default function Login() {
           autoCapitalize="none"
           spellCheck={false}
           required
-          placeholder="ex.: vida-plena"
+          placeholder="ex.: multisaude"
           value={clinic}
           onChange={(e) => setClinic(e.target.value)}
         />

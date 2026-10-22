@@ -10,7 +10,7 @@ import {
   SidebarLeft,
   UserAdd,
 } from "iconsax-reactjs";
-import { type ComponentType, useEffect, useRef, useState } from "react";
+import { type ComponentType, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,19 @@ import { DateNav } from "@/components/agenda/DateNav";
 import { DayGrid, type GridColumn } from "@/components/agenda/DayGrid";
 import { MiniMonth } from "@/components/agenda/MiniMonth";
 import { NovoAgendamentoDrawer } from "@/components/agenda/NovoAgendamentoDrawer";
-import { useAgendaStore } from "@/components/agenda/store";
+import { Skeleton } from "@/components/ui/misc";
 import { addDaysIso, dateLong } from "@/lib/format";
-import { STATUS_ORDER, freeSlots, weekday, workWindow } from "@/lib/mock/agenda";
-import { TODAY, NOW_TIME, professionalById, professionals } from "@/lib/mock/core";
+import { useAgendaItems, useChangeStatus } from "@/lib/api/agenda";
+import { freeSlots, toAppointment, workWindow } from "@/lib/agenda/model";
+import { AgendaCatalogProvider, useCatalog } from "@/lib/agenda/provider";
+import { todayIso } from "@/lib/agenda/time";
 import { APPOINTMENT_STATUS, type AppointmentStatus } from "@/lib/status";
+
+/** Ordem usada em contadores e filtros. */
+const STATUS_ORDER: AppointmentStatus[] = [
+  "confirmado", "nao_confirmado", "aguardando", "aguardando_pagamento", "chamando", "em_atendimento", "atendido",
+  "remarcado", "nao_compareceu", "desmarcado_pelo_paciente", "cancelado_pelo_profissional",
+];
 
 type ViewMode = "dia" | "semana" | "salas";
 const LEGEND_STATUS: AppointmentStatus[] = [
@@ -74,9 +82,18 @@ function FilterPill({
 }
 
 export default function Page() {
+  return (
+    <AgendaCatalogProvider>
+      <AgendaDiaView />
+    </AgendaCatalogProvider>
+  );
+}
+
+function AgendaDiaView() {
+  const { professionals, professionalById } = useCatalog();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [date, setDate] = useState(TODAY);
+  const [date, setDate] = useState(todayIso);
   const [profFilter, setProfFilter] = useState<Set<string>>(new Set(professionals.map((p) => p.id)));
   const [specialtyFilter, setSpecialtyFilter] = useState("todas");
   const [statusFilter, setStatusFilter] = useState<"todos" | AppointmentStatus>("todos");
@@ -89,7 +106,9 @@ export default function Page() {
   const profMenuRef = useRef<HTMLDivElement>(null);
   const [legendOpen, setLegendOpen] = useState(false);
 
-  const { apptsOn, update, add } = useAgendaStore();
+  const items = useAgendaItems(date, date);
+  const changeStatus = useChangeStatus();
+  const appts = useMemo(() => (items.data ?? []).map(toAppointment), [items.data]);
 
   useEffect(() => {
     if (!profMenuOpen) return;
@@ -106,8 +125,6 @@ export default function Page() {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [profMenuOpen]);
-  const appts = apptsOn(date);
-
   useEffect(() => {
     if (searchParams.get("novo") === "1") {
       setNewPrefill({});
@@ -134,8 +151,8 @@ export default function Page() {
     });
   }
 
-  const closedToday = weekday(date) === 0;
   const workingProfs = professionals.filter((p) => workWindow(p, date));
+  const closedToday = workingProfs.length === 0;
   const specialties = [...new Set(professionals.map((p) => p.specialty))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const menuProfs = workingProfs.filter((p) => specialtyFilter === "todas" || p.specialty === specialtyFilter);
   const visibleProfs = menuProfs.filter((p) => profFilter.has(p.id));
@@ -163,8 +180,8 @@ export default function Page() {
     id: p.id,
     label: p.name,
     sublabel: p.specialty,
-    colorVar: "var(--c-series-" + (p.color + 1) + ")",
-    isToday: date === TODAY,
+    colorVar: p.colorCss,
+    isToday: date === todayIso(),
   }));
 
   const counts = STATUS_ORDER
@@ -211,7 +228,7 @@ export default function Page() {
                 prevLabel="Dia anterior"
                 nextLabel="Próximo dia"
                 onPrev={() => setDate((v) => addDaysIso(v, -1))}
-                onToday={() => setDate(TODAY)}
+                onToday={() => setDate(todayIso())}
                 onNext={() => setDate((v) => addDaysIso(v, 1))}
               />
               <Segmented<ViewMode>
@@ -267,7 +284,7 @@ export default function Page() {
                           onChange={() => toggleProf(p.id)}
                           label={
                             <span className="flex min-w-0 items-center gap-2.5">
-                              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: "var(--c-series-" + (p.color + 1) + ")" }} />
+                              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.colorCss }} />
                               <span className="flex min-w-0 flex-1 flex-col">
                                 <span className="truncate">{p.name}</span>
                                 <span className="truncate text-xs text-text-muted">{p.specialty}</span>
@@ -339,13 +356,17 @@ export default function Page() {
         <div className="flex min-w-0 items-start gap-4">
           <div className="min-w-0 flex-1">
             {closedToday ? (
-              <Card><EmptyState title="A clínica não atende aos domingos" description="Escolha outro dia para ver a agenda." /></Card>
+              <Card><EmptyState title="Nenhum profissional atende neste dia" description="Escolha outro dia para ver a agenda." /></Card>
             ) : visibleProfs.length === 0 ? (
               menuProfs.length === 0 ? (
               <Card><EmptyState title={`Nenhum profissional de ${specialtyFilter} neste dia`} description="Escolha outra especialidade ou outro dia." /></Card>
             ) : (
               <Card><EmptyState title="Nenhum profissional selecionado" description="Selecione pelo menos um profissional no filtro acima." /></Card>
             )
+            ) : items.isPending ? (
+              <Skeleton className="h-[640px] w-full" />
+            ) : items.isError ? (
+              <Card><EmptyState title="Não foi possível carregar a agenda." description={items.error.message} illustration="agenda/nenhum-agendamento" /></Card>
             ) : (
               <DayGrid
                 columns={columns}
@@ -371,9 +392,8 @@ export default function Page() {
                   appointment={selected}
                   onClose={() => setSelectedId(null)}
                   onManage={() => setManageOpen(true)}
-                  onCheckIn={() => {
-                    update(selected.id, { status: "aguardando", arrivedAt: NOW_TIME });
-                  }}
+                  checkingIn={changeStatus.isPending}
+                  onCheckIn={() => changeStatus.mutate({ id: selected.id, status: "check_in", versao: selected.version })}
                 />
               ) : (
                 <>
@@ -406,21 +426,13 @@ export default function Page() {
           <Button variant="secondary" icon={CloseCircle} size="sm" onClick={() => setSelectedId(null)}>Fechar seleção</Button>
         </div>
       )}
-      <AgendamentoDrawer
-        appointment={manageOpen ? selected : null}
-        onClose={() => setManageOpen(false)}
-        update={update}
-        add={add}
-        apptsOn={apptsOn}
-      />
+      <AgendamentoDrawer appointment={manageOpen ? selected : null} onClose={() => setManageOpen(false)} />
       <NovoAgendamentoDrawer
         open={newOpen}
         onClose={closeNew}
         defaultDate={date}
         defaultProfessionalId={newPrefill.professionalId}
         defaultTime={newPrefill.time}
-        apptsOn={apptsOn}
-        add={add}
       />
     </div>
   );

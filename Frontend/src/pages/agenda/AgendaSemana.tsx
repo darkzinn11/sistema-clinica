@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardBody } from "@/components/ui/card";
@@ -9,34 +9,54 @@ import { Segmented } from "@/components/ui/tabs";
 import { AgendamentoDrawer } from "@/components/agenda/AgendamentoDrawer";
 import { DateNav } from "@/components/agenda/DateNav";
 import { DayGrid, type GridColumn } from "@/components/agenda/DayGrid";
-import { useAgendaStore } from "@/components/agenda/store";
+import { Skeleton } from "@/components/ui/misc";
 import { addDaysIso, dateShort, weekdayShort } from "@/lib/format";
-import { mondayOf, workWindow } from "@/lib/mock/agenda";
-import { TODAY, professionalById, professionals } from "@/lib/mock/core";
+import { useAgendaItems } from "@/lib/api/agenda";
+import { toAppointment, workWindow } from "@/lib/agenda/model";
+import { AgendaCatalogProvider, useCatalog } from "@/lib/agenda/provider";
+import { mondayOf, todayIso } from "@/lib/agenda/time";
 
 type ViewMode = "dia" | "semana" | "salas";
 
 export default function Page() {
+  return (
+    <AgendaCatalogProvider>
+      <AgendaSemanaView />
+    </AgendaCatalogProvider>
+  );
+}
+
+function AgendaSemanaView() {
+  const { professionals } = useCatalog();
   const navigate = useNavigate();
-  const [refDate, setRefDate] = useState(TODAY);
-  const [professionalId, setProfessionalId] = useState(professionals[0].id);
+  const [refDate, setRefDate] = useState(todayIso);
+  const [professionalId, setProfessionalId] = useState(professionals[0]?.id ?? "");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { apptsOn, update, add } = useAgendaStore();
 
   const weekStart = mondayOf(refDate);
   const days = Array.from({ length: 6 }, (_, i) => addDaysIso(weekStart, i));
-  const professional = professionalById(professionalId)!;
-
-  const weekAppts = days.flatMap((d) => apptsOn(d).filter((a) => a.professionalId === professionalId));
+  const professional = professionals.find((p) => p.id === professionalId);
+  const items = useAgendaItems(days[0], days[days.length - 1], professionalId || undefined);
+  const weekAppts = useMemo(() => (items.data ?? []).map(toAppointment), [items.data]);
   const selected = weekAppts.find((a) => a.id === selectedId) ?? null;
+  const today = todayIso();
+
+  if (!professional) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <PageHeader title="Agenda da semana" breadcrumbs={[{ label: "Agenda", href: "/agenda" }, { label: "Semana" }]} />
+        <Card><EmptyState title="Nenhum profissional na agenda desta unidade" description="Cadastre profissionais e grades em Cadastros." /></Card>
+      </div>
+    );
+  }
 
   const columns: GridColumn[] = days.map((d) => ({
     id: d,
     kicker: weekdayShort(d),
     label: String(Number(d.slice(8, 10))),
     largeLabel: true,
-    highlight: d === TODAY,
-    isToday: d === TODAY,
+    highlight: d === today,
+    isToday: d === today,
   }));
 
   return (
@@ -57,7 +77,7 @@ export default function Page() {
               prevLabel="Semana anterior"
               nextLabel="Próxima semana"
               onPrev={() => setRefDate((d) => addDaysIso(d, -7))}
-              onToday={() => setRefDate(TODAY)}
+              onToday={() => setRefDate(todayIso())}
               onNext={() => setRefDate((d) => addDaysIso(d, 7))}
             />
             <div className="flex flex-wrap items-center gap-2">
@@ -87,13 +107,17 @@ export default function Page() {
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
           <span className="flex items-center gap-1.5">
-            <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: `var(--c-series-${professional.color + 1})` }} />
+            <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: professional.colorCss }} />
             {professional.name} · {professional.specialty}
           </span>
           <Badge tone="neutral" size="sm">{weekAppts.length} agendamentos na semana</Badge>
         </div>
 
-        {weekAppts.length === 0 ? (
+        {items.isPending ? (
+          <Skeleton className="h-[640px] w-full" />
+        ) : items.isError ? (
+          <Card><EmptyState title="Não foi possível carregar a agenda." description={items.error.message} illustration="agenda/nenhum-agendamento" /></Card>
+        ) : weekAppts.length === 0 ? (
           <Card>
             <EmptyState title="Sem agendamentos nesta semana" description="Esse profissional não tem horários marcados de segunda a sábado." />
           </Card>
@@ -102,14 +126,14 @@ export default function Page() {
             columns={columns}
             pxPerMin={1.8}
             minColWidth={150}
-            appointmentsFor={(colId) => apptsOn(colId).filter((a) => a.professionalId === professionalId)}
+            appointmentsFor={(colId) => weekAppts.filter((a) => a.date === colId)}
             activeRangeFor={(colId) => workWindow(professional, colId)}
             onAppointmentClick={(a) => setSelectedId(a.id)}
           />
         )}
       </div>
 
-      <AgendamentoDrawer appointment={selected} onClose={() => setSelectedId(null)} update={update} add={add} apptsOn={apptsOn} />
+      <AgendamentoDrawer appointment={selected} onClose={() => setSelectedId(null)} />
     </div>
   );
 }

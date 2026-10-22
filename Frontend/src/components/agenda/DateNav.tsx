@@ -2,8 +2,7 @@ import { ArrowLeft2, ArrowRight2, Calendar } from "iconsax-reactjs";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { daysBetweenIso } from "@/lib/format";
-import { TODAY } from "@/lib/mock/core";
-import { mondayOf } from "@/lib/mock/agenda";
+import { mondayOf, todayIso } from "@/lib/agenda/time";
 
 const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
@@ -17,9 +16,9 @@ function dayMonth(iso: string): string {
 function relativeLabel(date: string, unit: "day" | "week"): string {
   if (unit === "week") {
     const monday = mondayOf(date);
-    return monday === mondayOf(TODAY) ? "Esta semana" : dayMonth(monday);
+    return monday === mondayOf(todayIso()) ? "Esta semana" : dayMonth(monday);
   }
-  const n = daysBetweenIso(TODAY, date);
+  const n = daysBetweenIso(todayIso(), date);
   if (n === 0) return "Hoje";
   if (n === 1) return "Amanhã";
   if (n === -1) return "Ontem";

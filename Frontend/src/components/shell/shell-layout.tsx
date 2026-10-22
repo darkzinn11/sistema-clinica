@@ -13,6 +13,17 @@ function PageFallback() {
   );
 }
 
+/** Telas já ligadas ao backend. As demais ainda mostram dados de exemplo e avisam. */
+const REAL_ROUTES = ["/inicio", "/agenda", "/agenda/semana", "/agenda/salas", "/agenda/check-in"];
+
+function DemoNotice() {
+  return (
+    <div role="note" className="mb-4 rounded-lg bg-warning-bg px-4 py-2.5 text-sm text-warning">
+      <strong>Tela de demonstração.</strong> Os dados abaixo são de exemplo e ainda não vêm do sistema.
+    </div>
+  );
+}
+
 /** Layout das telas internas: shell + carregamento sob demanda + volta ao topo ao navegar. */
 export function ShellLayout() {
   const { pathname } = useLocation();
@@ -22,6 +33,7 @@ export function ShellLayout() {
   return (
     <AppShell>
       <div key={pathname} className="ui-page-enter">
+        {!REAL_ROUTES.includes(pathname.replace(/\/$/, "") || "/") && <DemoNotice />}
         <Suspense fallback={<PageFallback />}>
           <Outlet />
         </Suspense>

@@ -1,7 +1,7 @@
 import { Add } from "iconsax-reactjs";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import type { Appointment } from "@/lib/mock/core";
-import { toMin, NOW_MIN } from "@/lib/mock/agenda";
+import type { AgendaAppointment as Appointment } from "@/lib/agenda/model";
+import { toMin, nowMin } from "@/lib/agenda/time";
 import { AppointmentBlock } from "@/components/agenda/AppointmentBlock";
 import { cn } from "@/lib/cn";
 
@@ -74,6 +74,7 @@ export function DayGrid({
   const totalHeight = (dayEnd - dayStart) * 60 * pxPerMin;
   const hours = Array.from({ length: dayEnd - dayStart + 1 }, (_, i) => dayStart + i);
   const y = (min: number) => (min - dayStartMin) * pxPerMin;
+  const NOW_MIN = nowMin();
   const showNow = columns.some((c) => c.isToday) && NOW_MIN >= dayStartMin && NOW_MIN <= dayEnd * 60;
   const nowY = Math.round(y(NOW_MIN));
   const nowLabel = `${String(Math.floor(NOW_MIN / 60)).padStart(2, "0")}:${String(NOW_MIN % 60).padStart(2, "0")}`;

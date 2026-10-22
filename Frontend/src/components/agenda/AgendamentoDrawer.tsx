@@ -1,75 +1,56 @@
-import {
-  CalendarEdit,
-  CloseCircle,
-  DocumentText,
-  Flash,
-  Health,
-  Refresh2,
-  TickCircle,
-  UserAdd,
-  Warning2,
-} from "iconsax-reactjs";
-import { WhatsappIcon } from "@/components/ui/whatsapp-icon";
+import { CalendarEdit, CloseCircle, DocumentText, Health, Refresh2, TickCircle } from "iconsax-reactjs";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { DescriptionList } from "@/components/ui/misc";
 import { Modal } from "@/components/ui/overlay";
-import { Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { age, brl, dateLong } from "@/lib/format";
-import { findPatient, freeSlots, hm, toMin } from "@/lib/mock/agenda";
-import { newAppointmentId } from "@/components/agenda/store";
+import { brl, dateLong } from "@/lib/format";
+import { ApiError } from "@/lib/api/client";
 import {
-  NOW_TIME,
-  insuranceName,
-  locationName,
-  professionalById,
-  procedureById,
-  type Appointment,
-} from "@/lib/mock/core";
-import { APPOINTMENT_STATUS, type AppointmentStatus } from "@/lib/status";
+  useAvailability, useCancelAppointment, useChangeStatus, useCreateAppointment, useMotives, useRescheduleAppointment,
+} from "@/lib/api/agenda";
+import { statusFromBackend, type BackendStatus } from "@/lib/api/status-map";
+import { CAN_CANCEL, CAN_RESCHEDULE, NEXT_BY_RECEPTION, type AgendaAppointment } from "@/lib/agenda/model";
+import { useCatalog } from "@/lib/agenda/provider";
+import { clock } from "@/lib/agenda/time";
+import { APPOINTMENT_STATUS } from "@/lib/status";
 
-const CANCEL_REASONS: { value: AppointmentStatus; label: string }[] = [
-  { value: "desmarcado_pelo_paciente", label: "Desmarcado pelo paciente" },
-  { value: "cancelado_pelo_profissional", label: "Cancelado pela clínica" },
-];
+const message = (error: unknown) => (error instanceof ApiError ? error.message : "Não foi possível concluir a ação. Tente de novo.");
 
 /**
- * Painel de detalhe de um agendamento — reaproveitado pela Agenda do dia, Por
- * sala e Semana. Todas as ações alteram apenas o estado local do protótipo.
+ * Detalhe e ações de um agendamento: mudar status (confirmar, check-in, falta), cancelar com motivo, remarcar e repetir.
+ * Tudo vai ao backend, que confere as regras de novo (a tela só oferece o que a regra permite).
  */
-export function AgendamentoDrawer({
-  appointment,
-  onClose,
-  update,
-  add,
-  apptsOn,
-}: {
-  appointment: Appointment | null;
-  onClose: () => void;
-  update: (id: string, patch: Partial<Appointment>) => void;
-  add: (list: Appointment[]) => void;
-  apptsOn: (date: string) => Appointment[];
-}) {
+export function AgendamentoDrawer({ appointment, onClose }: { appointment: AgendaAppointment | null; onClose: () => void }) {
+  const { professionalById, procedureById, unitId } = useCatalog();
+  const motives = useMotives();
+  const changeStatus = useChangeStatus();
+  const cancel = useCancelAppointment();
+  const reschedule = useRescheduleAppointment();
+  const create = useCreateAppointment();
   const [rescheduling, setRescheduling] = useState(false);
   const [rescheduleDate, setRescheduleDate] = useState("");
-  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduleSlot, setRescheduleSlot] = useState("");
+  const [motiveId, setMotiveId] = useState<number | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState<AppointmentStatus>("desmarcado_pelo_paciente");
-  const [whatsappSent, setWhatsappSent] = useState(false);
+  const [note, setNote] = useState("");
   const [repeated, setRepeated] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [prevId, setPrevId] = useState<string | null>(appointment?.id ?? null);
+  const slots = useAvailability(rescheduling ? appointment?.professionalId : undefined, appointment?.procedureId, rescheduling ? rescheduleDate : undefined);
 
   if (prevId !== (appointment?.id ?? null)) {
     setPrevId(appointment?.id ?? null);
     setRescheduling(false);
     setCancelOpen(false);
-    setWhatsappSent(false);
     setRepeated(null);
+    setError(null);
+    setNote("");
+    setMotiveId(null);
     setRescheduleDate(appointment?.date ?? "");
-    setRescheduleTime("");
+    setRescheduleSlot("");
   }
 
   if (!appointment) {
@@ -80,38 +61,50 @@ export function AgendamentoDrawer({
     );
   }
 
-  const patient = findPatient(appointment.patientId);
   const professional = professionalById(appointment.professionalId);
-  const proc = procedureById(appointment.procedureId);
-  const canCheckIn = appointment.status === "confirmado" || appointment.status === "nao_confirmado";
-  const canCancel = !["cancelado_pelo_profissional", "desmarcado_pelo_paciente", "nao_compareceu", "atendido"].includes(appointment.status);
-  const slotMin = professional?.slotMin ?? 20;
-  const rescheduleSlots = professional && rescheduleDate ? freeSlots(professional, rescheduleDate, apptsOn(rescheduleDate)) : [];
+  const procedure = procedureById(appointment.procedureId);
+  const status = appointment.backendStatus;
+  const canCheckIn = status === "agendado" || status === "confirmado";
+  const canCancel = CAN_CANCEL.includes(status);
+  const canReschedule = CAN_RESCHEDULE.includes(status);
+  const nextStatuses = NEXT_BY_RECEPTION[status] ?? [];
+  const chosenMotive = motiveId ?? motives.data?.[0]?.id ?? null;
+  const busy = changeStatus.isPending || cancel.isPending || reschedule.isPending || create.isPending;
 
-  function confirmReschedule() {
-    if (!professional || !rescheduleTime || !appointment) return;
-    const start = rescheduleTime;
-    const end = hm(toMin(start) + slotMin);
-    update(appointment.id, { status: "remarcado" });
-    add([{ ...appointment, id: newAppointmentId(), date: rescheduleDate, start, end, status: "confirmado", arrivedAt: undefined }]);
-    setRescheduling(false);
-    onClose();
+  function run(action: Promise<unknown>, done: () => void) {
+    setError(null);
+    action.then(done).catch((e) => setError(message(e)));
   }
 
-  function repeatNextWeek() {
-    if (!appointment) return;
-    const nextIso = new Date(`${appointment.date}T12:00:00Z`);
-    nextIso.setUTCDate(nextIso.getUTCDate() + 7);
-    const date = nextIso.toISOString().slice(0, 10);
-    add([{ ...appointment, id: newAppointmentId(), date, status: "confirmado", arrivedAt: undefined }]);
-    setRepeated(date);
+  function setStatus(next: BackendStatus, closeAfter = false) {
+    run(changeStatus.mutateAsync({ id: appointment!.id, status: next, versao: appointment!.version }), () => { if (closeAfter) onClose(); });
   }
 
   function confirmCancel() {
-    if (!appointment) return;
-    update(appointment.id, { status: cancelReason });
-    setCancelOpen(false);
-    onClose();
+    if (chosenMotive === null) return;
+    run(cancel.mutateAsync({ id: appointment!.id, versao: appointment!.version, motivoId: chosenMotive, observacao: note.trim() || undefined }), () => {
+      setCancelOpen(false);
+      onClose();
+    });
+  }
+
+  function confirmReschedule() {
+    if (!rescheduleSlot || chosenMotive === null) return;
+    run(reschedule.mutateAsync({ id: appointment!.id, versao: appointment!.version, motivoId: chosenMotive, inicio: rescheduleSlot }), () => {
+      setRescheduling(false);
+      onClose();
+    });
+  }
+
+  function repeatNextWeek() {
+    const next = new Date(`${appointment!.date}T12:00:00Z`);
+    next.setUTCDate(next.getUTCDate() + 7);
+    const date = next.toISOString().slice(0, 10);
+    const offset = appointment!.startIso.slice(19);
+    run(create.mutateAsync({
+      unidadeId: unitId, profissionalId: appointment!.professionalId, pacienteId: appointment!.patientId,
+      procedimentoId: appointment!.procedureId, inicio: `${date}T${appointment!.start}:00${offset}`, canal: "clinica",
+    }), () => setRepeated(date));
   }
 
   return (
@@ -124,25 +117,17 @@ export function AgendamentoDrawer({
         size="md"
         footer={
           <div className="flex w-full flex-wrap items-center justify-end gap-2">
-            <Button variant="danger" size="sm" icon={CloseCircle} disabled={!canCancel} onClick={() => setCancelOpen(true)}>
+            <Button variant="danger" size="sm" icon={CloseCircle} disabled={!canCancel || busy} onClick={() => setCancelOpen(true)}>
               Cancelar
             </Button>
-            <Button variant="secondary" size="sm" icon={Refresh2} onClick={repeatNextWeek}>
+            <Button variant="secondary" size="sm" icon={Refresh2} disabled={busy} loading={create.isPending} onClick={repeatNextWeek}>
               Repetir
             </Button>
-            <Button variant="secondary" size="sm" icon={CalendarEdit} onClick={() => setRescheduling((v) => !v)}>
+            <Button variant="secondary" size="sm" icon={CalendarEdit} disabled={!canReschedule || busy} onClick={() => setRescheduling((v) => !v)}>
               Remarcar
             </Button>
             {canCheckIn && (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={TickCircle}
-                onClick={() => {
-                  update(appointment.id, { status: "aguardando", arrivedAt: NOW_TIME });
-                  onClose();
-                }}
-              >
+              <Button variant="primary" size="sm" icon={TickCircle} disabled={busy} loading={changeStatus.isPending} onClick={() => setStatus("check_in", true)}>
                 Fazer check-in
               </Button>
             )}
@@ -150,79 +135,73 @@ export function AgendamentoDrawer({
         }
       >
         <div className="flex flex-col gap-5">
-          {patient && patient.alerts.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger-bg px-3 py-2.5 text-sm text-danger">
-              <Warning2 size={18} aria-hidden className="mt-0.5 shrink-0" variant="Bold" />
-              <div>
-                <p className="font-semibold">Alerta clínico</p>
-                <p>{patient.alerts.join(" · ")}</p>
-              </div>
-            </div>
-          )}
-
           <div className="flex items-center gap-3">
-            <Avatar name={patient?.name ?? "Paciente"} size="lg" />
+            <Avatar name={appointment.patientName} size="lg" />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-lg font-semibold text-text">{patient?.name ?? "Paciente não encontrado"}</p>
-              <p className="text-sm text-text-muted">
-                {patient ? `${age(patient.birthDate, appointment.date)} anos · ${patient.phone}` : "—"}
-              </p>
+              <p className="truncate text-lg font-semibold text-text">{appointment.patientName}</p>
+              <p className="text-sm text-text-muted">{appointment.patientPhone ?? "Telefone não informado"}</p>
             </div>
             <StatusBadge status={appointment.status} />
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {appointment.isEncaixe && <Badge tone="warning" icon={Flash}>Encaixe</Badge>}
-            {appointment.isRetorno && <Badge tone="info" icon={Refresh2}>Retorno</Badge>}
-            {appointment.isFirstVisit && <Badge tone="accent" icon={UserAdd}>1ª consulta</Badge>}
           </div>
 
           <DescriptionList
             columns={2}
             items={[
-              { label: "Profissional", value: professional?.name },
+              { label: "Profissional", value: professional?.name ?? appointment.professionalName },
               { label: "Especialidade", value: professional?.specialty },
-              { label: "Procedimento", value: proc?.name },
-              { label: "Duração", value: proc ? `${proc.durationMin} min` : undefined },
-              { label: "Local", value: locationName(appointment.locationId) },
-              { label: "Convênio", value: insuranceName(appointment.insuranceId) },
-              { label: "Valor", value: brl(appointment.priceCents) },
-              { label: "Observações", value: appointment.notes },
+              { label: "Procedimento", value: appointment.procedureName },
+              { label: "Duração", value: procedure?.durationMin ? `${procedure.durationMin} min` : undefined },
+              { label: "Canal", value: appointment.channel },
+              { label: "Valor", value: appointment.priceCents === null ? undefined : brl(appointment.priceCents) },
+              { label: "Observações", value: appointment.notes ?? undefined },
             ]}
           />
 
-          <Select
-            label="Alterar status"
-            value={appointment.status}
-            onChange={(e) => update(appointment.id, { status: e.target.value as AppointmentStatus })}
-            options={Object.entries(APPOINTMENT_STATUS).map(([value, s]) => ({ value, label: s.label }))}
-          />
+          {nextStatuses.length > 0 && (
+            <Select
+              label="Alterar status"
+              value=""
+              disabled={busy}
+              onChange={(e) => e.target.value && setStatus(e.target.value as BackendStatus)}
+              options={[
+                { value: "", label: APPOINTMENT_STATUS[appointment.status].label },
+                ...nextStatuses.map((s) => ({ value: s, label: APPOINTMENT_STATUS[statusFromBackend(s)].label })),
+              ]}
+            />
+          )}
 
-          {rescheduling && professional && (
+          {rescheduling && (
             <div className="flex flex-col gap-3 rounded-lg bg-surface px-3 py-3">
               <p className="text-sm font-medium text-text">Novo horário</p>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  type="date"
-                  value={rescheduleDate}
-                  onChange={(e) => {
-                    setRescheduleDate(e.target.value);
-                    setRescheduleTime("");
-                  }}
-                  className="h-9 rounded-full border border-border-strong bg-surface-raised px-3 text-base text-text"
-                  aria-label="Nova data"
-                />
-              </div>
-              {rescheduleSlots.length > 0 ? (
+              <Select
+                label="Motivo"
+                value={String(chosenMotive ?? "")}
+                onChange={(e) => setMotiveId(Number(e.target.value))}
+                options={(motives.data ?? []).map((m) => ({ value: String(m.id), label: m.nome }))}
+              />
+              <Input
+                type="date"
+                label="Nova data"
+                value={rescheduleDate}
+                onChange={(e) => {
+                  setRescheduleDate(e.target.value);
+                  setRescheduleSlot("");
+                }}
+              />
+              {slots.isFetching ? (
+                <p className="text-sm text-text-muted">Buscando horários livres…</p>
+              ) : slots.isError ? (
+                <p className="text-sm text-danger">{message(slots.error)}</p>
+              ) : (slots.data ?? []).length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {rescheduleSlots.map((t) => (
+                  {(slots.data ?? []).map((s) => (
                     <button
-                      key={t}
+                      key={s.inicio}
                       type="button"
-                      onClick={() => setRescheduleTime(t)}
-                      className={`h-8 rounded-full border px-3 text-sm tabular transition-colors ${t === rescheduleTime ? "border-accent bg-accent-muted text-accent" : "border-border-strong bg-surface-raised text-text-muted hover:text-text"}`}
+                      onClick={() => setRescheduleSlot(s.inicio)}
+                      className={`h-8 rounded-full border px-3 text-sm tabular transition-colors ${s.inicio === rescheduleSlot ? "border-accent bg-accent-muted text-accent" : "border-border-strong bg-surface-raised text-text hover:bg-accent-muted"}`}
                     >
-                      {t}
+                      {clock(s.inicio)}
                     </button>
                   ))}
                 </div>
@@ -233,7 +212,7 @@ export function AgendamentoDrawer({
                 <Button size="sm" variant="ghost" onClick={() => setRescheduling(false)}>
                   Voltar
                 </Button>
-                <Button size="sm" variant="primary" disabled={!rescheduleTime} onClick={confirmReschedule}>
+                <Button size="sm" variant="primary" disabled={!rescheduleSlot || busy} loading={reschedule.isPending} onClick={confirmReschedule}>
                   Confirmar remarcação
                 </Button>
               </div>
@@ -243,23 +222,17 @@ export function AgendamentoDrawer({
           {repeated && (
             <p className="rounded-lg bg-success-bg px-3 py-2 text-sm text-success">Agendamento repetido para {dateLong(repeated)}.</p>
           )}
+          {error && <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">{error}</p>}
 
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             <ButtonLink to={`/pacientes/${appointment.patientId}`} variant="secondary" size="sm" icon={DocumentText}>
               Abrir prontuário
             </ButtonLink>
-            <ButtonLink to={`/atendimento/${appointment.id}`} variant="secondary" size="sm" icon={Health}>
-              Iniciar atendimento
-            </ButtonLink>
-            <Button
-              variant={whatsappSent ? "subtle" : "secondary"}
-              size="sm"
-              icon={whatsappSent ? TickCircle : WhatsappIcon}
-              disabled={whatsappSent}
-              onClick={() => setWhatsappSent(true)}
-            >
-              {whatsappSent ? "Confirmação enviada" : "Enviar confirmação por WhatsApp"}
-            </Button>
+            {status === "check_in" && (
+              <ButtonLink to={`/atendimento/${appointment.id}`} variant="secondary" size="sm" icon={Health}>
+                Iniciar atendimento
+              </ButtonLink>
+            )}
           </div>
         </div>
       </Modal>
@@ -268,7 +241,7 @@ export function AgendamentoDrawer({
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         title="Cancelar agendamento"
-        description="Essa ação muda o status do agendamento. O horário fica livre na agenda."
+        description="O horário volta a ficar livre na agenda. O motivo fica registrado."
         icon={CloseCircle}
         tone="danger"
         size="sm"
@@ -277,18 +250,22 @@ export function AgendamentoDrawer({
             <Button variant="ghost" size="sm" onClick={() => setCancelOpen(false)}>
               Voltar
             </Button>
-            <Button variant="danger" size="sm" onClick={confirmCancel}>
+            <Button variant="danger" size="sm" disabled={busy || chosenMotive === null} loading={cancel.isPending} onClick={confirmCancel}>
               Confirmar cancelamento
             </Button>
           </>
         }
       >
-        <Select
-          label="Motivo"
-          value={cancelReason}
-          onChange={(e) => setCancelReason(e.target.value as AppointmentStatus)}
-          options={CANCEL_REASONS}
-        />
+        <div className="flex flex-col gap-3">
+          <Select
+            label="Motivo"
+            value={String(chosenMotive ?? "")}
+            onChange={(e) => setMotiveId(Number(e.target.value))}
+            options={(motives.data ?? []).map((m) => ({ value: String(m.id), label: m.nome }))}
+          />
+          <Input label="Observação (opcional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        </div>
       </Modal>
     </>
   );
