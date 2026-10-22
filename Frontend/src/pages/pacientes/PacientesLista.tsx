@@ -190,6 +190,7 @@ export default function Page() {
                           <Avatar name={p.nome} />
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-1.5">
+                              {p.corIdentificacao && <span aria-label="Cor de identificação" className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: p.corIdentificacao }} />}
                               <span className={cn("truncate font-medium", !p.ativo && "text-text-muted line-through")}>{p.nome}</span>
                               {p.avisoAtivo && (
                                 <Tooltip content="Tem aviso no cadastro"><Danger size={15} variant="Bold" aria-label="Tem aviso no cadastro" className="shrink-0 text-danger" /></Tooltip>

@@ -1,5 +1,6 @@
 /** Listas fixas dos campos do cadastro de paciente (as da tela Pacientes > Inserir do Feegow que não são cadastro da clínica). */
-export const SEXES = ["Feminino", "Masculino", "Outro", "Não informado"];
+/** "Não informado" é o campo vazio (primeira opção do seletor), não um valor guardado. */
+export const SEXES = ["Feminino", "Masculino", "Outro"];
 export const CIVIL_STATUS = ["Solteiro(a)", "Casado(a)", "União estável", "Separado(a)", "Divorciado(a)", "Viúvo(a)"];
 export const EDUCATION_LEVELS = [
   "Sem escolaridade", "Fundamental incompleto", "Fundamental completo", "Médio incompleto", "Médio completo",

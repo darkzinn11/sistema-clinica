@@ -153,6 +153,7 @@ export function PacienteForm({
                 options={[{ value: "", label: "Sem prioridade" }, ...(priorities.data ?? []).map((p) => ({ value: p.id, label: p.nome }))]} />
               <div className="flex flex-col gap-1.5">
                 <span className="text-sm font-medium text-text">Cor de identificação</span>
+                <span className="text-xs text-text-muted">Marca o paciente com uma cor para a recepção reconhecê-lo (aparece na lista e na ficha).</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" aria-label="Sem cor" onClick={() => set("corIdentificacao", "")}
                     className={cn("h-7 w-7 rounded-full border-2 border-dashed border-border-strong", v.corIdentificacao === "" && "ring-2 ring-accent ring-offset-2")} />
