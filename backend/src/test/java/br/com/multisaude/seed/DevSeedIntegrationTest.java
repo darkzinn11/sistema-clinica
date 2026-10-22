@@ -105,17 +105,17 @@ class DevSeedIntegrationTest {
 
     @Test
     void theSeededUsersCanLogInAndTheReceptionistChoosesBetweenTwoUnits() throws Exception {
-        login(first, "admin@vidaplena.test", PASSWORD, null).andExpect(status().isOk()).andExpect(jsonPath("usuario.papel").value("Administrador"))
-            .andExpect(jsonPath("usuario.clinicaNome").value("Clínica Vida Plena"));
-        login(first, "igor.leonardo@vidaplena.test", PASSWORD, null).andExpect(status().isConflict()).andExpect(jsonPath("unidades.length()").value(2));
-        login(first, "admin@vidaplena.test", "senha errada 123", null).andExpect(status().isUnauthorized());
+        login(first, "admin@multisaude.test", PASSWORD, null).andExpect(status().isOk()).andExpect(jsonPath("usuario.papel").value("Administrador"))
+            .andExpect(jsonPath("usuario.clinicaNome").value("Clínica Popular MultiSaúde"));
+        login(first, "igor.leonardo@multisaude.test", PASSWORD, null).andExpect(status().isConflict()).andExpect(jsonPath("unidades.length()").value(2));
+        login(first, "admin@multisaude.test", "senha errada 123", null).andExpect(status().isUnauthorized());
         login(second, "admin@bemviver.test", PASSWORD, null).andExpect(status().isOk());
-        login(second, "admin@vidaplena.test", PASSWORD, null).andExpect(status().isUnauthorized());     // cada clínica tem as suas contas
+        login(second, "admin@multisaude.test", PASSWORD, null).andExpect(status().isUnauthorized());     // cada clínica tem as suas contas
     }
 
     @Test
     void eachClinicHasItsOwnCatalogProfessionalsAndPatients() throws Exception {
-        String admin = token(first, "admin@vidaplena.test");
+        String admin = token(first, "admin@multisaude.test");
         get(admin, "/profissionais?limite=50").andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(8));
         get(admin, "/especialidades").andExpect(jsonPath("$.length()").value(8));
         get(admin, "/procedimentos?limite=50").andExpect(jsonPath("$.length()").value(20));
@@ -129,7 +129,7 @@ class DevSeedIntegrationTest {
 
     @Test
     void thePatientsHaveTheFeegowFieldsAndTheRulesHold() throws Exception {
-        String admin = token(first, "admin@vidaplena.test");
+        String admin = token(first, "admin@multisaude.test");
         JsonNode all = json.readTree(get(admin, "/pacientes?limite=100&situacao=todos").andReturn().getResponse().getContentAsString());
         assertEquals(28, all.size());
         long withoutCpf = 0, foreign = 0, withPriority = 0;
@@ -159,7 +159,7 @@ class DevSeedIntegrationTest {
             assertTrue(byStatus.getOrDefault(status, 0L) > 0, "sem agendamento " + status);
         Long tickets = inClinic(first, () -> jdbc.queryForObject("SELECT count(*) FROM clinica.senhas", Long.class));
         assertEquals(5L, tickets);
-        String reception = token(first, "igor.leonardo@vidaplena.test");
+        String reception = token(first, "igor.leonardo@multisaude.test");
         get(reception, "/senhas/fila").andExpect(status().isOk());
         assertNotNull(tenant);
     }
@@ -179,7 +179,7 @@ class DevSeedIntegrationTest {
 
     @Test
     void theDemoDoctorSeesOnlyTheirOwnPatientsWithTheRestrictedRecord() throws Exception {
-        String doctor = token(first, "camila.esteves@vidaplena.test");
+        String doctor = token(first, "camila.esteves@multisaude.test");
         JsonNode list = json.readTree(get(doctor, "/pacientes").andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertTrue(list.size() > 0 && list.size() < 27, "só os pacientes com vínculo");
         String id = list.get(0).get("id").asString();

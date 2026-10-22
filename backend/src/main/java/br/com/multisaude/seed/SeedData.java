@@ -8,7 +8,7 @@ final class SeedData {
     private SeedData() {}
 
     static List<Clinic> clinics() {
-        return List.of(vidaPlena(), bemViver());
+        return List.of(popularMultiSaude(), bemViver());
     }
 
     /** CPF com dígitos verificadores corretos, derivado de um número de ordem (determinístico). */
@@ -26,7 +26,7 @@ final class SeedData {
         return r == 10 ? 0 : r;
     }
 
-    private static Clinic vidaPlena() {
+    private static Clinic popularMultiSaude() {
         var specialties = List.of("Ultrassonografia", "Ginecologia", "Psicologia", "Cardiologia", "Dermatologia", "Ortopedia", "Pediatria", "Clínica geral");
         var procedures = List.of(
             new Procedure("Consulta clínica", "consulta", 20, 15000, "Clínica geral"), new Procedure("Retorno", "consulta", 15, 0, "Clínica geral"),
@@ -45,10 +45,10 @@ final class SeedData {
             new Professional("Dra. Larissa Moura", "Dermatologia", "CRM", "30219", 9, 18, 30), new Professional("Dr. Thiago Barreto", "Ortopedia", "CRM", "27104", 13, 18, 20),
             new Professional("Dra. Fernanda Quintela", "Pediatria", "CRM", "19950", 8, 13, 30), new Professional("Dr. Gustavo Pimentel", "Clínica geral", "CRM", "31560", 7, 13, 20));
         var accounts = List.of(
-            new Account("Administração Vida Plena", "admin@vidaplena.test", "Administrador", List.of("Unidade Centro"), null),
-            new Account("Igor Leonardo", "igor.leonardo@vidaplena.test", "Recepção", List.of("Unidade Centro", "Unidade Norte"), null),
-            new Account("Camila Esteves", "camila.esteves@vidaplena.test", "Médico", List.of("Unidade Centro"), "Dra. Camila Esteves"));
-        return new Clinic("vida-plena", "Clínica Vida Plena", List.of("Unidade Centro", "Unidade Norte"), accounts, specialties, procedures, professionals,
+            new Account("Administração MultiSaúde", "admin@multisaude.test", "Administrador", List.of("Unidade Centro"), null),
+            new Account("Igor Leonardo", "igor.leonardo@multisaude.test", "Recepção", List.of("Unidade Centro", "Unidade Norte"), null),
+            new Account("Camila Esteves", "camila.esteves@multisaude.test", "Médico", List.of("Unidade Centro"), "Dra. Camila Esteves"));
+        return new Clinic("multisaude", "Clínica Popular MultiSaúde", List.of("Unidade Centro", "Unidade Norte"), accounts, specialties, procedures, professionals,
             "Unidade Norte", List.of("Dra. Larissa Moura", "Dr. Gustavo Pimentel"), names(28, 0), 0);
     }
 

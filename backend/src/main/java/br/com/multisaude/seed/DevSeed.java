@@ -81,7 +81,7 @@ public class DevSeed implements ApplicationRunner {
         if (password == null || password.length() < 12) throw new IllegalArgumentException("Defina SEED_PASSWORD (mínimo 12 caracteres): é a senha dos usuários de demonstração.");
         IdentityService.validatePasswordBytes(password);
         seed(SeedData.clinics(), passwords.encode(password));
-        System.out.println("Seeds de desenvolvimento prontos. Entre com o código da clínica (vida-plena ou bem-viver) e SEED_PASSWORD.");
+        System.out.println("Seeds de desenvolvimento prontos. Entre com o código da clínica (multisaude ou bem-viver) e SEED_PASSWORD.");
     }
 
     void seed(List<Clinic> clinics, String hash) {
