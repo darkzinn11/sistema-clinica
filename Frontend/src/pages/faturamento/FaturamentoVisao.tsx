@@ -1,10 +1,11 @@
 import { IconCircle } from "@/components/ui/icon-circle";
-import { Add, ArrowRight2, ClipboardClose, Clock, MoneyRecive, Moneys, ReceiptItem, Send2, ShieldCross, TickCircle, Warning2 } from "iconsax-reactjs";
+import { Add, ArrowRight2, ClipboardClose, Clock, MoneyRecive, Moneys, ReceiptItem, Send2, ShieldCross, Warning2 } from "iconsax-reactjs";
 import { Link } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/charts";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/misc";
 import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
@@ -158,10 +159,7 @@ export default function FaturamentoVisao() {
             <CardHeader title="Ações pendentes" description="O que precisa de atenção agora" />
             <CardBody className="px-3 py-3">
               {acoes.length === 0 ? (
-                <div className="flex items-center gap-2 px-3 py-6 text-base text-text-muted">
-                  <TickCircle size={18} className="text-success" aria-hidden />
-                  Tudo em dia por aqui.
-                </div>
+                <EmptyState title="Tudo em dia por aqui." description="Nenhuma ação pendente no faturamento." illustration="globais/sem-notificacoes-alt" compact />
               ) : (
                 <ul className="flex flex-col gap-1">
                   {acoes.map((a) => (

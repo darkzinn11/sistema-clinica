@@ -3,6 +3,7 @@ import { Add, ArrowDown2, Building, Clock, Fatrows, FolderOpen, HamburgerMenu, L
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/auth";
 import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { DropdownMenu } from "@/components/ui/overlay";
 import { Kbd } from "@/components/ui/misc";
 import { QUICK_ACTIONS } from "@/lib/quick-actions";
@@ -45,7 +46,7 @@ function NotificationsButton() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="text-base font-semibold text-text">Notificações</p>
           </div>
-          <p className="px-4 py-8 text-center text-sm text-text-muted">Nenhuma notificação por enquanto.</p>
+          <EmptyState title="Nenhuma notificação por enquanto." illustration="globais/sem-notificacoes" compact />
         </div>
       )}
     </div>

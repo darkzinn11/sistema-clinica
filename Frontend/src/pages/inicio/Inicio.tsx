@@ -195,7 +195,7 @@ export default function Page() {
             <CardHeader title="Sala de espera agora" description={`${d.naSalaDeEspera} paciente(s)`} actions={<ButtonLink to="/espera" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver tudo</ButtonLink>} />
             <CardBody className="flex flex-col gap-1">
               {d.espera.length === 0 ? (
-                <p className="py-4 text-sm text-text-muted">Ninguém esperando no momento.</p>
+                <EmptyState title="Ninguém esperando no momento." illustration="recepcao/sala-de-espera-vazia" compact className="py-4" />
               ) : (
                 d.espera.map((w) => (
                   <div key={w.agendamentoId} className="flex items-center gap-3 px-2 py-2 -mx-2">
@@ -216,7 +216,9 @@ export default function Page() {
           <Card className="xl:col-span-2">
             <CardHeader title="Ocupação por profissional hoje" />
             <CardBody className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-              {d.ocupacao.length === 0 && <p className="text-sm text-text-muted">Nenhum profissional com grade hoje nesta unidade.</p>}
+              {d.ocupacao.length === 0 && (
+                <EmptyState title="Nenhum profissional com grade hoje nesta unidade." illustration="cadastros/nenhum-profissional" compact className="py-4 sm:col-span-2" />
+              )}
               {d.ocupacao.map((p) => (
                 <div key={p.profissionalId} className="flex items-center gap-3">
                   <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: seriesColor(p.cor) }} />
@@ -272,7 +274,9 @@ export default function Page() {
           <Card>
             <CardHeader title="Aniversariantes" description="Hoje até os próximos 6 dias" />
             <CardBody className="flex flex-col gap-1">
-              {d.aniversariantes.length === 0 && <p className="py-2 text-sm text-text-muted">Nenhum aniversariante nesta semana.</p>}
+              {d.aniversariantes.length === 0 && (
+                <EmptyState title="Nenhum aniversariante nesta semana." illustration="pacientes/nenhum-paciente-alt" compact className="py-4" />
+              )}
               {d.aniversariantes.map((b) => (
                 <div key={b.pacienteId} className="flex items-center gap-3 px-2 py-2 -mx-2">
                   <Avatar name={b.nome} size="sm" />

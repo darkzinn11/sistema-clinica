@@ -406,7 +406,7 @@ function AgendaDiaView() {
                       <p className="mt-1 text-xs text-text-muted">{appts.length} agendamentos</p>
                     </div>
                     <CardBody className="flex flex-col gap-2.5">
-                      {counts.length === 0 ? <p className="text-sm text-text-muted">Nenhum agendamento neste dia.</p> :
+                      {counts.length === 0 ? <EmptyState title="Nenhum agendamento neste dia." illustration="agenda/nenhum-agendamento" compact className="px-0 py-2" /> :
                         counts.map((entry) => (
                           <div key={entry.status} className="flex items-center justify-between gap-2">
                             <Badge tone={APPOINTMENT_STATUS[entry.status].tone} dot>{APPOINTMENT_STATUS[entry.status].label}</Badge>

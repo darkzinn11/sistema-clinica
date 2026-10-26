@@ -45,9 +45,11 @@ export function EmptyState({
           draggable={false}
           loading="lazy"
           decoding="async"
+          // As artes são quadradas com o desenho centralizado ocupando no máximo ~65% da altura:
+          // o quadro 4:3 corta só a faixa vazia de cima e de baixo, aproximando o texto.
           className={cn(
-            "pointer-events-none max-w-full shrink-0 object-contain",
-            compact ? "h-40 w-40 sm:h-44 sm:w-44" : "h-52 w-52 sm:h-60 sm:w-60",
+            "pointer-events-none aspect-[4/3] max-w-full shrink-0 object-cover",
+            compact ? "w-40 sm:w-44" : "w-52 sm:w-60",
           )}
         />
       ) : (
