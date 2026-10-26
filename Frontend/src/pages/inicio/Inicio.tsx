@@ -107,7 +107,7 @@ export default function Page() {
   if (inicio.isError) {
     return (
       <div className="mx-auto max-w-7xl">
-        <PageHeader title={`${greeting()}, ${firstName}`} />
+        <PageHeader title={`${greeting()}, ${firstName}`} icon={null} />
         <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<button type="button" className="text-accent underline" onClick={() => void inicio.refetch()}>Tentar de novo</button>} />
       </div>
     );
@@ -123,6 +123,7 @@ export default function Page() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title={`${greeting()}, ${firstName}`}
+        icon={null}
         description={<span>{dateLong(d.data)}</span>}
       />
 

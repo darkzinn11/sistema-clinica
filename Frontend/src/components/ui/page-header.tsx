@@ -1,7 +1,8 @@
-import { ArrowRight2 } from "iconsax-reactjs";
-import { Link } from "react-router";
+import { ArrowRight2, type Icon as IconType } from "iconsax-reactjs";
+import { Link, useLocation } from "react-router";
 import { type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { findSection } from "@/lib/nav";
 
 export interface Crumb {
   label: string;
@@ -20,6 +21,7 @@ export function PageHeader({
   meta,
   children,
   className,
+  icon,
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -30,7 +32,11 @@ export function PageHeader({
   /** Abas ou filtros logo abaixo do título. */
   children?: ReactNode;
   className?: string;
+  /** Ícone antes do título. Por padrão, o da seção do menu lateral (Agenda, Pacientes…); null tira o ícone. */
+  icon?: IconType | null;
 }) {
+  const { pathname } = useLocation();
+  const Icon = icon === undefined ? findSection(pathname)?.icon : icon;
   return (
     <header className={cn("flex flex-col gap-4 pb-6", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -50,7 +56,11 @@ export function PageHeader({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="ui-page-title font-display text-2xl font-semibold tracking-tight text-text">{title}</h1>
+            <h1 className="ui-page-title flex items-center gap-2.5 font-display text-2xl font-semibold tracking-tight text-text">
+              {/* Bulk: parte de cima no verde da marca e o corpo no mesmo verde, mais claro. */}
+              {Icon && <Icon size={28} variant="Bulk" aria-hidden className="shrink-0 text-accent-strong" />}
+              {title}
+            </h1>
             {meta}
           </div>
           {description && <p className="mt-1 max-w-3xl text-base text-text-muted">{description}</p>}
