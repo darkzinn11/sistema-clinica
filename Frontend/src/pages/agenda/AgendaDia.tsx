@@ -2,6 +2,7 @@ import {
   Add,
   ArrowDown2,
   CloseCircle,
+  ExportCurve,
   Filter,
   Flash,
   Health,
@@ -22,6 +23,7 @@ import { Segmented } from "@/components/ui/tabs";
 import { AgendamentoDrawer } from "@/components/agenda/AgendamentoDrawer";
 import { AppointmentDetailsPanel } from "@/components/agenda/AppointmentDetailsPanel";
 import { DateNav } from "@/components/agenda/DateNav";
+import { ExportarAgendaModal } from "@/components/agenda/ExportarAgendaModal";
 import { DayGrid, type GridColumn } from "@/components/agenda/DayGrid";
 import { MiniMonth } from "@/components/agenda/MiniMonth";
 import { NovoAgendamentoDrawer } from "@/components/agenda/NovoAgendamentoDrawer";
@@ -105,6 +107,7 @@ function AgendaDiaView() {
   const [profMenuOpen, setProfMenuOpen] = useState(false);
   const profMenuRef = useRef<HTMLDivElement>(null);
   const [legendOpen, setLegendOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const items = useAgendaItems(date, date);
   const changeStatus = useChangeStatus();
@@ -189,10 +192,18 @@ function AgendaDiaView() {
   const counts = STATUS_ORDER
     .map((status) => ({ status, count: appts.filter((a) => a.status === status).length }))
     .filter((c) => c.count > 0);
-  const visibleCount = appts.filter(
+  const filteredAppts = appts.filter(
     (a) => visibleProfs.some((p) => p.id === a.professionalId) &&
       (statusFilter === "todos" || a.status === statusFilter),
-  ).length;
+  );
+  const visibleCount = filteredAppts.length;
+
+  /** Filtros ativos em texto curto — mostrados na exportação e impressos no PDF. */
+  const activeFilters = [
+    specialtyFilter !== "todas" ? `Especialidade: ${specialtyFilter}` : null,
+    statusFilter !== "todos" ? `Status: ${APPOINTMENT_STATUS[statusFilter].label}` : null,
+    visibleProfs.length < menuProfs.length ? `${visibleProfs.length} de ${menuProfs.length} profissionais` : null,
+  ].filter((f): f is string => f !== null);
 
   function selectAppointment(id: string) {
     const mobile = window.matchMedia("(max-width: 1023px)").matches;
@@ -212,17 +223,22 @@ function AgendaDiaView() {
         description="Gerencie os horários e atendimentos da clínica em um só lugar."
         className="pb-5"
         actions={
-          <Button
-            variant="primary"
-            icon={Add}
-            size="md"
-            onClick={() => {
-              setNewPrefill({});
-              setNewOpen(true);
-            }}
-          >
-            Novo agendamento
-          </Button>
+          <>
+            <Button variant="secondary" size="md" icon={ExportCurve} disabled={appts.length === 0} onClick={() => setExportOpen(true)}>
+              Exportar
+            </Button>
+            <Button
+              variant="primary"
+              icon={Add}
+              size="md"
+              onClick={() => {
+                setNewPrefill({});
+                setNewOpen(true);
+              }}
+            >
+              Novo agendamento
+            </Button>
+          </>
         }
       />
 
@@ -435,6 +451,16 @@ function AgendaDiaView() {
           <Button variant="secondary" icon={CloseCircle} size="sm" onClick={() => setSelectedId(null)}>Fechar seleção</Button>
         </div>
       )}
+      <ExportarAgendaModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        date={date}
+        dateLabel={dateLong(date).replace(/^./, (c) => c.toUpperCase())}
+        all={appts}
+        filtered={filteredAppts}
+        filters={activeFilters}
+        professionals={professionals.map((p) => ({ id: p.id, name: p.name, specialty: p.specialty, color: p.colorCss }))}
+      />
       <AgendamentoDrawer appointment={manageOpen ? selected : null} onClose={() => setManageOpen(false)} />
       <NovoAgendamentoDrawer
         open={newOpen}
