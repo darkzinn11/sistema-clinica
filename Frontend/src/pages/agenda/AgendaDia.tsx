@@ -286,15 +286,16 @@ function AgendaDiaView() {
                 {profMenuOpen && (
                   <div className="ui-menu-enter absolute left-0 top-full z-50 mt-2 w-72 rounded-xl border border-border bg-surface-raised p-2 shadow-pop">
                     <div className="flex items-center justify-between gap-3 px-2 py-2">
-                      <span className="text-xs font-semibold text-text-muted">Profissionais em atendimento</span>
-                      <button
-                        type="button"
-                        className="shrink-0 whitespace-nowrap text-xs font-medium text-accent hover:underline"
+                      <span className="whitespace-nowrap text-xs font-semibold text-text-muted">Profissionais</span>
+                      <Button
+                        variant="subtle"
+                        size="xs"
+                        className="h-7 px-2.5"
                         onClick={toggleAllMenuProfs}
                         disabled={menuProfs.length === 0}
                       >
                         {allSelected ? "Remover seleção" : "Selecionar todos"}
-                      </button>
+                      </Button>
                     </div>
                     <div className="max-h-72 overflow-y-auto">
                       {menuProfs.length === 0 && (

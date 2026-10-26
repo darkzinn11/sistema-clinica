@@ -98,9 +98,9 @@ export default function Profissionais() {
           <span>
             <span className="font-medium">{unverified.length}</span> {unverified.length === 1 ? "profissional sem e-mail de acesso verificado" : "profissionais sem e-mail de acesso verificado"}. Resolva antes da migração ao login único.
           </span>
-          <button type="button" className="font-medium underline underline-offset-2" onClick={() => setStatusFilter("")}>
+          <Button variant="secondary" size="xs" onClick={() => setStatusFilter("")}>
             Revisar estes profissionais
-          </button>
+          </Button>
         </div>
       )}
 

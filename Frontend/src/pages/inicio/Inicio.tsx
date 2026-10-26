@@ -22,7 +22,7 @@ import {
 import { Link } from "react-router";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/misc";
@@ -108,7 +108,7 @@ export default function Page() {
     return (
       <div className="mx-auto max-w-7xl">
         <PageHeader title={`${greeting()}, ${firstName}`} icon={null} />
-        <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<button type="button" className="text-accent underline" onClick={() => void inicio.refetch()}>Tentar de novo</button>} />
+        <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<Button variant="secondary" size="sm" onClick={() => void inicio.refetch()}>Tentar de novo</Button>} />
       </div>
     );
   }
