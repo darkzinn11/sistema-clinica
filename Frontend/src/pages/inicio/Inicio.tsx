@@ -38,13 +38,12 @@ import { PENDENCIAS } from "@/lib/mock/agenda";
 type DashboardDelta = { value: number; period: string; goodWhenUp?: boolean };
 
 function DashboardMetric({
-  label, value, icon, tone, featured = false, delta, footer, currency = false,
+  label, value, icon, tone, delta, footer, currency = false,
 }: {
   label: string;
   value: ReactNode;
   icon: ReactNode;
-  tone: "accent" | "dark" | "blue" | "royal";
-  featured?: boolean;
+  tone: "dark" | "blue" | "royal";
   delta?: DashboardDelta;
   footer: ReactNode;
   currency?: boolean;
@@ -55,7 +54,7 @@ function DashboardMetric({
   const DeltaIcon = isPositive ? ArrowUp : isNegative ? ArrowDown : Minus;
 
   return (
-    <article className={"ms-home-metric" + (featured ? " ms-home-metric--featured" : "")}>
+    <article className="ms-home-metric">
       <p className="ms-home-metric__label">{label}</p>
       <span aria-hidden className={"ms-home-metric__icon ms-home-metric__icon--" + tone}>{icon}</span>
       <div className="ms-home-metric__value-row">
@@ -131,8 +130,7 @@ export default function Page() {
         <section className="ms-home-kpi-container" aria-label="Resumo de indicadores de hoje">
           <div className="ms-home-kpi-grid">
             <DashboardMetric
-              featured
-              tone="accent"
+              tone="dark"
               label="Agendamentos hoje"
               value={d.agendamentosHoje}
               icon={<Calendar size={21} variant="Bold" />}

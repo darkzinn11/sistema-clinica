@@ -790,10 +790,6 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-home-metric { container-type: inline-size; }
 .ms-home-metric:has(.ms-home-metric__icon) .ms-home-metric__value-row { padding-right: 56px; }
 .ms-home-metric .ms-home-metric__value--currency { font-size: clamp(20px, 9.5cqi, 35px) !important; }
-.ms-home-metric--featured {
-  background: var(--ms-brand-gradient);
-  color: white;
-}
 .ms-home-metric__label {
   max-width: calc(100% - 56px);
   font-size: 12px;
@@ -801,7 +797,6 @@ body { -webkit-font-smoothing: antialiased; }
   font-weight: 500;
   color: var(--c-text-muted);
 }
-.ms-home-metric--featured .ms-home-metric__label { color: rgb(255 255 255 / .86); }
 .ms-home-metric__icon {
   position: absolute;
   top: 21px;
@@ -814,7 +809,6 @@ body { -webkit-font-smoothing: antialiased; }
   border-radius: 50%;
   box-shadow: 0 2px 8px rgb(0 0 0 / .035);
 }
-.ms-home-metric__icon--accent { background: white; color: var(--c-accent); }
 .ms-home-metric__icon--dark,
 .ms-home-metric__icon--blue,
 .ms-home-metric__icon--royal {
@@ -838,7 +832,6 @@ body { -webkit-font-smoothing: antialiased; }
   letter-spacing: -.046em;
   white-space: nowrap;
 }
-.ms-home-metric--featured .ms-home-metric__value { color: white; }
 .ms-home-metric__value--currency { font-size: clamp(22px, 1.9vw, 35px); }
 .ms-home-metric__change {
   display: inline-flex;
@@ -854,10 +847,6 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .ms-home-metric__change--positive { background: var(--c-aux-bg); color: var(--c-aux); }
 .ms-home-metric__change--negative { background: var(--c-danger-bg); color: var(--c-danger); }
-.ms-home-metric--featured .ms-home-metric__change {
-  background: rgb(255 255 255 / .20);
-  color: white;
-}
 .ms-home-metric__footer {
   margin-top: auto;
   font-size: 11px;
@@ -866,8 +855,6 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .ms-home-metric__footer strong { color: var(--c-text); font-weight: 500; }
 .ms-home-metric__revenue-delta { color: var(--c-success); font-size: 10px; }
-.ms-home-metric--featured .ms-home-metric__footer,
-.ms-home-metric--featured .ms-home-metric__footer strong { color: rgb(255 255 255 / .91); }
 .ms-home-metric__link {
   display: inline-flex;
   align-items: center;
