@@ -98,6 +98,7 @@ export function DayGrid({
   onSlotClick,
   onAppointmentClick,
   minColWidth = 200,
+  maxColWidth,
   selectedAppointmentId,
   overlapLanes = false,
   accentFor,
@@ -115,6 +116,8 @@ export function DayGrid({
   onSlotClick?: (colId: string, time: string) => void;
   onAppointmentClick: (appt: Appointment) => void;
   minColWidth?: number;
+  /** Teto da largura da coluna: com poucos profissionais elas mantêm o tamanho de quando estão todos, em vez de esticar. */
+  maxColWidth?: number;
   selectedAppointmentId?: string | null;
   /** Visão geral (vários profissionais na mesma coluna): blocos que se sobrepõem dividem a largura. */
   overlapLanes?: boolean;
@@ -202,7 +205,7 @@ export function DayGrid({
           const closed = activeRangeFor ? range === null : false;
           const slotMin = slotMinutesFor?.(col.id) ?? 20;
           return (
-            <div key={col.id} className="relative flex-1" style={{ minWidth: minColWidth }}>
+            <div key={col.id} className="relative flex-1" style={{ minWidth: minColWidth, maxWidth: maxColWidth }}>
               {/* px-1 = mesmo recuo lateral dos cards (inset-x-1): cabeçalhos e agendamentos ficam no mesmo grid.
                   Fundo = verde da aba selecionada da barra lateral; "hoje" (visão semanal) ganha contorno verde. */}
               <div className="ms-agenda-professional sticky top-0 z-40 px-1 py-1.5" style={{ height: HEADER_H }}>
@@ -285,6 +288,17 @@ export function DayGrid({
             </div>
           );
         })}
+        {maxColWidth !== undefined && (
+          // Sobra à direita quando as colunas batem no teto: as linhas de hora seguem até a borda.
+          <div aria-hidden className="relative flex-1">
+            <div style={{ height: HEADER_H }} />
+            <div className="relative" style={{ height: totalHeight }}>
+              {hours.map((h) => (
+                <div key={h} className="absolute inset-x-0 border-t border-border/60" style={{ top: y(h * 60) }} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
     {/* Fora da área rolável para ficar sempre na borda direita visível. */}

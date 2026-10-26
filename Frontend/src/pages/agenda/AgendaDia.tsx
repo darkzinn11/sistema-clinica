@@ -195,8 +195,14 @@ function AgendaDiaView() {
   ).length;
 
   function selectAppointment(id: string) {
+    const mobile = window.matchMedia("(max-width: 1023px)").matches;
+    // Clicar de novo no card já selecionado desfaz a seleção (no celular o clique sempre abre a gaveta).
+    if (id === selectedId && !mobile) {
+      setSelectedId(null);
+      return;
+    }
     setSelectedId(id);
-    if (window.matchMedia("(max-width: 1023px)").matches) setManageOpen(true);
+    if (mobile) setManageOpen(true);
   }
 
   return (
@@ -373,6 +379,7 @@ function AgendaDiaView() {
               <DayGrid
                 columns={columns}
                 minColWidth={205}
+                maxColWidth={240}
                 selectedAppointmentId={selectedId}
                 appointmentsFor={(colId) => appts.filter((a) => a.professionalId === colId && (statusFilter === "todos" || a.status === statusFilter))}
                 activeRangeFor={(colId) => workWindow(professionalById(colId)!, date)}

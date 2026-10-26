@@ -38,7 +38,8 @@ export function AppointmentBlock({
   const patientName = appointment.patientName;
   const procName = appointment.procedureName;
   const status = APPOINTMENT_STATUS[appointment.status];
-  // Densidade por altura: 1 linha (nome + hora) → nome / hora → + procedimento → + status e marcadores.
+  // Densidade por altura; o procedimento aparece sempre: 1 linha (nome · procedimento + hora) →
+  // nome / hora de início · procedimento → nome / horário completo / procedimento → + status.
   const compact = height < 46;
   const showProc = height >= 70;
   const showFooter = height >= 104;
@@ -68,7 +69,10 @@ export function AppointmentBlock({
       {compact ? (
         <span className="flex min-w-0 items-center gap-1.5 text-[12px] leading-tight">
           {statusDot}
-          <span className="ms-appointment__name truncate font-semibold text-text">{patientName}</span>
+          <span className="min-w-0 truncate">
+            <span className="ms-appointment__name font-semibold text-text">{patientName}</span>
+            <span className="ms-appointment__meta"> · {procName}</span>
+          </span>
           <span className="ms-appointment__meta ml-auto shrink-0 tabular text-[11px] font-medium">{appointment.start}</span>
         </span>
       ) : (
@@ -78,8 +82,14 @@ export function AppointmentBlock({
           </span>
           <span className="ms-appointment__meta flex min-w-0 items-center gap-1.5 text-[11px] font-medium">
             <Clock size={12} aria-hidden className="shrink-0" />
-            <span className="tabular truncate">{appointment.start} – {appointment.end}</span>
+            {showProc ? (
+              <span className="tabular truncate">{appointment.start} – {appointment.end}</span>
+            ) : (
+              // Sem a linha própria do procedimento: hora de início e procedimento dividem a linha.
+              <span className="tabular shrink-0">{appointment.start}</span>
+            )}
             {statusDot}
+            {!showProc && <span className="min-w-0 truncate font-normal">{procName}</span>}
           </span>
         </>
       )}
