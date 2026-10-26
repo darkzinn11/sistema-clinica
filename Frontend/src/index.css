@@ -616,6 +616,8 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-appointment[data-kind="procedimento"] { --appt-ink: var(--c-danger); --appt-bg: var(--c-danger-bg); }
 .ms-appointment[data-kind="sessao"] { --appt-ink: var(--c-success); --appt-bg: var(--c-success-bg); }
 .ms-appointment[data-return="true"] { --appt-ink: var(--c-warning); --appt-bg: var(--c-warning-bg); }
+/* Resumo de uma hora (semana, todos os profissionais): verde da marca, sem competir com os tipos de atendimento. */
+.ms-appointment[data-group] { --appt-ink: var(--c-accent); --appt-bg: var(--c-accent-muted); }
 /* Cancelado: neutro e tracejado, mas ainda legível (antes: opacidade .67 deixava o texto apagado). */
 .ms-appointment[data-cancelled="true"] { --appt-ink: var(--c-text-subtle); --appt-bg: var(--c-surface); border: 1px dashed color-mix(in srgb, var(--appt-ink) 45%, transparent); }
 .ms-appointment[data-cancelled="true"] .ms-appointment__name { color: var(--c-text-muted); text-decoration: line-through; }

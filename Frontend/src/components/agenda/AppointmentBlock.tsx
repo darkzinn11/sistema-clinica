@@ -57,13 +57,14 @@ export function AppointmentBlock({
         top,
         height,
         ...(lane ? { left: `calc(${(lane.index / lane.count) * 100}% + 2px)`, width: `calc(${100 / lane.count}% - 4px)`, right: "auto" } : {}),
-        ...(accent ? { borderLeft: `3px solid ${accent}` } : {}),
       }}
       className={cn(
         "ms-appointment absolute inset-x-1 z-10 flex flex-col overflow-hidden text-left focus-visible:outline-none",
         compact ? "justify-center rounded-md px-2.5" : "gap-0.5 rounded-lg px-3 py-1.5",
+        accent && (compact ? "pl-4" : "pl-[18px]"),
       )}
     >
+      {accent && <span aria-hidden className="absolute bottom-1.5 left-1.5 top-1.5 w-[3px] rounded-full" style={{ background: accent }} />}
       {compact ? (
         <span className="flex min-w-0 items-center gap-1.5 text-[12px] leading-tight">
           {statusDot}
