@@ -10,11 +10,14 @@ public final class AgendaViewModels {
     /**
      * Um agendamento já com os nomes que a tela precisa. inicio/fim saem com o deslocamento da unidade (a hora da clínica está no texto).
      * valorCentavos é nulo para quem não tem agenda:ver_valores. chegadaEm é o último check-in (nulo se nunca fez).
+     * pacienteIdade é a idade no dia da consulta (nula sem data de nascimento) — a data em si não sai daqui.
+     * primeiraVez: o paciente nunca foi atendido na especialidade principal do profissional (nula se o profissional não tem uma).
+     * encaixe: marcado no próprio dia da consulta, ou ocupando o horário que outro paciente desmarcou/remarcou.
      */
     public record AgendaItem(UUID id, LocalDate data, OffsetDateTime inicio, OffsetDateTime fim, String status, int versao, String canal,
         String observacao, UUID remarcadoDe, UUID profissionalId, String profissionalNome, String profissionalCor,
         UUID pacienteId, String pacienteNome, String pacienteCelular, UUID procedimentoId, String procedimentoNome, String procedimentoTipo,
-        Long valorCentavos, OffsetDateTime chegadaEm) {}
+        Long valorCentavos, OffsetDateTime chegadaEm, Integer pacienteIdade, Boolean primeiraVez, boolean encaixe) {}
 
     /** Ocupação de um profissional num dia: blocos da grade do dia e quantos estão tomados. Dia sem grade não aparece. */
     public record OcupacaoDia(UUID profissionalId, LocalDate data, int blocos, int ocupados) {}
