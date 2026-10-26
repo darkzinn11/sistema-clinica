@@ -2,7 +2,8 @@ import type { Icon as IconType } from "iconsax-reactjs";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type Tone = "neutral" | "accent" | "success" | "warning" | "danger" | "info";
+/** `aux` (lilás) identifica categorias e pessoas, nunca alertas. */
+export type Tone = "neutral" | "accent" | "success" | "warning" | "danger" | "info" | "aux";
 
 const toneClasses: Record<Tone, string> = {
   neutral: "bg-surface text-text-muted",
@@ -11,6 +12,7 @@ const toneClasses: Record<Tone, string> = {
   warning: "bg-warning-bg text-warning",
   danger: "bg-danger-bg text-danger",
   info: "bg-info-bg text-info",
+  aux: "bg-aux-bg text-aux",
 };
 
 const dotClasses: Record<Tone, string> = {
@@ -20,6 +22,7 @@ const dotClasses: Record<Tone, string> = {
   warning: "bg-warning",
   danger: "bg-danger",
   info: "bg-info",
+  aux: "bg-aux",
 };
 
 export function Badge({

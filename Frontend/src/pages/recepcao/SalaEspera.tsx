@@ -1,5 +1,6 @@
 import { Clock, People, TableDocument, Timer1 } from "iconsax-reactjs";
 import { useMemo, useState } from "react";
+import { PatientFlags } from "@/components/recepcao/PatientFlags";
 import { WaitCard } from "@/components/recepcao/WaitCard";
 import { Card, CardBody } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +22,8 @@ const COLUMNS = [
 ] as const;
 
 function SalaEsperaContent() {
-  const { professionals } = useCatalog();
+  const { professionals, professionalById } = useCatalog();
+  const specialtyOf = (id: string) => professionalById(id)?.specialty;
   const today = todayIso();
   const items = useAgendaItems(today, today, undefined, 10_000);
   const [professionalId, setProfessionalId] = useState("");
@@ -46,7 +48,7 @@ function SalaEsperaContent() {
         <Select aria-label="Filtrar por profissional" value={professionalId} onChange={(e) => setProfessionalId(e.target.value)} options={[{ value: "", label: "Todos os profissionais" }, ...professionals.map((p) => ({ value: p.id, label: p.name }))]} wrapperClassName="w-64" />
         <Segmented label="Modo de visualização" value={view} onChange={setView} options={[{ value: "quadro", label: "Quadro", icon: TableDocument }, { value: "lista", label: "Lista", icon: TableDocument }]} />
       </div>
-      {items.isPending ? <Card><CardBody><Skeleton className="h-64 w-full" /></CardBody></Card> : items.isError ? <Card><EmptyState title="Não foi possível carregar a sala de espera." description={items.error.message} /></Card> : appointments.length === 0 ? <Card><EmptyState icon={People} title="Ninguém na sala de espera" description="Os pacientes aparecerão aqui após o check-in." /></Card> : view === "quadro" ? <Card><CardBody className="overflow-x-auto"><div className="grid min-w-[760px] grid-cols-3 gap-4">{COLUMNS.map((column) => <div key={column.key} className="flex flex-col gap-3 rounded-lg bg-surface p-3"><div className="flex items-center justify-between px-1"><h3 className="text-sm font-semibold text-text">{column.title}</h3><span className="tabular rounded-full bg-surface-raised px-2 py-0.5 text-xs font-medium text-text-muted">{appointments.filter((a) => a.backendStatus === column.key).length}</span></div>{appointments.filter((a) => a.backendStatus === column.key).map((a) => <WaitCard key={a.id} appointment={a} />)}</div>)}</div></CardBody></Card> : <Card><Table><THead><TR><TH>Paciente</TH><TH>Profissional</TH><TH>Procedimento</TH><TH>Horário</TH><TH>Chegada</TH><TH>Status</TH></TR></THead><TBody>{appointments.map((a) => <TR key={a.id}><TD>{a.patientName}</TD><TD>{a.professionalName}</TD><TD>{a.procedureName}</TD><TD className="tabular">{a.start}</TD><TD className="tabular">{a.arrivedAt ?? "—"}</TD><TD>{COLUMNS.find((c) => c.key === a.backendStatus)?.title}</TD></TR>)}</TBody></Table><TableFooter total={appointments.length} label="pacientes" /></Card>}
+      {items.isPending ? <Card><CardBody><Skeleton className="h-64 w-full" /></CardBody></Card> : items.isError ? <Card><EmptyState title="Não foi possível carregar a sala de espera." description={items.error.message} /></Card> : appointments.length === 0 ? <Card><EmptyState icon={People} title="Ninguém na sala de espera" description="Os pacientes aparecerão aqui após o check-in." /></Card> : view === "quadro" ? <Card><CardBody className="overflow-x-auto"><div className="grid min-w-[760px] grid-cols-3 gap-4">{COLUMNS.map((column) => <div key={column.key} className="flex flex-col gap-3 rounded-lg bg-surface p-3"><div className="flex items-center justify-between px-1"><h3 className="text-sm font-semibold text-text">{column.title}</h3><span className="tabular rounded-full bg-surface-raised px-2 py-0.5 text-xs font-medium text-text-muted">{appointments.filter((a) => a.backendStatus === column.key).length}</span></div>{appointments.filter((a) => a.backendStatus === column.key).map((a) => <WaitCard key={a.id} appointment={a} specialty={specialtyOf(a.professionalId)} />)}</div>)}</div></CardBody></Card> : <Card><Table><THead><TR><TH>Paciente</TH><TH>Profissional</TH><TH>Procedimento</TH><TH>Horário</TH><TH>Chegada</TH><TH>Status</TH></TR></THead><TBody>{appointments.map((a) => <TR key={a.id}><TD><span className="flex flex-wrap items-center gap-2">{a.patientName}<PatientFlags appointment={a} specialty={specialtyOf(a.professionalId)} /></span></TD><TD>{a.professionalName}</TD><TD>{a.procedureName}</TD><TD className="tabular">{a.start}</TD><TD className="tabular">{a.arrivedAt ?? "—"}</TD><TD>{COLUMNS.find((c) => c.key === a.backendStatus)?.title}</TD></TR>)}</TBody></Table><TableFooter total={appointments.length} label="pacientes" /></Card>}
     </div>
   );
 }

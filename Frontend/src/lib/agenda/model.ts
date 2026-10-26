@@ -41,6 +41,10 @@ export interface AgendaAppointment {
   priceCents: number | null;
   arrivedAt: string | null;
   startIso: string;
+  patientAge: number | null;
+  /** Primeira vez na especialidade (null = não dá para saber). */
+  firstVisit: boolean | null;
+  fitIn: boolean;
 }
 
 export function toAppointment(item: AgendaItem): AgendaAppointment {
@@ -65,6 +69,9 @@ export function toAppointment(item: AgendaItem): AgendaAppointment {
     priceCents: item.valorCentavos,
     arrivedAt: item.chegadaEm ? clock(item.chegadaEm) : null,
     startIso: item.inicio,
+    patientAge: item.pacienteIdade ?? null,
+    firstVisit: item.primeiraVez ?? null,
+    fitIn: item.encaixe ?? false,
   };
 }
 

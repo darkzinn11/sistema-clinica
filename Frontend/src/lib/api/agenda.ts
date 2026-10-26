@@ -25,6 +25,12 @@ export interface AgendaItem {
   procedimentoTipo: "consulta" | "exame" | "procedimento";
   valorCentavos: number | null;
   chegadaEm: string | null;
+  /** Idade no dia da consulta (a data de nascimento não vem). Nula sem nascimento cadastrado. */
+  pacienteIdade?: number | null;
+  /** Nunca atendido na especialidade principal do profissional; nula se o profissional não tem uma. */
+  primeiraVez?: boolean | null;
+  /** Marcado no próprio dia, ou no horário que outro paciente desmarcou/remarcou. */
+  encaixe?: boolean;
 }
 
 export interface ApiProfessional {
