@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Building, Eye, EyeSlash, Lock, Sms } from "iconsax-reactjs";
-import { Navigate, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth/auth-shell";
@@ -76,8 +76,8 @@ export default function Login() {
     return (
       <AuthShell>
         <div className="flex flex-col gap-5">
-          <div>
-            <h1 className="font-display text-2xl font-semibold text-text">Qual clínica?</h1>
+          <div className="text-center">
+            <h1 className="font-display text-[28px] font-bold tracking-tight text-text">Qual clínica?</h1>
             <p className="mt-1 text-base text-text-muted">Você tem acesso a mais de uma clínica. Escolha em qual vai entrar agora.</p>
           </div>
           <div className="flex flex-col gap-2">
@@ -99,8 +99,8 @@ export default function Login() {
     return (
       <AuthShell>
         <div className="flex flex-col gap-5">
-          <div>
-            <h1 className="font-display text-2xl font-semibold text-text">Qual unidade?</h1>
+          <div className="text-center">
+            <h1 className="font-display text-[28px] font-bold tracking-tight text-text">Qual unidade?</h1>
             <p className="mt-1 text-base text-text-muted">Você atende em mais de uma unidade. Escolha onde vai trabalhar agora.</p>
           </div>
           <div className="flex flex-col gap-2">
@@ -121,9 +121,9 @@ export default function Login() {
   return (
     <AuthShell>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-text">Entrar</h1>
-          <p className="mt-1 text-base text-text-muted">Acesse o painel da sua clínica.</p>
+        <div className="mb-2 text-center">
+          <h1 className="font-display text-[32px] font-bold tracking-tight text-text">Bem-vindo de volta</h1>
+          <p className="mt-1.5 text-base text-text-muted">Entre na sua conta para acessar o painel.</p>
         </div>
 
         <Input
@@ -136,7 +136,7 @@ export default function Login() {
           onChange={(e) => setEmail(e.target.value)}
         />
 
-        <div className="relative">
+        <div className="relative flex flex-col gap-2">
           <Input
             label="Senha"
             type={showPassword ? "text" : "password"}
@@ -155,6 +155,10 @@ export default function Login() {
           >
             {showPassword ? <EyeSlash size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
           </button>
+          {/* Exceção pedida: no login, "Esqueceu a senha?" é link de texto, sem fundo — logo abaixo da senha, à direita. */}
+          <Link to="/esqueci-senha" className="self-end rounded-full text-sm text-text-muted hover:text-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            Esqueceu a senha?
+          </Link>
         </div>
 
         {error && <p role="alert" className="text-sm text-danger">{error}</p>}
@@ -162,6 +166,7 @@ export default function Login() {
         <Button type="submit" variant="primary" size="lg" className="w-full justify-center" loading={loading}>
           Entrar
         </Button>
+
       </form>
     </AuthShell>
   );

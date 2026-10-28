@@ -214,4 +214,74 @@ class AgendaViewIntegrationTest extends AgendaTestBase {
         occupancy(reception, day, day.plusDays(61), null).andExpect(status().isOk());
         occupancy(tokenFor(userWith("Sem agenda ocupação", "pacientes:ler")), day, day, null).andExpect(status().isForbidden());
     }
+
+    /** Lê um campo do agendamento `id` na listagem do dia. */
+    private ResultActions field(UUID id, String name, org.hamcrest.Matcher<?> matcher) throws Exception {
+        return list(reception(), day, day, null).andExpect(jsonPath("$[?(@.id == '" + id + "')]." + name).value(matcher));
+    }
+
+    @Test
+    void ageIsComputedOnTheAppointmentDayAndTheBirthDateItselfIsNotSent() throws Exception {
+        UUID id = book("agendado", day, 9);
+        field(id, "pacienteIdade", Matchers.contains(Matchers.nullValue()));
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.pacientes SET nascimento = ? WHERE id = ?", java.sql.Date.valueOf(day.minusYears(65)), patient));
+        field(id, "pacienteIdade", Matchers.contains(65));
+        // Faz 60 anos um dia depois da consulta: na data da consulta ainda tem 59.
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.pacientes SET nascimento = ? WHERE id = ?", java.sql.Date.valueOf(day.minusYears(60).plusDays(1)), patient));
+        field(id, "pacienteIdade", Matchers.contains(59));
+        list(reception(), day, day, null).andExpect(jsonPath("$[0].pacienteNascimento").doesNotExist());
+    }
+
+    @Test
+    void firstVisitIsPerSpecialtyAcrossProfessionalsAndOnlyCountsVisitsThatHappened() throws Exception {
+        UUID cardio = UUID.randomUUID(), colleague = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> {
+            jdbc.update("INSERT INTO clinica.especialidades (id, tenant_id, nome) VALUES (?, ?, 'Cardiologia 1a vez')", cardio, tenant);
+            insertProfessional(colleague, tenant, "Dra. Colega Cardio", "5101", unit);
+            jdbc.update("INSERT INTO clinica.profissional_especialidades (tenant_id, profissional_id, especialidade_id, principal) VALUES (?, ?, ?, true), (?, ?, ?, true)",
+                tenant, professional, cardio, tenant, colleague, cardio);
+            return null;
+        });
+        UUID today = book("agendado", day, 9);
+        field(today, "primeiraVez", Matchers.contains(true));
+        // Falta e cancelamento antes não contam como ter ido.
+        insertAppointmentFor(tenant, unit, colleague, patient, procedure, "nao_compareceu", at(day.minusDays(20), 9, 0), at(day.minusDays(20), 9, 30));
+        insertAppointmentFor(tenant, unit, colleague, patient, procedure, "cancelado", at(day.minusDays(15), 9, 0), at(day.minusDays(15), 9, 30));
+        field(today, "primeiraVez", Matchers.contains(true));
+        // Atendido antes por outro profissional da mesma especialidade: não é mais a 1ª vez.
+        insertAppointmentFor(tenant, unit, colleague, patient, procedure, "atendido", at(day.minusDays(10), 9, 0), at(day.minusDays(10), 9, 30));
+        field(today, "primeiraVez", Matchers.contains(false));
+    }
+
+    @Test
+    void firstVisitIsUnknownWhenTheProfessionalHasNoMainSpecialty() throws Exception {
+        UUID id = book("agendado", day, 9);
+        field(id, "primeiraVez", Matchers.contains(Matchers.nullValue()));
+    }
+
+    @Test
+    void fitInIsBookedOnTheSameDayOrInASlotAnotherPatientGaveUp() throws Exception {
+        UUID planned = book("agendado", day, 9);
+        field(planned, "encaixe", Matchers.contains(false));
+
+        // Marcado no próprio dia da consulta.
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.agendamentos SET criado_em = lower(periodo) - interval '2 hours' WHERE id = ?", planned));
+        field(planned, "encaixe", Matchers.contains(true));
+
+        // Outro paciente desmarcou o horário das 10h; quem entrou no lugar é encaixe.
+        UUID other = UUID.randomUUID();
+        transactions.inTenant(tenant, () -> jdbc.update("INSERT INTO clinica.pacientes (id, tenant_id, nome) VALUES (?, ?, 'Paciente Que Desmarcou')", other, tenant));
+        UUID gaveUp = insertAppointmentFor(tenant, unit, professional, other, procedure, "cancelado", at(day, 10, 0), at(day, 10, 30));
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.agendamentos SET criado_em = now() - interval '5 days' WHERE id = ?", gaveUp));
+        UUID filled = book("agendado", day, 10);
+        field(filled, "encaixe", Matchers.contains(true));
+    }
+
+    @Test
+    void reschedulingOnesOwnSlotIsNotAFitIn() throws Exception {
+        UUID old = book("remarcado", day, 11);
+        transactions.inTenant(tenant, () -> jdbc.update("UPDATE clinica.agendamentos SET criado_em = now() - interval '5 days' WHERE id = ?", old));
+        UUID again = book("agendado", day, 11);
+        field(again, "encaixe", Matchers.contains(false));
+    }
 }

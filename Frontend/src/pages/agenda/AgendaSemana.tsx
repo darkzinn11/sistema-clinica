@@ -6,13 +6,15 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page-header";
 import { Segmented } from "@/components/ui/tabs";
+import { Modal } from "@/components/ui/overlay";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { AgendamentoDrawer } from "@/components/agenda/AgendamentoDrawer";
 import { DateNav } from "@/components/agenda/DateNav";
 import { DayGrid, type GridColumn } from "@/components/agenda/DayGrid";
 import { Skeleton } from "@/components/ui/misc";
-import { addDaysIso, dateShort, weekdayShort } from "@/lib/format";
+import { addDaysIso, dateLong, dateShort, weekdayShort } from "@/lib/format";
 import { useAgendaItems } from "@/lib/api/agenda";
-import { toAppointment, workWindow, type AgendaProfessional } from "@/lib/agenda/model";
+import { toAppointment, workWindow, type AgendaAppointment, type AgendaProfessional } from "@/lib/agenda/model";
 import { AgendaCatalogProvider, useCatalog } from "@/lib/agenda/provider";
 import { mondayOf, todayIso } from "@/lib/agenda/time";
 
@@ -39,6 +41,7 @@ function AgendaSemanaView() {
   const [refDate, setRefDate] = useState(todayIso);
   const [professionalId, setProfessionalId] = useState("todos");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hourGroup, setHourGroup] = useState<{ date: string; hour: number; appointments: AgendaAppointment[] } | null>(null);
 
   const weekStart = mondayOf(refDate);
   const days = Array.from({ length: 6 }, (_, i) => addDaysIso(weekStart, i));
@@ -48,6 +51,7 @@ function AgendaSemanaView() {
   const weekAppts = useMemo(() => (items.data ?? []).map(toAppointment), [items.data]);
   const selected = weekAppts.find((a) => a.id === selectedId) ?? null;
   const today = todayIso();
+  const colorOf = (a: AgendaAppointment) => professionals.find((p) => p.id === a.professionalId)?.colorCss;
 
   if (professionals.length === 0) {
     return (
@@ -140,12 +144,42 @@ function AgendaSemanaView() {
             minColWidth={150}
             appointmentsFor={(colId) => weekAppts.filter((a) => a.date === colId)}
             activeRangeFor={(colId) => all ? unitWindow(professionals, colId) : workWindow(professional!, colId)}
-            overlapLanes={all}
-            accentFor={all ? (a) => professionals.find((p) => p.id === a.professionalId)?.colorCss : undefined}
+            accentFor={all ? colorOf : undefined}
+            onHourGroupClick={all ? (date, hour, appointments) => setHourGroup({ date, hour, appointments }) : undefined}
             onAppointmentClick={(a) => setSelectedId(a.id)}
           />
         )}
       </div>
+
+      <Modal
+        open={hourGroup !== null}
+        onClose={() => setHourGroup(null)}
+        title={hourGroup ? `${String(hourGroup.hour).padStart(2, "0")}:00 às ${String(hourGroup.hour + 1).padStart(2, "0")}:00` : ""}
+        description={hourGroup ? `${dateLong(hourGroup.date).replace(/ de \d{4}$/, "")} · ${hourGroup.appointments.length} agendamento${hourGroup.appointments.length === 1 ? "" : "s"}` : undefined}
+        size="md"
+      >
+        <ul className="-mx-2 flex flex-col">
+          {hourGroup?.appointments.map((a) => (
+            <li key={a.id}>
+              <button
+                type="button"
+                onClick={() => { setHourGroup(null); setSelectedId(a.id); }}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <span className="w-24 shrink-0 tabular text-sm font-medium text-text">{a.start} – {a.end}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-text">{a.patientName}</span>
+                  <span className="flex items-center gap-1.5 truncate text-xs text-text-muted">
+                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: colorOf(a) }} />
+                    {a.professionalName} · {a.procedureName}
+                  </span>
+                </span>
+                <StatusBadge status={a.status} size="sm" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Modal>
 
       <AgendamentoDrawer appointment={selected} onClose={() => setSelectedId(null)} />
     </div>

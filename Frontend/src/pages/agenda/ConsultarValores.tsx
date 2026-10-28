@@ -133,7 +133,13 @@ export default function Page() {
           <CardHeader title="Orçamento rápido" description={`${budget.length} procedimento(s)`} />
           <CardBody className="flex flex-col gap-2">
             {budget.length === 0 ? (
-              <p className="text-sm text-text-muted">Adicione procedimentos da tabela ao lado pra montar um orçamento.</p>
+              <EmptyState
+                title="Nenhum procedimento no orçamento."
+                description="Adicione procedimentos da tabela ao lado pra montar um orçamento."
+                illustration="financeiro/nenhuma-proposta"
+                compact
+                className="px-0"
+              />
             ) : (
               budget.map((id) => (
                 <div key={id} className="flex items-center justify-between gap-2 text-sm">

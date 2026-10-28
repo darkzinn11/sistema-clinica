@@ -101,9 +101,9 @@ export default function Relatorio() {
         <div className="mb-5 flex items-center gap-2 rounded-lg border border-success-bg bg-success-bg px-4 py-2.5 text-sm text-success">
           <TickCircle size={16} aria-hidden />
           <span className="flex-1">{toast}</span>
-          <button type="button" onClick={() => setToast(null)} aria-label="Fechar aviso" className="text-success hover:underline">
+          <Button variant="secondary" size="xs" onClick={() => setToast(null)} aria-label="Fechar aviso">
             Fechar
-          </button>
+          </Button>
         </div>
       )}
 

@@ -1,9 +1,8 @@
 import { IconCircle } from "@/components/ui/icon-circle";
 import { useState } from "react";
 import { ArrowLeft, Sms, TickCircle } from "iconsax-reactjs";
-import { Link } from "react-router";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { AuthCenteredLayout } from "@/components/auth/auth-shell";
 
 export default function EsqueciSenha() {
@@ -33,9 +32,9 @@ export default function EsqueciSenha() {
               Se houver uma conta para <span className="font-medium text-text">{email}</span>, um e-mail com instruções de redefinição chega em alguns minutos.
             </p>
           </div>
-          <Link to="/login" className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-            <ArrowLeft size={16} aria-hidden /> Voltar para o login
-          </Link>
+          <ButtonLink to="/login" variant="secondary" size="sm" icon={ArrowLeft} className="mt-2 self-start">
+            Voltar para o login
+          </ButtonLink>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -47,9 +46,9 @@ export default function EsqueciSenha() {
           <Button type="submit" variant="primary" size="lg" className="w-full justify-center" loading={loading}>
             Enviar link
           </Button>
-          <Link to="/login" className="inline-flex items-center justify-center gap-1.5 text-sm font-medium text-text-muted hover:text-text">
-            <ArrowLeft size={16} aria-hidden /> Voltar para o login
-          </Link>
+          <ButtonLink to="/login" variant="secondary" size="sm" icon={ArrowLeft} className="self-center">
+            Voltar para o login
+          </ButtonLink>
         </form>
       )}
     </AuthCenteredLayout>

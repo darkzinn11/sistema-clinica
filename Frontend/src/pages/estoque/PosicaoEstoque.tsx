@@ -92,7 +92,7 @@ export default function PosicaoEstoque() {
           <CardHeader title="Alertas" description="Itens que precisam de atenção" />
           <CardBody className="flex flex-col gap-1">
             {abaixoMinimo.length === 0 && itensVencendo.length === 0 ? (
-              <p className="py-6 text-center text-sm text-text-muted">Nenhum alerta no momento.</p>
+              <EmptyState title="Nenhum alerta no momento." description="Nada abaixo do mínimo nem perto de vencer." illustration="globais/sem-notificacoes-alt" compact />
             ) : (
               <>
                 {abaixoMinimo.map((p) => (
