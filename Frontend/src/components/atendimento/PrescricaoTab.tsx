@@ -1,6 +1,7 @@
 import { Add, Printer, Trash } from "iconsax-reactjs";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/input";
 import { Modal, Switch } from "@/components/ui/overlay";
 import { dateLong } from "@/lib/format";
@@ -71,7 +72,14 @@ export function PrescricaoTab({
       </div>
 
       <div className="flex flex-col gap-3">
-        {items.length === 0 && <p className="text-sm text-text-muted">Nenhum item adicionado. Use os favoritos acima ou "Adicionar item".</p>}
+        {items.length === 0 && (
+          <EmptyState
+            title="Nenhum item adicionado."
+            description="Use os favoritos acima ou “Adicionar item”."
+            illustration="atendimento/nenhuma-prescricao"
+            compact
+          />
+        )}
         {items.map((item) => (
           <div key={item.id} className="grid grid-cols-1 gap-3 rounded-lg p-3 sm:grid-cols-[2fr_1.6fr_0.8fr_1fr_auto]">
             <Select

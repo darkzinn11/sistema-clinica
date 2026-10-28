@@ -22,7 +22,7 @@ import {
 import { Link } from "react-router";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Meter } from "@/components/ui/misc";
@@ -38,13 +38,12 @@ import { PENDENCIAS } from "@/lib/mock/agenda";
 type DashboardDelta = { value: number; period: string; goodWhenUp?: boolean };
 
 function DashboardMetric({
-  label, value, icon, tone, featured = false, delta, footer, currency = false,
+  label, value, icon, tone, delta, footer, currency = false,
 }: {
   label: string;
   value: ReactNode;
   icon: ReactNode;
-  tone: "accent" | "dark" | "blue" | "royal";
-  featured?: boolean;
+  tone: "dark" | "blue" | "royal";
   delta?: DashboardDelta;
   footer: ReactNode;
   currency?: boolean;
@@ -55,7 +54,7 @@ function DashboardMetric({
   const DeltaIcon = isPositive ? ArrowUp : isNegative ? ArrowDown : Minus;
 
   return (
-    <article className={"ms-home-metric" + (featured ? " ms-home-metric--featured" : "")}>
+    <article className="ms-home-metric">
       <p className="ms-home-metric__label">{label}</p>
       <span aria-hidden className={"ms-home-metric__icon ms-home-metric__icon--" + tone}>{icon}</span>
       <div className="ms-home-metric__value-row">
@@ -108,8 +107,8 @@ export default function Page() {
   if (inicio.isError) {
     return (
       <div className="mx-auto max-w-7xl">
-        <PageHeader title={`${greeting()}, ${firstName}`} />
-        <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<button type="button" className="text-accent underline" onClick={() => void inicio.refetch()}>Tentar de novo</button>} />
+        <PageHeader title={`${greeting()}, ${firstName}`} icon={null} />
+        <EmptyState title="Não foi possível carregar o início." description={inicio.error.message} illustration="agenda/nenhum-agendamento" action={<Button variant="secondary" size="sm" onClick={() => void inicio.refetch()}>Tentar de novo</Button>} />
       </div>
     );
   }
@@ -124,6 +123,7 @@ export default function Page() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title={`${greeting()}, ${firstName}`}
+        icon={null}
         description={<span>{dateLong(d.data)}</span>}
       />
 
@@ -131,8 +131,7 @@ export default function Page() {
         <section className="ms-home-kpi-container" aria-label="Resumo de indicadores de hoje">
           <div className="ms-home-kpi-grid">
             <DashboardMetric
-              featured
-              tone="accent"
+              tone="dark"
               label="Agendamentos hoje"
               value={d.agendamentosHoje}
               icon={<Calendar size={21} variant="Bold" />}
@@ -195,7 +194,7 @@ export default function Page() {
             <CardHeader title="Sala de espera agora" description={`${d.naSalaDeEspera} paciente(s)`} actions={<ButtonLink to="/espera" variant="ghost" size="sm" iconRight={ArrowRight2}>Ver tudo</ButtonLink>} />
             <CardBody className="flex flex-col gap-1">
               {d.espera.length === 0 ? (
-                <p className="py-4 text-sm text-text-muted">Ninguém esperando no momento.</p>
+                <EmptyState title="Ninguém esperando no momento." illustration="recepcao/sala-de-espera-vazia" compact className="py-4" />
               ) : (
                 d.espera.map((w) => (
                   <div key={w.agendamentoId} className="flex items-center gap-3 px-2 py-2 -mx-2">
@@ -216,7 +215,9 @@ export default function Page() {
           <Card className="xl:col-span-2">
             <CardHeader title="Ocupação por profissional hoje" />
             <CardBody className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-              {d.ocupacao.length === 0 && <p className="text-sm text-text-muted">Nenhum profissional com grade hoje nesta unidade.</p>}
+              {d.ocupacao.length === 0 && (
+                <EmptyState title="Nenhum profissional com grade hoje nesta unidade." illustration="cadastros/nenhum-profissional" compact className="py-4 sm:col-span-2" />
+              )}
               {d.ocupacao.map((p) => (
                 <div key={p.profissionalId} className="flex items-center gap-3">
                   <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ background: seriesColor(p.cor) }} />
@@ -272,7 +273,9 @@ export default function Page() {
           <Card>
             <CardHeader title="Aniversariantes" description="Hoje até os próximos 6 dias" />
             <CardBody className="flex flex-col gap-1">
-              {d.aniversariantes.length === 0 && <p className="py-2 text-sm text-text-muted">Nenhum aniversariante nesta semana.</p>}
+              {d.aniversariantes.length === 0 && (
+                <EmptyState title="Nenhum aniversariante nesta semana." illustration="pacientes/nenhum-paciente-alt" compact className="py-4" />
+              )}
               {d.aniversariantes.map((b) => (
                 <div key={b.pacienteId} className="flex items-center gap-3 px-2 py-2 -mx-2">
                   <Avatar name={b.nome} size="sm" />

@@ -8,6 +8,7 @@ import { QUICK_ACTIONS } from "@/lib/quick-actions";
 import { usePatientSearch } from "@/lib/api/agenda";
 import { formatCpf } from "@/lib/pacientes/options";
 import { Avatar } from "@/components/ui/avatar";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Kbd } from "@/components/ui/misc";
 import { cn } from "@/lib/cn";
 
@@ -114,7 +115,11 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
           <Kbd>Esc</Kbd>
         </div>
         <ul id="cmdk-list" ref={listRef} role="listbox" className="max-h-[60vh] overflow-y-auto p-2">
-          {groups.length === 0 && <li className="px-3 py-8 text-center text-base text-text-muted">Nada encontrado para “{query}”.</li>}
+          {groups.length === 0 && (
+            <li role="presentation">
+              <EmptyState title={`Nada encontrado para “${query}”.`} illustration="globais/busca-sem-resultados" compact />
+            </li>
+          )}
           {groups.map((g) => (
             <li key={g.title} role="presentation" className="mb-1 last:mb-0">
               <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-text-subtle">{g.title}</p>

@@ -270,6 +270,10 @@ public class DevSeed implements ApplicationRunner {
                             from.plusMinutes(grade.duracaoBlocoMin()).toOffsetDateTime(), null, CHANNELS[(i + j) % CHANNELS.length]), tenant, creator, null);
                         String status = statusFor(dayOffset, i, j);
                         if (!status.equals("agendado")) jdbc.update("UPDATE clinica.agendamentos SET status = ? WHERE id = ?", status, created.id());
+                        // Como numa agenda real, as marcações são feitas dias antes; o último horário de hoje de alguns
+                        // profissionais fica marcado no próprio dia, para a demonstração ter encaixes.
+                        boolean fitIn = dayOffset == 0 && j == 2 && i % 3 == 1;
+                        if (!fitIn) jdbc.update("UPDATE clinica.agendamentos SET criado_em = lower(periodo) - interval '3 days' WHERE id = ?", created.id());
                     }
                 }
             }

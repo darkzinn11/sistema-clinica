@@ -299,13 +299,13 @@ export default function ProfissionalDetalhe() {
                             <Avatar name={d.name} size="xl" />
                           )}
                           <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                          <button type="button" className="text-xs font-medium text-accent hover:underline" onClick={() => photoInputRef.current?.click()}>
+                          <Button variant="secondary" size="xs" onClick={() => photoInputRef.current?.click()}>
                             {d.photoUrl ? "Alterar foto" : "Adicionar foto"}
-                          </button>
+                          </Button>
                           {d.photoUrl && (
-                            <button type="button" className="text-xs font-medium text-text-muted hover:text-danger" onClick={() => patchDados({ photoUrl: undefined })}>
+                            <Button variant="danger" size="xs" onClick={() => patchDados({ photoUrl: undefined })}>
                               Remover
-                            </button>
+                            </Button>
                           )}
                         </div>
                         <div className="flex flex-col gap-3">

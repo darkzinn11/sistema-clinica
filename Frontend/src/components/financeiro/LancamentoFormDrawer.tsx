@@ -154,7 +154,7 @@ export function LancamentoFormDrawer({ open, onClose, tipoInicial = "receita" }:
             {anexo ? (
               <div className="flex items-center justify-between rounded-full border border-border-strong bg-surface px-3 py-2 text-sm">
                 <span className="truncate text-text">{anexo}</span>
-                <button type="button" onClick={() => setAnexo(null)} className="text-text-muted hover:text-danger">Remover</button>
+                <Button variant="danger" size="xs" onClick={() => setAnexo(null)}>Remover</Button>
               </div>
             ) : (
               <Button type="button" variant="secondary" icon={DocumentUpload} onClick={() => fileRef.current?.click()} className="self-start">

@@ -616,6 +616,8 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-appointment[data-kind="procedimento"] { --appt-ink: var(--c-danger); --appt-bg: var(--c-danger-bg); }
 .ms-appointment[data-kind="sessao"] { --appt-ink: var(--c-success); --appt-bg: var(--c-success-bg); }
 .ms-appointment[data-return="true"] { --appt-ink: var(--c-warning); --appt-bg: var(--c-warning-bg); }
+/* Resumo de uma hora (semana, todos os profissionais): verde da marca, sem competir com os tipos de atendimento. */
+.ms-appointment[data-group] { --appt-ink: var(--c-accent); --appt-bg: var(--c-accent-muted); }
 /* Cancelado: neutro e tracejado, mas ainda legível (antes: opacidade .67 deixava o texto apagado). */
 .ms-appointment[data-cancelled="true"] { --appt-ink: var(--c-text-subtle); --appt-bg: var(--c-surface); border: 1px dashed color-mix(in srgb, var(--appt-ink) 45%, transparent); }
 .ms-appointment[data-cancelled="true"] .ms-appointment__name { color: var(--c-text-muted); text-decoration: line-through; }
@@ -648,11 +650,12 @@ body { -webkit-font-smoothing: antialiased; }
   box-shadow: 0 8px 14px -6px rgb(27 54 35 / .22);
 }
 :root[data-theme="dark"] .ms-appointment:hover { box-shadow: 0 8px 14px -6px rgb(0 0 0 / .45); }
-.ms-appointment:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 1px; }
+/* Contorno por dentro (offset negativo): por fora ele passava por baixo do cabeçalho fixo no primeiro horário e ficava cortado. */
+.ms-appointment:focus-visible { outline: 2px solid var(--c-accent); outline-offset: -2px; }
 .ms-appointment[data-selected="true"] {
   z-index: 31 !important;
   outline: 2px solid var(--c-accent);
-  outline-offset: 1px;
+  outline-offset: -2px;
   box-shadow: 0 8px 16px -6px color-mix(in srgb, var(--c-accent) 30%, transparent);
 }
 .ms-agenda-panel { animation: ui-menu-reveal 240ms var(--ui-ease-out) both; }
@@ -788,10 +791,6 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-home-metric { container-type: inline-size; }
 .ms-home-metric:has(.ms-home-metric__icon) .ms-home-metric__value-row { padding-right: 56px; }
 .ms-home-metric .ms-home-metric__value--currency { font-size: clamp(20px, 9.5cqi, 35px) !important; }
-.ms-home-metric--featured {
-  background: var(--ms-brand-gradient);
-  color: white;
-}
 .ms-home-metric__label {
   max-width: calc(100% - 56px);
   font-size: 12px;
@@ -799,7 +798,6 @@ body { -webkit-font-smoothing: antialiased; }
   font-weight: 500;
   color: var(--c-text-muted);
 }
-.ms-home-metric--featured .ms-home-metric__label { color: rgb(255 255 255 / .86); }
 .ms-home-metric__icon {
   position: absolute;
   top: 21px;
@@ -812,7 +810,6 @@ body { -webkit-font-smoothing: antialiased; }
   border-radius: 50%;
   box-shadow: 0 2px 8px rgb(0 0 0 / .035);
 }
-.ms-home-metric__icon--accent { background: white; color: var(--c-accent); }
 .ms-home-metric__icon--dark,
 .ms-home-metric__icon--blue,
 .ms-home-metric__icon--royal {
@@ -836,7 +833,6 @@ body { -webkit-font-smoothing: antialiased; }
   letter-spacing: -.046em;
   white-space: nowrap;
 }
-.ms-home-metric--featured .ms-home-metric__value { color: white; }
 .ms-home-metric__value--currency { font-size: clamp(22px, 1.9vw, 35px); }
 .ms-home-metric__change {
   display: inline-flex;
@@ -852,10 +848,6 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .ms-home-metric__change--positive { background: var(--c-aux-bg); color: var(--c-aux); }
 .ms-home-metric__change--negative { background: var(--c-danger-bg); color: var(--c-danger); }
-.ms-home-metric--featured .ms-home-metric__change {
-  background: rgb(255 255 255 / .20);
-  color: white;
-}
 .ms-home-metric__footer {
   margin-top: auto;
   font-size: 11px;
@@ -864,8 +856,6 @@ body { -webkit-font-smoothing: antialiased; }
 }
 .ms-home-metric__footer strong { color: var(--c-text); font-weight: 500; }
 .ms-home-metric__revenue-delta { color: var(--c-success); font-size: 10px; }
-.ms-home-metric--featured .ms-home-metric__footer,
-.ms-home-metric--featured .ms-home-metric__footer strong { color: rgb(255 255 255 / .91); }
 .ms-home-metric__link {
   display: inline-flex;
   align-items: center;
@@ -930,4 +920,18 @@ body { -webkit-font-smoothing: antialiased; }
   .ms-finance-payments-legend,
   .ms-finance-flow svg path,
   .ms-finance-payments svg circle { transition: none; }
+}
+
+/* Login: brilhos suaves da marca nos cantos do fundo branco; painel em verde da marca (base um pouco mais escura,
+   para o texto branco ler bem) com uma luz clara embaixo, atrás da ilustração. */
+.ms-auth {
+  background:
+    radial-gradient(28% 38% at 100% 0%, color-mix(in srgb, var(--c-accent) 16%, transparent) 0%, transparent 100%),
+    radial-gradient(30% 40% at 0% 100%, color-mix(in srgb, var(--c-accent) 12%, transparent) 0%, transparent 100%),
+    var(--c-surface-raised);
+}
+.ms-auth__panel {
+  background:
+    radial-gradient(70% 45% at 70% 95%, color-mix(in srgb, var(--c-accent) 70%, white) 0%, transparent 100%),
+    color-mix(in srgb, var(--c-accent) 82%, black);
 }

@@ -188,10 +188,9 @@ export function NovoAgendamentoDrawer({
             <p className="mt-1.5 text-sm text-text-muted">Nenhum paciente encontrado.</p>
           )}
           {query.trim().length >= 2 && !patient && !showNew && (
-            <button type="button" onClick={() => { setShowNew(true); setNewName(query.trim()); }} className="mt-1.5 flex items-center gap-1.5 text-sm font-medium text-accent hover:underline">
-              <UserAdd size={15} aria-hidden />
-              Cadastrar "{query.trim()}" como novo paciente
-            </button>
+            <Button variant="subtle" size="sm" icon={UserAdd} className="mt-1.5 max-w-full self-start" onClick={() => { setShowNew(true); setNewName(query.trim()); }}>
+              <span className="truncate">Cadastrar "{query.trim()}" como novo paciente</span>
+            </Button>
           )}
         </div>
 

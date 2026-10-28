@@ -3,6 +3,7 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from "react"
 import type { AgendaAppointment as Appointment } from "@/lib/agenda/model";
 import { toMin, nowMin } from "@/lib/agenda/time";
 import { AppointmentBlock } from "@/components/agenda/AppointmentBlock";
+import { AppointmentGroupBlock } from "@/components/agenda/AppointmentGroupBlock";
 import { cn } from "@/lib/cn";
 
 /** Altura do cabeçalho das colunas (px) — a linha de "agora" é posicionada abaixo dele. */
@@ -65,6 +66,18 @@ function laneLayout(list: Appointment[], enabled: boolean): { appointment: Appoi
   return placed.map((p) => ({ appointment: p.appointment, lane: { index: p.index, count: clusterCount[p.cluster] } }));
 }
 
+/** Agrupa pela hora de início; cada hora vira um bloco de resumo. */
+function hourGroups(list: Appointment[]): { hour: number; appointments: Appointment[] }[] {
+  const byHour = new Map<number, Appointment[]>();
+  for (const a of list) {
+    const hour = Math.floor(toMin(a.start) / 60);
+    byHour.set(hour, [...(byHour.get(hour) ?? []), a]);
+  }
+  return [...byHour.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([hour, appointments]) => ({ hour, appointments: appointments.sort((x, y) => toMin(x.start) - toMin(y.start)) }));
+}
+
 /** Agendamentos cancelados/desmarcados não entram na contagem do cabeçalho. */
 const CANCELLED = ["cancelado_pelo_profissional", "desmarcado_pelo_paciente"];
 
@@ -85,9 +98,11 @@ export function DayGrid({
   onSlotClick,
   onAppointmentClick,
   minColWidth = 200,
+  maxColWidth,
   selectedAppointmentId,
   overlapLanes = false,
   accentFor,
+  onHourGroupClick,
 }: {
   columns: GridColumn[];
   dayStart?: number;
@@ -101,10 +116,14 @@ export function DayGrid({
   onSlotClick?: (colId: string, time: string) => void;
   onAppointmentClick: (appt: Appointment) => void;
   minColWidth?: number;
+  /** Teto da largura da coluna: com poucos profissionais elas mantêm o tamanho de quando estão todos, em vez de esticar. */
+  maxColWidth?: number;
   selectedAppointmentId?: string | null;
   /** Visão geral (vários profissionais na mesma coluna): blocos que se sobrepõem dividem a largura. */
   overlapLanes?: boolean;
   accentFor?: (appt: Appointment) => string | undefined;
+  /** Quando definido, cada hora vira um bloco de resumo (muitos agendamentos simultâneos numa coluna estreita). */
+  onHourGroupClick?: (colId: string, hour: number, appointments: Appointment[]) => void;
 }) {
   const dayStartMin = dayStart * 60;
   const totalHeight = (dayEnd - dayStart) * 60 * pxPerMin;
@@ -186,7 +205,7 @@ export function DayGrid({
           const closed = activeRangeFor ? range === null : false;
           const slotMin = slotMinutesFor?.(col.id) ?? 20;
           return (
-            <div key={col.id} className="relative flex-1" style={{ minWidth: minColWidth }}>
+            <div key={col.id} className="relative flex-1" style={{ minWidth: minColWidth, maxWidth: maxColWidth }}>
               {/* px-1 = mesmo recuo lateral dos cards (inset-x-1): cabeçalhos e agendamentos ficam no mesmo grid.
                   Fundo = verde da aba selecionada da barra lateral; "hoje" (visão semanal) ganha contorno verde. */}
               <div className="ms-agenda-professional sticky top-0 z-40 px-1 py-1.5" style={{ height: HEADER_H }}>
@@ -240,7 +259,19 @@ export function DayGrid({
                     </button>
                   ))}
 
-                {!closed &&
+                {!closed && onHourGroupClick &&
+                  hourGroups(appointmentsFor(col.id)).map(({ hour, appointments }) => (
+                    <AppointmentGroupBlock
+                      key={hour}
+                      appointments={appointments}
+                      colorFor={accentFor}
+                      top={y(hour * 60) + 2}
+                      height={60 * pxPerMin - 4}
+                      onClick={() => onHourGroupClick(col.id, hour, appointments)}
+                    />
+                  ))}
+
+                {!closed && !onHourGroupClick &&
                   laneLayout(appointmentsFor(col.id), overlapLanes).map(({ appointment: a, lane }) => (
                     <AppointmentBlock
                       key={a.id}
@@ -257,6 +288,17 @@ export function DayGrid({
             </div>
           );
         })}
+        {maxColWidth !== undefined && (
+          // Sobra à direita quando as colunas batem no teto: as linhas de hora seguem até a borda.
+          <div aria-hidden className="relative flex-1">
+            <div style={{ height: HEADER_H }} />
+            <div className="relative" style={{ height: totalHeight }}>
+              {hours.map((h) => (
+                <div key={h} className="absolute inset-x-0 border-t border-border/60" style={{ top: y(h * 60) }} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
     {/* Fora da área rolável para ficar sempre na borda direita visível. */}

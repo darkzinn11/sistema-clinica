@@ -10,6 +10,7 @@ type Size = "xs" | "sm" | "md" | "lg";
 const variantClasses: Record<Variant, string> = {
   primary: "ms-gradient-button bg-accent text-on-accent hover:bg-accent-strong shadow-card",
   secondary: "bg-surface text-text hover:bg-accent-muted",
+  // Só para botões de ícone (fechar, setas). Com texto, o ghost ganha fundo: no sistema não há botão só de palavras.
   ghost: "bg-transparent text-text-muted hover:bg-surface hover:text-text",
   danger: "bg-danger-bg text-danger hover:brightness-95",
   subtle: "bg-accent-muted text-accent hover:brightness-95",
@@ -32,6 +33,11 @@ const iconOnlySize: Record<Size, string> = {
 };
 
 const iconPx: Record<Size, number> = { xs: 14, sm: 15, md: 16, lg: 18 };
+
+/** Botão com texto sempre tem fundo; o ghost transparente fica restrito aos botões só de ícone. */
+function variantClass(variant: Variant, iconOnly?: boolean) {
+  return variant === "ghost" && !iconOnly ? variantClasses.secondary : variantClasses[variant];
+}
 
 const base =
   "ui-button inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full font-medium " +
@@ -77,7 +83,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(base, variantClasses[variant], iconOnly ? iconOnlySize[size] : sizeClasses[size], className)}
+      className={cn(base, variantClass(variant, iconOnly), iconOnly ? iconOnlySize[size] : sizeClasses[size], className)}
       {...props}
     >
       {content(size, icon, iconRight, children, loading)}
@@ -90,7 +96,7 @@ export interface ButtonLinkProps extends LinkProps, CommonProps {}
 
 export function ButtonLink({ variant = "secondary", size = "md", icon, iconRight, iconOnly, className, children, ...props }: ButtonLinkProps) {
   return (
-    <Link className={cn(base, variantClasses[variant], iconOnly ? iconOnlySize[size] : sizeClasses[size], className)} {...props}>
+    <Link className={cn(base, variantClass(variant, iconOnly), iconOnly ? iconOnlySize[size] : sizeClasses[size], className)} {...props}>
       {content(size, icon, iconRight, children as ReactNode)}
     </Link>
   );
