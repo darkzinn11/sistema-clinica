@@ -220,7 +220,7 @@ public class DevSeed implements ApplicationRunner {
 
     // ---- o dia (renovado a cada execução) ----
 
-    /** Agenda e fila de hoje. Só cria se não houver nada daqui para a frente, para a demonstração não envelhecer. */
+    /** Agenda da semana e fila de hoje. A agenda é completada por unidade e profissional (nunca duplica); a fila só se não houver senha hoje. */
     void refreshDay(UUID tenant) {
         refreshDay(tenant, LocalDate.now(ZONE));
     }
@@ -231,37 +231,50 @@ public class DevSeed implements ApplicationRunner {
             + "JOIN clinica.papeis p ON p.tenant_id = v.tenant_id AND p.id = v.papel_id WHERE p.nome = 'Administrador' AND NOT u.dispositivo ORDER BY u.id LIMIT 1");
         UUID creator = (UUID) admin.get("id");
         UUID unit = (UUID) admin.get("unidade_id");
-        boolean hasAgenda = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM clinica.agendamentos WHERE upper(periodo) >= ?::timestamptz)", Boolean.class,
-            java.sql.Timestamp.from(today.atStartOfDay(ZONE).toInstant())));
-        if (!hasAgenda) seedAgenda(tenant, unit, creator, today);
+        seedAgenda(tenant, creator, today);
         boolean hasTickets = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM clinica.senhas WHERE unidade_id = ? AND dia = ?)", Boolean.class, unit, today));
         if (!hasTickets) seedTickets(tenant, unit, creator, today);
     }
 
-    private void seedAgenda(UUID tenant, UUID unit, UUID creator, LocalDate today) {
+    /**
+     * Segunda a sábado da semana de hoje (no fim de semana, da semana que vem), mais quinta e sexta anteriores, em todas as unidades com grade. Só preenche o dia de um
+     * profissional que ainda não tem nenhum agendamento naquela unidade e dia: rodar de novo, ou depois de alguém agendar à mão, não duplica nem conflita.
+     */
+    private void seedAgenda(UUID tenant, UUID creator, LocalDate today) {
         List<UUID> patientIds = jdbc.queryForList("SELECT id FROM clinica.pacientes WHERE ativo ORDER BY numero_prontuario", UUID.class);
         List<UUID> professionalIds = jdbc.queryForList("SELECT id FROM clinica.profissionais ORDER BY criado_em, id", UUID.class);
-        int[] dayOffsets = {-2, -1, 0, 1, 2};
-        for (int d = 0; d < dayOffsets.length; d++) {
-            LocalDate day = businessDay(today, dayOffsets[d]);
-            for (int i = 0; i < professionalIds.size(); i++) {
-                UUID professional = professionalIds.get(i);
-                var grades = schedule.gradesOn(professional, unit, day);
-                if (grades.isEmpty()) continue;
-                var grade = grades.get(0);
-                List<UUID> procs = jdbc.queryForList("SELECT procedimento_id FROM clinica.profissional_procedimentos WHERE profissional_id = ? ORDER BY procedimento_id", UUID.class, professional);
-                if (procs.isEmpty() || patientIds.isEmpty()) continue;
-                for (int j = 0; j < 3; j++) {
-                    ZonedDateTime from = ZonedDateTime.of(day, grade.inicio().plusMinutes((long) j * grade.duracaoBlocoMin()), ZONE);
-                    UUID patient = patientIds.get((i * 3 + j + d * 5) % patientIds.size());
-                    var created = agenda.createAppointment(new CreateAppointmentRequest(unit, professional, patient, procs.get((i + j) % procs.size()), from.toOffsetDateTime(),
-                        from.plusMinutes(grade.duracaoBlocoMin()).toOffsetDateTime(), null, CHANNELS[(i + j) % CHANNELS.length]), tenant, creator, null);
-                    String status = statusFor(dayOffsets[d], i, j);
-                    if (!status.equals("agendado")) jdbc.update("UPDATE clinica.agendamentos SET status = ? WHERE id = ?", status, created.id());
-                    // Como numa agenda real, as marcações são feitas dias antes; o último horário de hoje de alguns
-                    // profissionais fica marcado no próprio dia, para a demonstração ter encaixes.
-                    boolean fitIn = dayOffsets[d] == 0 && j == 2 && i % 3 == 1;
-                    if (!fitIn) jdbc.update("UPDATE clinica.agendamentos SET criado_em = lower(periodo) - interval '3 days' WHERE id = ?", created.id());
+        List<UUID> unitIds = jdbc.queryForList("SELECT id FROM clinica.unidades ORDER BY nome, id", UUID.class);
+        if (patientIds.isEmpty()) return;
+        LocalDate monday = today.getDayOfWeek() == DayOfWeek.SATURDAY || today.getDayOfWeek() == DayOfWeek.SUNDAY
+            ? today.with(java.time.temporal.TemporalAdjusters.next(DayOfWeek.MONDAY)) : today.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        for (int u = 0; u < unitIds.size(); u++) {
+            UUID unit = unitIds.get(u);
+            for (int d = -4; d < 6; d++) {            // quinta e sexta da semana anterior (histórico) + segunda a sábado desta
+                LocalDate day = monday.plusDays(d);
+                long diff = java.time.temporal.ChronoUnit.DAYS.between(today, day);
+                int dayOffset = diff < 0 ? (day.getDayOfWeek().getValue() % 2 == 0 ? -1 : -2) : (int) Math.min(diff, 1);   // passado alterna não compareceu/cancelado
+                for (int i = 0; i < professionalIds.size(); i++) {
+                    UUID professional = professionalIds.get(i);
+                    var grades = schedule.gradesOn(professional, unit, day);
+                    if (grades.isEmpty()) continue;
+                    boolean busy = Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM clinica.agendamentos WHERE profissional_id = ? AND unidade_id = ? AND periodo && tstzrange(?, ?, '[)'))",
+                        Boolean.class, professional, unit, java.sql.Timestamp.from(day.atStartOfDay(ZONE).toInstant()), java.sql.Timestamp.from(day.plusDays(1).atStartOfDay(ZONE).toInstant())));
+                    if (busy) continue;
+                    var grade = grades.get(0);
+                    List<UUID> procs = jdbc.queryForList("SELECT procedimento_id FROM clinica.profissional_procedimentos WHERE profissional_id = ? ORDER BY procedimento_id", UUID.class, professional);
+                    if (procs.isEmpty()) continue;
+                    for (int j = 0; j < 3; j++) {
+                        ZonedDateTime from = ZonedDateTime.of(day, grade.inicio().plusMinutes((long) j * grade.duracaoBlocoMin()), ZONE);
+                        UUID patient = patientIds.get(Math.floorMod(i * 3 + j + d * 5 + u * 7, patientIds.size()));
+                        var created = agenda.createAppointment(new CreateAppointmentRequest(unit, professional, patient, procs.get((i + j) % procs.size()), from.toOffsetDateTime(),
+                            from.plusMinutes(grade.duracaoBlocoMin()).toOffsetDateTime(), null, CHANNELS[(i + j) % CHANNELS.length]), tenant, creator, null);
+                        String status = statusFor(dayOffset, i, j);
+                        if (!status.equals("agendado")) jdbc.update("UPDATE clinica.agendamentos SET status = ? WHERE id = ?", status, created.id());
+                        // Como numa agenda real, as marcações são feitas dias antes; o último horário de hoje de alguns
+                        // profissionais fica marcado no próprio dia, para a demonstração ter encaixes.
+                        boolean fitIn = dayOffset == 0 && j == 2 && i % 3 == 1;
+                        if (!fitIn) jdbc.update("UPDATE clinica.agendamentos SET criado_em = lower(periodo) - interval '3 days' WHERE id = ?", created.id());
+                    }
                 }
             }
         }
@@ -271,18 +284,6 @@ public class DevSeed implements ApplicationRunner {
         if (dayOffset < 0) return slot == 2 ? (dayOffset == -1 ? "nao_compareceu" : "cancelado") : "atendido";
         if (dayOffset == 0) return switch (slot) { case 0 -> professionalIndex == 0 ? "em_atendimento" : professionalIndex % 2 == 0 ? "atendido" : "check_in"; case 1 -> "confirmado"; default -> "agendado"; };
         return slot == 0 ? "confirmado" : "agendado";
-    }
-
-    private static LocalDate businessDay(LocalDate from, int offset) {
-        LocalDate day = from;
-        int step = offset < 0 ? -1 : 1;
-        for (int moved = 0; moved < Math.abs(offset); ) {
-            day = day.plusDays(step);
-            if (day.getDayOfWeek() != DayOfWeek.SATURDAY && day.getDayOfWeek() != DayOfWeek.SUNDAY) moved++;
-        }
-        // Hoje cai no fim de semana: usa a próxima segunda, para a agenda não ficar vazia.
-        while (offset == 0 && (day.getDayOfWeek() == DayOfWeek.SATURDAY || day.getDayOfWeek() == DayOfWeek.SUNDAY)) day = day.plusDays(1);
-        return day;
     }
 
     private void seedTickets(UUID tenant, UUID unit, UUID creator, LocalDate today) {
