@@ -272,8 +272,8 @@ export async function exportAgendaPdf(o: AgendaPdfOptions) {
   const head = [
     ...(o.groupBy === "horario" ? ["Horário", "Profissional"] : ["Horário"]),
     "Paciente",
-    ...(o.includePhone ? ["Telefone"] : []),
     "Procedimento",
+    ...(o.includePhone ? ["Telefone"] : []),
     "Status",
     ...(o.includeValues ? ["Valor"] : []),
   ];
@@ -291,8 +291,8 @@ export async function exportAgendaPdf(o: AgendaPdfOptions) {
     `${a.start} – ${a.end}`,
     ...(o.groupBy === "horario" ? [a.professionalName] : []),
     a.patientName,
-    ...(o.includePhone ? [a.patientPhone ? o.formatPhone(a.patientPhone) : "—"] : []),
     a.procedureName,
+    ...(o.includePhone ? [a.patientPhone ? o.formatPhone(a.patientPhone) : "—"] : []),
     statusLabel(a.status),
     ...(o.includeValues ? [a.priceCents === null ? "—" : money(a.priceCents)] : []),
   ];

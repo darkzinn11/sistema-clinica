@@ -5,11 +5,13 @@ import { cn } from "@/lib/cn";
 /**
  * Tabela padrão. Envolve em rolagem horizontal própria (a página nunca
  * rola de lado), cabeçalho fixo sutil, números alinhados à direita.
+ * A faixa do cabeçalho tem as pontas arredondadas (por isso border-separate: com border-collapse
+ * o arredondamento das células não aparece; as divisórias ficam nas células, ver .ui-table no CSS).
  */
 export function Table({ className, children, ...props }: HTMLAttributes<HTMLTableElement>) {
   return (
     <div className="overflow-x-auto">
-      <table className={cn("w-full border-collapse text-left text-base", className)} {...props}>
+      <table className={cn("ui-table w-full border-separate border-spacing-0 text-left text-base", className)} {...props}>
         {children}
       </table>
     </div>
@@ -17,11 +19,11 @@ export function Table({ className, children, ...props }: HTMLAttributes<HTMLTabl
 }
 
 export function THead({ children }: { children: ReactNode }) {
-  return <thead className="ui-table-header border-b border-border">{children}</thead>;
+  return <thead className="ui-table-header">{children}</thead>;
 }
 
 export function TBody({ children }: { children: ReactNode }) {
-  return <tbody className="divide-y divide-border">{children}</tbody>;
+  return <tbody>{children}</tbody>;
 }
 
 export function TH({

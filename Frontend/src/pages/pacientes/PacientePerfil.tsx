@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Route, Routes, useParams } from "react-router";
+import { Route, Routes, useLocation, useNavigate, useParams } from "react-router";
 import { Add, Calendar, Chart2, Clock, Personalcard } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/misc";
-import { LinkTabs } from "@/components/ui/tabs";
+import LiquidTabs from "@/components/pinui/LiquidTabs";
 import { DeactivateModal } from "@/components/pacientes/DeactivateModal";
 import { Agendamentos, Alteracoes, Dados, Resumo } from "@/components/pacientes/FichaTabs";
 import { PerfilHeader } from "@/components/pacientes/PerfilHeader";
@@ -15,6 +15,8 @@ import { useAuth } from "@/lib/auth/auth";
 
 export default function Page() {
   const { id = "" } = useParams();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { can } = useAuth();
   const patient = usePatient(id);
   const priorities = usePriorities();
@@ -55,7 +57,7 @@ export default function Page() {
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title={p.nome}
-        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes", href: "/pacientes" }, { label: p.nome }]}
+        breadcrumbs={[{ label: "Pacientes", href: "/pacientes" }, { label: p.nome }]}
       />
 
       <PerfilHeader
@@ -70,17 +72,23 @@ export default function Page() {
 
       {banner && <div role="status" className="mb-4 rounded-lg border border-accent/30 bg-accent-muted px-4 py-2.5 text-sm text-accent">{banner}</div>}
 
-      <LinkTabs tabs={tabs} />
-
-      <div className="pt-6">
-        <Routes>
-          <Route index element={<Resumo patient={p} canSeeAppointments={full} />} />
-          <Route path="dados" element={<Dados patient={p} />} />
-          {full && <Route path="agendamentos" element={<Agendamentos patientId={p.id} />} />}
-          {full && <Route path="alteracoes" element={<Alteracoes patientId={p.id} />} />}
-          <Route path="*" element={<EmptyState title="Página não encontrada" description="Use as abas acima." />} />
-        </Routes>
-      </div>
+      {/* Cada aba é uma rota: a aba ativa vem do endereço (a mais específica ganha; a raiz é o Resumo). */}
+      <LiquidTabs
+        label="Seções da ficha"
+        tabs={tabs.map((t) => ({ label: t.label, icon: t.icon }))}
+        active={Math.max(0, tabs.findIndex((t) => t.href !== base && (pathname === t.href || pathname.startsWith(`${t.href}/`))))}
+        onChange={(i) => navigate(tabs[i].href)}
+      >
+        {() => (
+          <Routes>
+            <Route index element={<Resumo patient={p} canSeeAppointments={full} />} />
+            <Route path="dados" element={<Dados patient={p} />} />
+            {full && <Route path="agendamentos" element={<Agendamentos patientId={p.id} />} />}
+            {full && <Route path="alteracoes" element={<Alteracoes patientId={p.id} />} />}
+            <Route path="*" element={<EmptyState title="Página não encontrada" description="Use as abas acima." />} />
+          </Routes>
+        )}
+      </LiquidTabs>
 
       <DeactivateModal patient={deactivating ? p : null} onClose={() => setDeactivating(false)} onDone={() => { setDeactivating(false); setBanner("Cadastro inativado."); }} />
     </div>

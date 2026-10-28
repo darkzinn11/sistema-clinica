@@ -11,10 +11,11 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-7xl">
       <PageHeader
+        card
         title="Novo paciente"
-        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes", href: "/pacientes" }, { label: "Novo paciente" }]}
+        breadcrumbs={[{ label: "Pacientes", href: "/pacientes" }, { label: "Novo paciente" }]}
         description="Cadastro completo. O número do prontuário é gerado pelo sistema ao salvar."
       />
       <PacienteForm

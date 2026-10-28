@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight2, Category, Clock, SearchNormal1, Star } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
+import LiquidTabs from "@/components/pinui/LiquidTabs";
 import { IconCircle, type IconCircleTone } from "@/components/ui/icon-circle";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -30,7 +30,7 @@ type Filter = ReportCategory | "all" | "favorites";
 
 function ReportRow({ report, favorite, onToggleFavorite }: { report: ReportDef; favorite: boolean; onToggleFavorite: () => void }) {
   return (
-    <li className="group flex items-center gap-2 pr-3 transition-colors hover:bg-surface/60">
+    <li className="group flex items-center gap-2 rounded-lg pr-3 transition-colors hover:bg-surface/60">
       <Link
         to={"/relatorios/" + report.slug}
         className="flex min-w-0 flex-1 items-center gap-4 py-3.5 pl-5 focus-visible:bg-surface/60 focus-visible:outline-none"
@@ -88,6 +88,10 @@ export default function RelatoriosCatalogo() {
     ...CATEGORIES.map((c) => ({ id: c as Filter, label: c, icon: CATEGORY_ICON[c], count: REPORTS.filter((r) => r.category === c).length })),
   ];
 
+  const searchInput = (
+    <Input icon={SearchNormal1} aria-label="Buscar relatórios" placeholder="Buscar relatório…" value={search} onChange={(event) => setSearch(event.target.value)} />
+  );
+
   function clearFilters() {
     setSearch("");
     setFilter("all");
@@ -97,58 +101,39 @@ export default function RelatoriosCatalogo() {
     <div className="mx-auto max-w-7xl">
       <PageHeader title="Relatórios" description="Indicadores da clínica organizados por área." breadcrumbs={[{ label: "Relatórios" }]} />
 
-      <section aria-label="Catálogo de relatórios" className="grid grid-cols-1 gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="flex flex-col gap-4 lg:sticky lg:top-24 lg:self-start">
-          <Input icon={SearchNormal1} aria-label="Buscar relatórios" placeholder="Buscar relatório…" value={search} onChange={(event) => setSearch(event.target.value)} />
-          <nav aria-label="Categorias" className="-mx-1 flex gap-1 overflow-x-auto px-1 lg:flex-col lg:overflow-visible">
-            {filters.map((f, i) => {
-              const active = filter === f.id;
-              const FilterIcon = f.icon;
-              return (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFilter(f.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    "ui-nav-link flex h-10 shrink-0 items-center gap-3 rounded-full px-3 text-left text-base font-medium lg:w-full",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                    active ? "ui-nav-active bg-accent-muted text-text" : "text-text-muted hover:bg-surface hover:text-text",
-                    i === 2 && "lg:mt-2",
-                  )}
-                >
-                  <FilterIcon size={18} aria-hidden variant={active ? "Bulk" : "Linear"} className="shrink-0" />
-                  <span className="whitespace-nowrap lg:flex-1">{f.label}</span>
-                  <span className="tabular text-xs text-text-muted">{f.count}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+      <LiquidTabs
+        label="Categorias de relatório"
+        tabs={filters.map((f) => ({ label: f.label, count: f.count }))}
+        active={Math.max(0, filters.findIndex((f) => f.id === filter))}
+        onChange={(i) => setFilter(filters[i].id)}
+        actions={<div className="hidden w-72 lg:block">{searchInput}</div>}
+      >
+        {() => (
+          <div className="flex flex-col">
+            {/* No celular a busca não cabe ao lado das abas: vem para o topo do conteúdo. */}
+            <div className="mb-5 lg:hidden">{searchInput}</div>
 
-        <div className="flex min-w-0 flex-col gap-6">
-          {showRecents && (
-            <Card className="px-5 py-4">
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-text-muted">
-                <Clock size={16} aria-hidden />
-                Acessados recentemente
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {recentReports.map((r) => (
-                  <Link
-                    key={r.slug}
-                    to={"/relatorios/" + r.slug}
-                    className="rounded-full bg-surface px-3 py-1.5 text-sm text-text transition-colors hover:bg-accent-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  >
-                    {r.name}
-                  </Link>
-                ))}
+            {showRecents && (
+              <div className="mb-6 rounded-lg bg-surface px-4 py-3.5">
+                <h2 className="mb-2.5 flex items-center gap-2 text-sm font-medium text-text-muted">
+                  <Clock size={16} aria-hidden />
+                  Acessados recentemente
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {recentReports.map((r) => (
+                    <Link
+                      key={r.slug}
+                      to={"/relatorios/" + r.slug}
+                      className="rounded-full bg-surface-raised px-3 py-1.5 text-sm text-text transition-colors hover:bg-accent-muted hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      {r.name}
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </Card>
-          )}
+            )}
 
-          {grouped.length === 0 ? (
-            <Card>
+            {grouped.length === 0 ? (
               <EmptyState
                 icon={filter === "favorites" && !query ? Star : SearchNormal1}
                 title={filter === "favorites" && !query ? "Nenhum favorito ainda" : "Nenhum relatório encontrado"}
@@ -163,32 +148,34 @@ export default function RelatoriosCatalogo() {
                   </button>
                 }
               />
-            </Card>
-          ) : (
-            grouped.map(({ category, reports }) => {
-              const Icon = CATEGORY_ICON[category];
-              return (
-                <Card key={category} className="overflow-hidden">
-                  <div className="flex items-center gap-3 border-b border-border px-5 py-4">
-                    <IconCircle tone={CATEGORY_TONE[category]} size="md">
-                      <Icon size={16} aria-hidden />
-                    </IconCircle>
-                    <h2 className="flex-1 text-md font-semibold text-text">{category}</h2>
-                    <span className="tabular text-sm text-text-muted">
-                      {reports.length} relatório{reports.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-                  <ul className="divide-y divide-border">
-                    {reports.map((report) => (
-                      <ReportRow key={report.slug} report={report} favorite={isFavorite(report.slug)} onToggleFavorite={() => toggle(report.slug)} />
-                    ))}
-                  </ul>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      </section>
+            ) : (
+              <div className="flex flex-col">
+                {grouped.map(({ category, reports }) => {
+                  const Icon = CATEGORY_ICON[category];
+                  return (
+                    <section key={category} aria-label={category} className="border-b border-border pb-2 pt-6 first:pt-0 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <IconCircle tone={CATEGORY_TONE[category]} size="md">
+                          <Icon size={16} aria-hidden />
+                        </IconCircle>
+                        <h2 className="flex-1 text-md font-semibold text-text">{category}</h2>
+                        <span className="tabular text-sm text-text-muted">
+                          {reports.length} relatório{reports.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <ul className="-mx-5 mt-2 divide-y divide-border">
+                        {reports.map((report) => (
+                          <ReportRow key={report.slug} report={report} favorite={isFavorite(report.slug)} onToggleFavorite={() => toggle(report.slug)} />
+                        ))}
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </LiquidTabs>
     </div>
   );
 }

@@ -38,7 +38,7 @@ const STATUS_DOT_CLASS: Record<AccessStatus, string> = {
 };
 
 export default function Profissionais() {
-  const [view, setView] = useState<"cartoes" | "tabela">("cartoes");
+  const [view, setView] = useState<"cartoes" | "tabela">("tabela");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -113,8 +113,8 @@ export default function Profissionais() {
             value={view}
             onChange={setView}
             options={[
-              { value: "cartoes", label: "Cartões", icon: Element4 },
               { value: "tabela", label: "Tabela", icon: RowVertical },
+              { value: "cartoes", label: "Cartões", icon: Element4 },
             ]}
           />
         </div>

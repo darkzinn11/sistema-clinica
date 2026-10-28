@@ -30,7 +30,7 @@ function ScopeOption({
     <label
       className={cn(
         "flex cursor-pointer gap-3 rounded-xl border p-4 transition-colors",
-        checked ? "border-accent bg-accent-muted/60" : "border-border hover:border-border-strong",
+        checked ? "border-accent" : "border-border hover:border-border-strong",
         disabled && "cursor-not-allowed opacity-55 hover:border-border",
       )}
     >

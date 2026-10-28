@@ -103,7 +103,7 @@ export default function Page() {
       <PageHeader
         title="Pacientes"
         description="Cadastro completo de cada paciente da clínica."
-        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes" }]}
+        breadcrumbs={[{ label: "Pacientes" }]}
         actions={<ButtonLink to="/pacientes/novo" variant="primary" icon={UserAdd}>Novo paciente</ButtonLink>}
       />
 

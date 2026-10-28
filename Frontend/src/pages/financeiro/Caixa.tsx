@@ -154,76 +154,74 @@ export default function Caixa() {
         </Table>
       </Card>
 
-      <Card className="mt-5">
-        <CardBody>
-          <Tabs tabs={[{ label: "Histórico de caixas" }, { label: "Cofre" }]}>
-            {(active) =>
-              active === 0 ? (
+      <div className="mt-5">
+        <Tabs tabs={[{ label: "Histórico de caixas" }, { label: "Cofre" }]}>
+          {(active) =>
+            active === 0 ? (
+              <Table>
+                <THead>
+                  <TR>
+                    <TH>Data</TH>
+                    <TH>Responsável</TH>
+                    <TH align="right">Esperado</TH>
+                    <TH align="right">Contado</TH>
+                    <TH align="right">Diferença</TH>
+                  </TR>
+                </THead>
+                <TBody>
+                  {historico.map((h) => {
+                    const dif = h.contadoCents - h.esperadoCents;
+                    return (
+                      <TR key={h.id}>
+                        <TD>{dateBR(h.data)}</TD>
+                        <TD>{h.responsavel}</TD>
+                        <TD numeric>{brl(h.esperadoCents)}</TD>
+                        <TD numeric>{brl(h.contadoCents)}</TD>
+                        <TD numeric className={dif === 0 ? "text-text-muted" : dif > 0 ? "text-success" : "text-danger"}>
+                          {dif === 0 ? "—" : `${dif > 0 ? "+" : "−"}${brl(Math.abs(dif))}`}
+                        </TD>
+                      </TR>
+                    );
+                  })}
+                </TBody>
+              </Table>
+            ) : (
+              <div className="flex flex-col gap-4 p-1">
+                <div className="flex items-center gap-3 rounded-lg bg-surface p-4">
+                  <IconCircle tone="accent" size="lg">
+                    <Strongbox2 size={20} aria-hidden />
+                  </IconCircle>
+                  <div>
+                    <p className="text-sm text-text-muted">Saldo do cofre</p>
+                    <p className="font-display text-xl font-semibold text-text">{brl(cofre.saldoCents)}</p>
+                  </div>
+                </div>
                 <Table>
                   <THead>
                     <TR>
                       <TH>Data</TH>
-                      <TH>Responsável</TH>
-                      <TH align="right">Esperado</TH>
-                      <TH align="right">Contado</TH>
-                      <TH align="right">Diferença</TH>
+                      <TH>Descrição</TH>
+                      <TH align="right">Valor</TH>
                     </TR>
                   </THead>
                   <TBody>
-                    {historico.map((h) => {
-                      const dif = h.contadoCents - h.esperadoCents;
-                      return (
-                        <TR key={h.id}>
-                          <TD>{dateBR(h.data)}</TD>
-                          <TD>{h.responsavel}</TD>
-                          <TD numeric>{brl(h.esperadoCents)}</TD>
-                          <TD numeric>{brl(h.contadoCents)}</TD>
-                          <TD numeric className={dif === 0 ? "text-text-muted" : dif > 0 ? "text-success" : "text-danger"}>
-                            {dif === 0 ? "—" : `${dif > 0 ? "+" : "−"}${brl(Math.abs(dif))}`}
-                          </TD>
-                        </TR>
-                      );
-                    })}
+                    {cofre.movimentos.map((m) => (
+                      <TR key={m.id}>
+                        <TD>{dateBR(m.data)}</TD>
+                        <TD>{m.descricao}</TD>
+                        <TD numeric className={m.valorCents >= 0 ? "text-success" : "text-danger"}>
+                          {m.valorCents >= 0 ? "+" : "−"}
+                          {brl(Math.abs(m.valorCents))}
+                        </TD>
+                      </TR>
+                    ))}
                   </TBody>
                 </Table>
-              ) : (
-                <div className="flex flex-col gap-4 p-1">
-                  <div className="flex items-center gap-3 rounded-lg bg-surface p-4">
-                    <IconCircle tone="accent" size="lg">
-                      <Strongbox2 size={20} aria-hidden />
-                    </IconCircle>
-                    <div>
-                      <p className="text-sm text-text-muted">Saldo do cofre</p>
-                      <p className="font-display text-xl font-semibold text-text">{brl(cofre.saldoCents)}</p>
-                    </div>
-                  </div>
-                  <Table>
-                    <THead>
-                      <TR>
-                        <TH>Data</TH>
-                        <TH>Descrição</TH>
-                        <TH align="right">Valor</TH>
-                      </TR>
-                    </THead>
-                    <TBody>
-                      {cofre.movimentos.map((m) => (
-                        <TR key={m.id}>
-                          <TD>{dateBR(m.data)}</TD>
-                          <TD>{m.descricao}</TD>
-                          <TD numeric className={m.valorCents >= 0 ? "text-success" : "text-danger"}>
-                            {m.valorCents >= 0 ? "+" : "−"}
-                            {brl(Math.abs(m.valorCents))}
-                          </TD>
-                        </TR>
-                      ))}
-                    </TBody>
-                  </Table>
-                </div>
-              )
-            }
-          </Tabs>
-        </CardBody>
-      </Card>
+              </div>
+            )
+          }
+        </Tabs>
+      </div>
 
       <Modal
         open={modal === "sangria" || modal === "suprimento"}

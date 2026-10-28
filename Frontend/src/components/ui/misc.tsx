@@ -197,8 +197,38 @@ export function Meter({
   );
 }
 
-/** Seção de formulário com título à esquerda e campos à direita (telas de cadastro/config). */
-export function FormSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+/**
+ * Seção de formulário. "aside": título à esquerda e campos à direita (configurações).
+ * "stacked": título em cima, sem coluna lateral — padrão das telas de cadastro, usado dentro de FormColumns.
+ */
+export function FormSection({
+  title,
+  description,
+  actions,
+  variant = "aside",
+  children,
+}: {
+  title: string;
+  description?: string;
+  /** Botões à direita do título (só no "stacked"). */
+  actions?: ReactNode;
+  variant?: "aside" | "stacked";
+  children: ReactNode;
+}) {
+  if (variant === "stacked") {
+    return (
+      <section className="flex flex-col gap-4 border-b border-border py-6 first:pt-0 last:border-0 last:pb-0">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-md font-semibold text-text">{title}</h3>
+            {description && <p className="mt-1 text-sm text-text-muted">{description}</p>}
+          </div>
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        </div>
+        {children}
+      </section>
+    );
+  }
   return (
     <section className="grid grid-cols-1 gap-x-10 gap-y-4 border-b border-border py-6 first:pt-0 last:border-0 lg:grid-cols-[240px_1fr]">
       <div>
@@ -207,6 +237,20 @@ export function FormSection({ title, description, children }: { title: string; d
       </div>
       <div className="flex min-w-0 flex-col gap-4">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Duas colunas de seções empilhadas com uma divisória vertical (telas de cadastro). No celular, uma embaixo da outra.
+ * Cada coluna é um container (@container): as grades de campos dentro dela usam @md:/@2xl: para
+ * quebrar pela largura da coluna, não da tela — a 1440px a coluna tem metade da largura que tem a 1920px.
+ */
+export function FormColumns({ left, right, className }: { left: ReactNode; right: ReactNode; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-1 lg:grid-cols-2", className)}>
+      <div className="@container min-w-0 border-b border-border pb-6 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-6">{left}</div>
+      <div className="@container min-w-0 pt-6 lg:pl-6 lg:pt-0">{right}</div>
+    </div>
   );
 }
 

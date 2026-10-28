@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { Outlet, useLocation } from "react-router";
+import { Outlet, useLocation, useMatches } from "react-router";
 import { AppShell } from "./app-shell";
 import { Skeleton } from "@/components/ui/misc";
 
@@ -32,15 +32,29 @@ function DemoNotice() {
   );
 }
 
-/** Layout das telas internas: shell + carregamento sob demanda + volta ao topo ao navegar. */
+/**
+ * Chave da tela: a rota (e seus parâmetros), não o endereço inteiro. Em telas com abas que são rotas
+ * (/configuracoes/*, /pacientes/:id/*), trocar de aba muda o endereço mas não a tela — e a tela não pode
+ * ser recriada, senão as abas não deslizam e a página volta ao topo.
+ */
+function usePageKey(): string {
+  const matches = useMatches();
+  const leaf = matches[matches.length - 1];
+  if (!leaf) return "";
+  const params = Object.entries(leaf.params).filter(([name]) => name !== "*");
+  return `${leaf.id}:${params.map(([name, value]) => `${name}=${value}`).join("&")}`;
+}
+
+/** Layout das telas internas: shell + carregamento sob demanda + volta ao topo ao trocar de tela. */
 export function ShellLayout() {
   const { pathname } = useLocation();
+  const pageKey = usePageKey();
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [pathname]);
+  }, [pageKey]);
   return (
     <AppShell>
-      <div key={pathname} className="ui-page-enter">
+      <div key={pageKey} className="ui-page-enter">
         {!isReal(pathname) && <DemoNotice />}
         <Suspense fallback={<PageFallback />}>
           <Outlet />

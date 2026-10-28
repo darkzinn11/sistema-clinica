@@ -1,7 +1,7 @@
-import { NavLink, Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
+import LiquidTabs from "@/components/pinui/LiquidTabs";
 import { PageHeader } from "@/components/ui/page-header";
 import { ALL_ITEMS } from "@/lib/nav";
-import { cn } from "@/lib/cn";
 import Gerais from "@/pages/configuracoes/sections/Gerais";
 import AgendamentoOnline from "@/pages/configuracoes/sections/AgendamentoOnline";
 import AreaDoPaciente from "@/pages/configuracoes/sections/AreaDoPaciente";
@@ -19,51 +19,44 @@ const configNav = ALL_ITEMS.find((i) => i.href === "/configuracoes");
 
 export default function Page() {
   const children = configNav?.children ?? [];
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  // Cada seção é uma rota: a aba ativa vem do endereço.
+  const activeIndex = children.findIndex((c) => pathname === c.href || pathname.startsWith(`${c.href}/`));
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title="Configurações"
         description="Regras e preferências que moldam como a clínica funciona no dia a dia."
-        breadcrumbs={[{ label: "Administração" }, { label: "Configurações" }]}
+        breadcrumbs={[{ label: "Configurações" }]}
       />
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <nav aria-label="Seções de configurações" className="shrink-0 lg:sticky lg:top-24 lg:w-64">
-          <ul className="flex gap-1 overflow-x-auto pb-2 lg:flex-col lg:overflow-visible lg:pb-0">
-            {children.map((c) => (
-              <li key={c.href} className="shrink-0 lg:shrink">
-                <NavLink
-                  to={c.href}
-                  className={({ isActive }) =>
-                    cn(
-                      "block whitespace-nowrap rounded-full px-3 py-2 text-sm font-medium transition-colors",
-                      isActive ? "bg-accent-muted text-accent" : "text-text-muted hover:bg-surface hover:text-text",
-                    )
-                  }
-                >
-                  {c.label}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="min-w-0 flex-1 pb-16">
-          <Routes>
-            <Route index element={<Navigate to="gerais" replace />} />
-            <Route path="gerais" element={<Gerais />} />
-            <Route path="agendamento-online" element={<AgendamentoOnline />} />
-            <Route path="area-do-paciente" element={<AreaDoPaciente />} />
-            <Route path="campos-obrigatorios" element={<CamposObrigatorios />} />
-            <Route path="faixas-etarias" element={<FaixasEtarias />} />
-            <Route path="triagem" element={<Triagem />} />
-            <Route path="totem-e-guiches" element={<TotemEGuiches />} />
-            <Route path="chamada-de-tv" element={<ChamadaDeTv />} />
-            <Route path="integracoes" element={<Integracoes />} />
-            <Route path="privacidade" element={<Privacidade />} />
-            <Route path="usuarios-conectados" element={<UsuariosConectados />} />
-            <Route path="compras" element={<Compras />} />
-          </Routes>
-        </div>
-      </div>
+      <LiquidTabs
+        label="Seções de configurações"
+        tabs={children.map((c) => ({ label: c.label }))}
+        active={Math.max(0, activeIndex)}
+        onChange={(i) => navigate(children[i].href)}
+        flush
+      >
+        {() => (
+          <div className="ui-flush-sections">
+            <Routes>
+              <Route index element={<Navigate to="gerais" replace />} />
+              <Route path="gerais" element={<Gerais />} />
+              <Route path="agendamento-online" element={<AgendamentoOnline />} />
+              <Route path="area-do-paciente" element={<AreaDoPaciente />} />
+              <Route path="campos-obrigatorios" element={<CamposObrigatorios />} />
+              <Route path="faixas-etarias" element={<FaixasEtarias />} />
+              <Route path="triagem" element={<Triagem />} />
+              <Route path="totem-e-guiches" element={<TotemEGuiches />} />
+              <Route path="chamada-de-tv" element={<ChamadaDeTv />} />
+              <Route path="integracoes" element={<Integracoes />} />
+              <Route path="privacidade" element={<Privacidade />} />
+              <Route path="usuarios-conectados" element={<UsuariosConectados />} />
+              <Route path="compras" element={<Compras />} />
+            </Routes>
+          </div>
+        )}
+      </LiquidTabs>
     </div>
   );
 }

@@ -16,6 +16,7 @@
     "iconsax-reactjs": "^0.0.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",
+    "motion": "^14.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.4.0"

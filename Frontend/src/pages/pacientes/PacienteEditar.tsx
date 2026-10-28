@@ -15,7 +15,7 @@ export default function Page() {
   const save = useSavePatient();
   const [error, setError] = useState<string | null>(null);
 
-  if (patient.isPending) return <div className="mx-auto max-w-5xl"><Skeleton className="h-96 w-full" /></div>;
+  if (patient.isPending) return <div className="mx-auto max-w-7xl"><Skeleton className="h-96 w-full" /></div>;
   if (patient.isError) {
     return (
       <div className="mx-auto max-w-3xl">
@@ -34,10 +34,11 @@ export default function Page() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-7xl">
       <PageHeader
+        card
         title={`Editar ${p.nome}`}
-        breadcrumbs={[{ label: "Início", href: "/inicio" }, { label: "Pacientes", href: "/pacientes" }, { label: p.nome, href: `/pacientes/${id}` }, { label: "Editar" }]}
+        breadcrumbs={[{ label: "Pacientes", href: "/pacientes" }, { label: p.nome, href: `/pacientes/${id}` }, { label: "Editar" }]}
       />
       <PacienteForm
         initial={p}

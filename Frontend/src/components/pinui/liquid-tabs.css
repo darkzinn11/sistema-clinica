@@ -1,0 +1,197 @@
+/* ===========================================================================
+   Liquid Tabs (pinui), adaptado ao sistema.
+
+   O corpo do card e a aba ativa são duas formas sob um filtro "goo", então a
+   aba é parte do card. Cores e fonte vêm dos tokens do sistema (--c-*), e o
+   tema escuro acompanha sozinho. Sem a faixa cinza atrás das abas inativas.
+=========================================================================== */
+
+.pltabs {
+  position: relative;
+  width: 100%;
+  color: var(--c-text);
+}
+
+.pltabs__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.pltabs__surface {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* drop-shadow (e não box-shadow): a sombra contorna card + orelha como uma peça só */
+  filter: drop-shadow(0 2px 4px rgb(27 54 35 / 0.025)) drop-shadow(0 12px 32px rgb(27 54 35 / 0.045));
+}
+:root[data-theme="dark"] .pltabs__surface { filter: drop-shadow(0 4px 20px rgb(0 0 0 / 0.12)); }
+
+.pltabs__gooLayer {
+  position: absolute;
+  inset: 0;
+}
+
+.pltabs__body,
+.pltabs__blob {
+  position: absolute;
+  background: var(--c-surface-raised);
+  transition: background-color 0.4s ease;
+}
+
+.pltabs__body {
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.pltabs__blob {
+  top: 0;
+  left: 0;
+}
+
+/* ── abas ── */
+
+.pltabs__bar {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+/* ações (ex.: busca) à direita das abas, sem encostar na orelha */
+.pltabs__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-left: auto;
+  padding-bottom: 6px;
+}
+
+.pltabs__tabs {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.pltabs__tabs::-webkit-scrollbar { display: none; }
+.pltabs__tabs[data-fade-right="true"] { mask-image: linear-gradient(90deg, #000 calc(100% - 56px), transparent); }
+.pltabs__tabs[data-fade-left="true"] { mask-image: linear-gradient(90deg, transparent, #000 56px); }
+.pltabs__tabs[data-fade-left="true"][data-fade-right="true"] {
+  mask-image: linear-gradient(90deg, transparent, #000 56px, #000 calc(100% - 56px), transparent);
+}
+
+.pltabs__tab {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  border: 0;
+  background: none;
+  color: var(--c-text-muted);
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  outline: none;
+  transition: color 0.3s ease;
+}
+
+.pltabs__tab[data-active="true"] {
+  color: var(--c-text);
+}
+
+@media (hover: hover) {
+  .pltabs__tab:hover {
+    color: var(--c-text);
+  }
+}
+
+.pltabs__tabLabel {
+  position: relative;
+  display: block;
+  padding: 0 2px;
+}
+
+.pltabs__count {
+  margin-left: 8px;
+  color: var(--c-text-subtle);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.pltabs__tab:focus-visible .pltabs__tabLabel {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--c-accent);
+}
+
+.pltabs__tabLabel { display: flex; align-items: center; }
+
+.pltabs__icon {
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.pltabs__tabText {
+  position: relative;
+}
+
+/* do tamanho do texto do rótulo; fica 10px abaixo dele (perto da base da orelha) */
+.pltabs__underline {
+  position: absolute;
+  right: 0;
+  bottom: -10px;
+  left: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--c-accent);
+}
+
+/* ── painel ── */
+
+.pltabs__panel {
+  position: relative;
+  padding: 24px;
+}
+
+/* Cards dentro do painel (telas que já tinham cards por seção): o painel já é o card branco,
+   então eles viram blocos com contorno, sem sombra — nada de card flutuando dentro de card. */
+.pltabs__panel .ui-surface-card,
+.pltabs__panel .ms-stat-card {
+  border: 1px solid var(--c-border);
+  box-shadow: none;
+}
+
+/* Painel sem respiro (flush): cada seção traz seus próprios cards. Os cards de primeiro nível viram
+   faixas do próprio painel, separadas por uma linha; o que não é card ganha a margem do painel. */
+.pltabs__panel--flush {
+  padding: 0;
+}
+.pltabs__panel--flush .ui-flush-sections > * > .ui-surface-card {
+  margin-top: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.pltabs__panel--flush .ui-flush-sections > * > .ui-surface-card + .ui-surface-card {
+  border-top: 1px solid var(--c-border);
+}
+.pltabs__panel--flush .ui-flush-sections > * > :not(.ui-surface-card) {
+  margin: 24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pltabs__body,
+  .pltabs__blob,
+  .pltabs__tab {
+    transition: none;
+  }
+}

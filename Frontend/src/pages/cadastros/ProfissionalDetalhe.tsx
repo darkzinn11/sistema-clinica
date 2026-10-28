@@ -1,16 +1,16 @@
 import { useRef, useState } from "react";
 import { useParams } from "react-router";
-import { Add, CloseCircle, Copy, TickCircle } from "iconsax-reactjs";
+import { Add, Camera, CloseCircle, Copy, TickCircle, Trash } from "iconsax-reactjs";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { Checkbox, Radio } from "@/components/ui/input";
 import { Switch } from "@/components/ui/overlay";
-import { Tabs } from "@/components/ui/tabs";
+import LiquidTabs from "@/components/pinui/LiquidTabs";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { DescriptionList, FormSection } from "@/components/ui/misc";
+import { DescriptionList, FormColumns, FormSection } from "@/components/ui/misc";
 import { Table, TBody, TD, THead, TH, TR } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SaveBar } from "@/components/configuracoes/SaveBar";
@@ -221,7 +221,7 @@ export default function ProfissionalDetalhe() {
   if (!prof) {
     return (
       <div className="mx-auto max-w-7xl">
-        <PageHeader title="Profissional" breadcrumbs={[{ label: "Cadastros", href: "/cadastros" }, { label: "Profissionais", href: "/cadastros/profissionais" }, { label: "Não encontrado" }]} />
+        <PageHeader card title="Profissional" breadcrumbs={[{ label: "Cadastros", href: "/cadastros" }, { label: "Profissionais", href: "/cadastros/profissionais" }, { label: "Não encontrado" }]} />
         <Card>
           <EmptyState title="Profissional não encontrado" description="Verifique o link ou volte para a lista de profissionais." />
         </Card>
@@ -263,189 +263,175 @@ export default function ProfissionalDetalhe() {
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
+        card
         title={prof.name}
         description={`${prof.specialty} · ${prof.council}`}
         breadcrumbs={[{ label: "Cadastros", href: "/cadastros" }, { label: "Profissionais", href: "/cadastros/profissionais" }, { label: prof.name }]}
-        meta={
-          <span className="flex h-9 items-center gap-2 rounded-full bg-surface px-1 pr-3">
-            {d.photoUrl ? <img src={d.photoUrl} alt="" className="h-6 w-6 rounded-full object-cover" /> : <Avatar name={prof.name} size="xs" />}
-            <span className="text-sm text-text-muted">{procedureRows.length} procedimentos</span>
-          </span>
-        }
       />
 
       {saved && (
-        <div className="mb-5 flex items-center gap-2 rounded-lg border border-success-bg bg-success-bg px-4 py-2.5 text-sm text-success">
+        <div role="status" className="mb-5 flex items-center gap-2 rounded-lg border border-success-bg bg-success-bg px-4 py-2.5 text-sm text-success">
           <TickCircle size={16} aria-hidden />
           {saved}
         </div>
       )}
 
-      <Tabs
+      <LiquidTabs
+        label="Seções do cadastro"
         tabs={[{ label: "Dados" }, { label: "Horários de atendimento" }, { label: "Procedimentos e valores" }, { label: "Convênios aceitos" }, { label: "Repasse" }, { label: "Acesso" }]}
       >
         {(active) => {
           if (active === 0) {
             return (
-              <div className="flex flex-col gap-4">
-                <Card>
-                  <CardBody>
-                    <FormSection title="Identificação" description="Dados básicos e identidade visual na agenda.">
-                      <div className="flex flex-wrap items-start gap-6">
-                        <div className="flex shrink-0 flex-col items-center gap-2">
-                          {d.photoUrl ? (
-                            <img src={d.photoUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
-                          ) : (
-                            <Avatar name={d.name} size="xl" />
-                          )}
-                          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                          <Button variant="secondary" size="xs" onClick={() => photoInputRef.current?.click()}>
-                            {d.photoUrl ? "Alterar foto" : "Adicionar foto"}
-                          </Button>
-                          {d.photoUrl && (
-                            <Button variant="danger" size="xs" onClick={() => patchDados({ photoUrl: undefined })}>
-                              Remover
-                            </Button>
-                          )}
+              <div className="flex flex-col">
+                <section className="flex flex-col items-center gap-6 border-b border-border pb-6 lg:flex-row lg:items-center lg:gap-10">
+                  <div className="flex w-60 shrink-0 flex-col items-center gap-4">
+                    {d.photoUrl ? (
+                      <img src={d.photoUrl} alt={`Foto de ${d.name}`} className="h-[186px] w-[186px] rounded-full border border-border bg-surface object-cover" />
+                    ) : (
+                      <Avatar name={d.name || prof.name} size="hero" />
+                    )}
+                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                    <div className="flex items-center gap-1">
+                      <Button variant="subtle" size="sm" icon={d.photoUrl ? Camera : Add} onClick={() => photoInputRef.current?.click()}>
+                        {d.photoUrl ? "Trocar foto" : "Adicionar foto"}
+                      </Button>
+                      {d.photoUrl && <Button variant="ghost" size="sm" iconOnly icon={Trash} aria-label="Remover foto" onClick={() => patchDados({ photoUrl: undefined })} />}
+                    </div>
+                  </div>
+                  <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
+                    <div className="flex flex-wrap items-start gap-8">
+                      <div className="flex flex-col gap-1.5">
+                        <p className="text-sm font-medium text-text">Cor na agenda</p>
+                        <div className="flex items-center gap-1.5">
+                          {Array.from({ length: 8 }, (_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              aria-label={`Cor ${i + 1} na agenda`}
+                              aria-pressed={d.agendaColor === i}
+                              onClick={() => patchDados({ agendaColor: i })}
+                              className="h-5 w-5 rounded-full transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                              style={{ background: `var(--c-series-${i + 1})`, boxShadow: d.agendaColor === i ? "0 0 0 2px var(--c-surface-raised), 0 0 0 4px var(--c-text)" : undefined }}
+                            />
+                          ))}
                         </div>
-                        <div className="flex flex-col gap-3">
-                          <div>
-                            <p className="mb-1.5 text-sm font-medium text-text">Cor na agenda</p>
-                            <div className="flex items-center gap-1.5">
-                              {Array.from({ length: 8 }, (_, i) => (
-                                <button
-                                  key={i}
-                                  type="button"
-                                  aria-label={`Cor ${i + 1} na agenda`}
-                                  aria-pressed={d.agendaColor === i}
-                                  onClick={() => patchDados({ agendaColor: i })}
-                                  className="h-5 w-5 rounded-full ring-offset-2 ring-offset-surface-raised transition-shadow"
-                                  style={{ background: `var(--c-series-${i + 1})`, boxShadow: d.agendaColor === i ? "0 0 0 2px var(--c-text)" : undefined }}
-                                />
-                              ))}
+                      </div>
+                      <Switch labelOnTop checked={d.active} onChange={(v) => patchDados({ active: v })} label="Ativo" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Select label="Título" value={d.title} onChange={(e) => patchDados({ title: e.target.value })} options={[{ value: "Dr.", label: "Dr." }, { value: "Dra.", label: "Dra." }, { value: "", label: "Nenhum" }]} />
+                      <Input label="Nome completo" value={d.name} onChange={(e) => patchDados({ name: e.target.value })} wrapperClassName="sm:col-span-2" required />
+                      <Input label="Nome social" placeholder="Se usar outro nome" value={d.socialName ?? ""} onChange={(e) => patchDados({ socialName: e.target.value || undefined })} />
+                      <Select label="Sexo" value={d.gender} onChange={(e) => patchDados({ gender: e.target.value as DadosDraft["gender"] })} options={[{ value: "Feminino", label: "Feminino" }, { value: "Masculino", label: "Masculino" }]} />
+                      <Input label="Nascimento" type="date" value={d.birthDate} onChange={(e) => patchDados({ birthDate: e.target.value })} />
+                      <Input label="CPF" placeholder="000.000.000-00" inputMode="numeric" value={d.cpf} onChange={(e) => patchDados({ cpf: e.target.value })} required />
+                      <Input label="CNS" placeholder="15 dígitos" inputMode="numeric" value={d.cns} onChange={(e) => patchDados({ cns: e.target.value })} />
+                    </div>
+                  </div>
+                </section>
+
+                <FormColumns
+                  className="pt-6"
+                  left={
+                    <>
+                      <FormSection variant="stacked" title="Registro profissional">
+                        <div className="grid grid-cols-1 gap-3 @md:grid-cols-2">
+                          <Select label="Especialidade" value={d.specialty} onChange={(e) => patchDados({ specialty: e.target.value })} options={SPECIALTY_NAMES.map((s) => ({ value: s, label: s }))} required />
+                          <Input label="RQE" placeholder="Registro de especialista, se tiver" value={d.rqe ?? ""} onChange={(e) => patchDados({ rqe: e.target.value || undefined })} />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {d.registrations.map((reg, i) => (
+                            <div key={i} className="flex flex-wrap items-end gap-2">
+                              <Select label={i === 0 ? "Conselho" : undefined} aria-label={i === 0 ? undefined : "Conselho"} value={reg.conselho} onChange={(e) => updateRegistration(i, { conselho: e.target.value })} options={CONSELHO_TYPES.map((c) => ({ value: c, label: c }))} wrapperClassName="w-28" />
+                              <Input label={i === 0 ? "Registro" : undefined} aria-label={i === 0 ? undefined : "Registro"} placeholder="Número" value={reg.registro} onChange={(e) => updateRegistration(i, { registro: e.target.value })} wrapperClassName="flex-1 min-w-28" />
+                              <Input label={i === 0 ? "UF" : undefined} aria-label={i === 0 ? undefined : "UF"} placeholder="UF" value={reg.uf} maxLength={2} onChange={(e) => updateRegistration(i, { uf: e.target.value.toUpperCase() })} wrapperClassName="w-16" />
+                              {d.registrations.length > 1 && <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover registro" onClick={() => removeRegistration(i)} className="mb-1" />}
                             </div>
-                          </div>
-                          <Switch checked={d.active} onChange={(v) => patchDados({ active: v })} label="Ativo" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <Select label="Título" value={d.title} onChange={(e) => patchDados({ title: e.target.value })} options={[{ value: "Dr.", label: "Dr." }, { value: "Dra.", label: "Dra." }, { value: "", label: "Nenhum" }]} />
-                        <Input label="Nome completo" value={d.name} onChange={(e) => patchDados({ name: e.target.value })} wrapperClassName="lg:col-span-2" required />
-                        <Input label="Nome social" value={d.socialName ?? ""} onChange={(e) => patchDados({ socialName: e.target.value || undefined })} />
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <Select label="Sexo" value={d.gender} onChange={(e) => patchDados({ gender: e.target.value as DadosDraft["gender"] })} options={[{ value: "Feminino", label: "Feminino" }, { value: "Masculino", label: "Masculino" }]} />
-                        <Input label="Nascimento" type="date" value={d.birthDate} onChange={(e) => patchDados({ birthDate: e.target.value })} />
-                        <Input label="CPF" value={d.cpf} onChange={(e) => patchDados({ cpf: e.target.value })} required />
-                        <Input label="CNS" value={d.cns} onChange={(e) => patchDados({ cns: e.target.value })} />
-                      </div>
-                    </FormSection>
-
-                    <FormSection title="Registro profissional" description="Especialidade, conselho e subespecialidades.">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <Select label="Especialidade" value={d.specialty} onChange={(e) => patchDados({ specialty: e.target.value })} options={SPECIALTY_NAMES.map((s) => ({ value: s, label: s }))} required />
-                        <Input label="RQE" value={d.rqe ?? ""} onChange={(e) => patchDados({ rqe: e.target.value || undefined })} />
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {d.registrations.map((reg, i) => (
-                          <div key={i} className="flex flex-wrap items-end gap-2">
-                            <Select label={i === 0 ? "Conselho" : undefined} value={reg.conselho} onChange={(e) => updateRegistration(i, { conselho: e.target.value })} options={CONSELHO_TYPES.map((c) => ({ value: c, label: c }))} wrapperClassName="w-28" />
-                            <Input label={i === 0 ? "Registro" : undefined} value={reg.registro} onChange={(e) => updateRegistration(i, { registro: e.target.value })} wrapperClassName="flex-1 min-w-28" />
-                            <Input label={i === 0 ? "UF" : undefined} value={reg.uf} maxLength={2} onChange={(e) => updateRegistration(i, { uf: e.target.value.toUpperCase() })} wrapperClassName="w-16" />
-                            {d.registrations.length > 1 && <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover registro" onClick={() => removeRegistration(i)} />}
-                          </div>
-                        ))}
-                        <Button variant="subtle" size="sm" icon={Add} onClick={addRegistration} className="self-start">
-                          Outro registro
-                        </Button>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {d.subspecialties.map((sub, i) => (
-                          <div key={i} className="flex flex-wrap items-end gap-2">
-                            <Input label={i === 0 ? "Subespecialidade" : undefined} value={sub.name} onChange={(e) => updateSubspecialty(i, { name: e.target.value })} wrapperClassName="flex-1 min-w-40" />
-                            <Input label={i === 0 ? "Observações" : undefined} value={sub.note ?? ""} onChange={(e) => updateSubspecialty(i, { note: e.target.value })} wrapperClassName="flex-1 min-w-40" />
-                            <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover subespecialidade" onClick={() => removeSubspecialty(i)} />
-                          </div>
-                        ))}
-                        <Button variant="subtle" size="sm" icon={Add} onClick={addSubspecialty} className="self-start">
-                          Subespecialidade
-                        </Button>
-                      </div>
-                    </FormSection>
-
-                    <FormSection title="Endereço e contato" description="Usados em documentos e comunicação com o profissional.">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                        <Input label="CEP" value={d.address.cep} onChange={(e) => patchAddress({ cep: e.target.value })} />
-                        <Input label="Endereço" value={d.address.street} onChange={(e) => patchAddress({ street: e.target.value })} wrapperClassName="sm:col-span-2" />
-                        <Input label="Número" value={d.address.number} onChange={(e) => patchAddress({ number: e.target.value })} />
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                        <Input label="Complemento" value={d.address.complement ?? ""} onChange={(e) => patchAddress({ complement: e.target.value || undefined })} />
-                        <Input label="Bairro" value={d.address.neighborhood} onChange={(e) => patchAddress({ neighborhood: e.target.value })} />
-                        <Input label="Cidade" value={d.address.city} onChange={(e) => patchAddress({ city: e.target.value })} />
-                        <Input label="Estado" value={d.address.state} maxLength={2} onChange={(e) => patchAddress({ state: e.target.value.toUpperCase() })} />
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
-                        <Input label="País" value={d.address.country} onChange={(e) => patchAddress({ country: e.target.value })} />
-                        <Input label="Telefone" value={d.phone} onChange={(e) => patchDados({ phone: e.target.value })} />
-                        <Input label="Celular" value={d.celular} onChange={(e) => patchDados({ celular: e.target.value })} />
-                        <Input label="2º telefone" value={d.secondaryPhone ?? ""} onChange={(e) => patchDados({ secondaryPhone: e.target.value || undefined })} />
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <Input label="E-mail" type="email" value={d.email} onChange={(e) => patchDados({ email: e.target.value })} />
-                        <Input label="E-mail secundário" type="email" value={d.secondaryEmail ?? ""} onChange={(e) => patchDados({ secondaryEmail: e.target.value || undefined })} />
-                      </div>
-                    </FormSection>
-
-                    <FormSection title="Padrões clínicos" description="Pré-seleções usadas no prontuário e no faturamento TISS.">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <Select label="Anamnese padrão" value={d.defaultAnamnese ?? ""} onChange={(e) => patchDados({ defaultAnamnese: e.target.value || undefined })} options={ANAMNESE_MODELS.map((m) => ({ value: m, label: m }))} />
-                        <Select label="Evolução padrão" value={d.defaultEvolution ?? ""} onChange={(e) => patchDados({ defaultEvolution: e.target.value || undefined })} options={EVOLUCAO_MODELS.map((m) => ({ value: m, label: m }))} />
-                        <Select label="Grau de participação (TISS)" value={d.tissParticipationDegree ?? ""} onChange={(e) => patchDados({ tissParticipationDegree: e.target.value || undefined })} options={TISS_PARTICIPATION_DEGREES.map((m) => ({ value: m, label: m }))} />
-                        <Select label="Centro de custo" value={d.costCenter ?? ""} onChange={(e) => patchDados({ costCenter: e.target.value || undefined })} options={COST_CENTER_NAMES.map((m) => ({ value: m, label: m }))} />
-                        <Select label="Grupo" value={d.group} onChange={(e) => patchDados({ group: e.target.value })} options={PROFESSIONAL_GROUPS.map((m) => ({ value: m, label: m }))} />
-                        <Select label="Aba do prontuário" value={d.medicalRecordTab} onChange={(e) => patchDados({ medicalRecordTab: e.target.value })} options={MEDICAL_RECORD_TABS.map((m) => ({ value: m, label: m }))} />
-                      </div>
-                    </FormSection>
-
-                    <FormSection title="Agenda" description="Unidades, restrições e visibilidade deste profissional.">
-                      <div>
-                        <p className="mb-2 text-sm font-medium text-text">Unidades</p>
-                        <div className="flex flex-wrap gap-4">
-                          {clinic.units.map((u) => (
-                            <Checkbox key={u.id} label={u.name} checked={d.units.includes(u.id)} onChange={() => toggleListValue("units", u.id)} />
                           ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="mb-2 text-sm font-medium text-text">Acesso às agendas de outros profissionais</p>
-                        <div className="flex flex-wrap gap-4">
-                          {professionals.filter((p) => p.id !== prof.id).map((p) => (
-                            <Checkbox key={p.id} label={p.name} checked={d.agendaAccess.includes(p.id)} onChange={() => toggleListValue("agendaAccess", p.id)} />
+                          {d.subspecialties.map((sub, i) => (
+                            <div key={i} className="flex flex-wrap items-end gap-2">
+                              <Input label={i === 0 ? "Subespecialidade" : undefined} aria-label={i === 0 ? undefined : "Subespecialidade"} placeholder="Ex.: Ultrassom obstétrico" value={sub.name} onChange={(e) => updateSubspecialty(i, { name: e.target.value })} wrapperClassName="flex-1 min-w-40" />
+                              <Input label={i === 0 ? "Observações" : undefined} aria-label={i === 0 ? undefined : "Observações"} placeholder="Opcional" value={sub.note ?? ""} onChange={(e) => updateSubspecialty(i, { note: e.target.value })} wrapperClassName="flex-1 min-w-40" />
+                              <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover subespecialidade" onClick={() => removeSubspecialty(i)} className="mb-1" />
+                            </div>
                           ))}
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="subtle" size="sm" icon={Add} onClick={addRegistration}>Outro registro</Button>
+                            <Button variant="subtle" size="sm" icon={Add} onClick={addSubspecialty}>Subespecialidade</Button>
+                          </div>
                         </div>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <Input label="Idade mínima" type="number" min={0} value={d.minAge ?? ""} onChange={(e) => patchDados({ minAge: e.target.value ? Number(e.target.value) : undefined })} />
-                        <Input label="Idade máxima" type="number" min={0} value={d.maxAge ?? ""} onChange={(e) => patchDados({ maxAge: e.target.value ? Number(e.target.value) : undefined })} />
-                      </div>
-                      <Switch checked={d.hideFromAgenda} onChange={(v) => patchDados({ hideFromAgenda: v })} label="Não exibir o profissional na agenda" description="Agenda continua ativa, mas fica oculta na visão geral." />
-                      <Input label="Mensagem informativa na agenda" value={d.agendaMessage ?? ""} onChange={(e) => patchDados({ agendaMessage: e.target.value || undefined })} hint="Exibida no agendamento, ex.: orientações de preparo." />
-                    </FormSection>
+                      </FormSection>
 
-                    <FormSection title="Observações e assinatura" description="Notas internas e assinatura digital para documentos emitidos.">
-                      <Textarea label="Observações" value={d.notes ?? ""} onChange={(e) => patchDados({ notes: e.target.value || undefined })} />
-                      <Switch
-                        checked={d.digitalSignature}
-                        onChange={(v) => patchDados({ digitalSignature: v })}
-                        label="Assinatura digital habilitada"
-                        description={d.digitalSignature ? "Certificado configurado e válido." : "Nenhum certificado configurado."}
-                      />
-                    </FormSection>
-                  </CardBody>
-                </Card>
+                      <FormSection variant="stacked" title="Padrões clínicos">
+                        <div className="grid grid-cols-1 gap-3 @md:grid-cols-2 @2xl:grid-cols-3">
+                          <Select label="Anamnese padrão" placeholder="Nenhuma" value={d.defaultAnamnese ?? ""} onChange={(e) => patchDados({ defaultAnamnese: e.target.value || undefined })} options={ANAMNESE_MODELS.map((m) => ({ value: m, label: m }))} />
+                          <Select label="Evolução padrão" placeholder="Nenhuma" value={d.defaultEvolution ?? ""} onChange={(e) => patchDados({ defaultEvolution: e.target.value || undefined })} options={EVOLUCAO_MODELS.map((m) => ({ value: m, label: m }))} />
+                          <Select label="Grau de participação (TISS)" placeholder="Nenhum" value={d.tissParticipationDegree ?? ""} onChange={(e) => patchDados({ tissParticipationDegree: e.target.value || undefined })} options={TISS_PARTICIPATION_DEGREES.map((m) => ({ value: m, label: m }))} />
+                          <Select label="Centro de custo" placeholder="Nenhum" value={d.costCenter ?? ""} onChange={(e) => patchDados({ costCenter: e.target.value || undefined })} options={COST_CENTER_NAMES.map((m) => ({ value: m, label: m }))} />
+                          <Select label="Grupo" value={d.group} onChange={(e) => patchDados({ group: e.target.value })} options={PROFESSIONAL_GROUPS.map((m) => ({ value: m, label: m }))} />
+                          <Select label="Aba do prontuário" value={d.medicalRecordTab} onChange={(e) => patchDados({ medicalRecordTab: e.target.value })} options={MEDICAL_RECORD_TABS.map((m) => ({ value: m, label: m }))} />
+                        </div>
+                      </FormSection>
 
-                <SaveBar dirty={dados.dirty} onDiscard={dados.discard} onSave={dados.save} />
+                      <FormSection variant="stacked" title="Observações e assinatura">
+                        <Textarea label="Observações" placeholder="Notas internas, visíveis só para a equipe" value={d.notes ?? ""} onChange={(e) => patchDados({ notes: e.target.value || undefined })} />
+                        <Switch
+                          checked={d.digitalSignature}
+                          onChange={(v) => patchDados({ digitalSignature: v })}
+                          label="Assinatura digital habilitada"
+                          description={d.digitalSignature ? "Certificado configurado e válido." : "Nenhum certificado configurado."}
+                        />
+                      </FormSection>
+                    </>
+                  }
+                  right={
+                    <>
+                      <FormSection variant="stacked" title="Endereço e contato">
+                        <div className="grid grid-flow-dense grid-cols-2 gap-3 @2xl:grid-cols-4">
+                          <Input label="CEP" placeholder="00000-000" inputMode="numeric" value={d.address.cep} onChange={(e) => patchAddress({ cep: e.target.value })} />
+                          <Input label="Endereço" placeholder="Rua, avenida…" value={d.address.street} onChange={(e) => patchAddress({ street: e.target.value })} wrapperClassName="col-span-2" />
+                          <Input label="Número" value={d.address.number} onChange={(e) => patchAddress({ number: e.target.value })} />
+                          <Input label="Complemento" placeholder="Sala, bloco…" value={d.address.complement ?? ""} onChange={(e) => patchAddress({ complement: e.target.value || undefined })} />
+                          <Input label="Bairro" value={d.address.neighborhood} onChange={(e) => patchAddress({ neighborhood: e.target.value })} />
+                          <Input label="Cidade" value={d.address.city} onChange={(e) => patchAddress({ city: e.target.value })} />
+                          <Input label="Estado" placeholder="UF" value={d.address.state} maxLength={2} onChange={(e) => patchAddress({ state: e.target.value.toUpperCase() })} />
+                          <Input label="País" value={d.address.country} onChange={(e) => patchAddress({ country: e.target.value })} />
+                          <Input label="Telefone" placeholder="(00) 0000-0000" inputMode="tel" value={d.phone} onChange={(e) => patchDados({ phone: e.target.value })} />
+                          <Input label="Celular" placeholder="(00) 00000-0000" inputMode="tel" value={d.celular} onChange={(e) => patchDados({ celular: e.target.value })} />
+                          <Input label="2º telefone" placeholder="(00) 00000-0000" inputMode="tel" value={d.secondaryPhone ?? ""} onChange={(e) => patchDados({ secondaryPhone: e.target.value || undefined })} />
+                          <Input label="E-mail" type="email" placeholder="nome@exemplo.com" value={d.email} onChange={(e) => patchDados({ email: e.target.value })} wrapperClassName="col-span-2" />
+                          <Input label="E-mail secundário" type="email" placeholder="nome@exemplo.com" value={d.secondaryEmail ?? ""} onChange={(e) => patchDados({ secondaryEmail: e.target.value || undefined })} wrapperClassName="col-span-2" />
+                        </div>
+                      </FormSection>
+
+                      <FormSection variant="stacked" title="Agenda">
+                        <fieldset className="flex flex-col gap-2">
+                          <legend className="mb-2 text-sm font-medium text-text">Unidades</legend>
+                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            {clinic.units.map((u) => (
+                              <Checkbox key={u.id} label={u.name} checked={d.units.includes(u.id)} onChange={() => toggleListValue("units", u.id)} />
+                            ))}
+                          </div>
+                        </fieldset>
+                        <fieldset className="flex flex-col gap-2">
+                          <legend className="mb-2 text-sm font-medium text-text">Acesso às agendas de outros profissionais</legend>
+                          <div className="flex flex-wrap gap-x-4 gap-y-2">
+                            {professionals.filter((p) => p.id !== prof.id).map((p) => (
+                              <Checkbox key={p.id} label={p.name} checked={d.agendaAccess.includes(p.id)} onChange={() => toggleListValue("agendaAccess", p.id)} />
+                            ))}
+                          </div>
+                        </fieldset>
+                        <div className="grid grid-cols-1 gap-3 @md:grid-cols-2">
+                          <Input label="Idade mínima" type="number" min={0} placeholder="Sem limite" suffix="anos" value={d.minAge ?? ""} onChange={(e) => patchDados({ minAge: e.target.value ? Number(e.target.value) : undefined })} />
+                          <Input label="Idade máxima" type="number" min={0} placeholder="Sem limite" suffix="anos" value={d.maxAge ?? ""} onChange={(e) => patchDados({ maxAge: e.target.value ? Number(e.target.value) : undefined })} />
+                        </div>
+                        <Switch checked={d.hideFromAgenda} onChange={(v) => patchDados({ hideFromAgenda: v })} label="Não exibir o profissional na agenda" description="Agenda continua ativa, mas fica oculta na visão geral." />
+                        <Input label="Mensagem informativa na agenda" placeholder="Ex.: chegar 15 minutos antes, em jejum" value={d.agendaMessage ?? ""} onChange={(e) => patchDados({ agendaMessage: e.target.value || undefined })} hint="Exibida no agendamento." />
+                      </FormSection>
+                    </>
+                  }
+                />
               </div>
             );
           }
@@ -453,25 +439,25 @@ export default function ProfissionalDetalhe() {
           if (active === 1) {
             return (
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
-                <Card>
-                  <CardHeader
-                    title="Agenda semanal"
-                    description="Dias e horários em que o profissional atende."
-                    actions={
-                      <div className="flex items-center gap-2">
-                        <Select wrapperClassName="w-48" value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)} placeholder="Copiar de outro profissional" options={professionals.filter((p) => p.id !== prof.id).map((p) => ({ value: p.id, label: p.name }))} />
-                        <Button variant="secondary" size="sm" icon={Copy} onClick={copySchedule} disabled={!copyFrom}>
-                          Copiar
-                        </Button>
-                      </div>
-                    }
-                  />
-                  <CardBody className="flex flex-col gap-5">
+                <FormSection
+                  variant="stacked"
+                  title="Agenda semanal"
+                  description="Dias e horários em que o profissional atende."
+                  actions={
+                    <div className="flex items-center gap-2">
+                      <Select wrapperClassName="w-64" aria-label="Copiar horários de outro profissional" value={copyFrom} onChange={(e) => setCopyFrom(e.target.value)} placeholder="Copiar de outro profissional" options={professionals.filter((p) => p.id !== prof.id).map((p) => ({ value: p.id, label: p.name }))} />
+                      <Button variant="secondary" size="sm" icon={Copy} onClick={copySchedule} disabled={!copyFrom}>
+                        Copiar
+                      </Button>
+                    </div>
+                  }
+                >
+                  <div className="flex flex-col gap-5">
                     {schedule.map((day, dayIndex) => (
                       <div key={WEEKDAYS[dayIndex]} className="flex flex-col gap-3 border-b border-border pb-5 last:border-0 last:pb-0">
                         <Switch checked={day.enabled} onChange={(v) => updateDay(dayIndex, { enabled: v, blocks: v && day.blocks.length === 0 ? [{ start: "08:00", end: "18:00", slotMin: prof.slotMin, maxEncaixes: 2 }] : day.blocks })} label={WEEKDAYS[dayIndex]} />
                         {day.enabled && (
-                          <div className="flex flex-col gap-3 pl-1">
+                          <div className="flex flex-col gap-3">
                             {day.blocks.map((block, blockIndex) => (
                               <div key={blockIndex} className="flex flex-wrap items-end gap-2 rounded-lg bg-surface p-3">
                                 <Input label="Início" type="time" value={block.start} onChange={(e) => updateBlock(dayIndex, blockIndex, { start: e.target.value })} wrapperClassName="w-28" />
@@ -479,7 +465,7 @@ export default function ProfissionalDetalhe() {
                                 <Input label="Duração do slot" type="number" min={5} step={5} suffix="min" value={block.slotMin} onChange={(e) => updateBlock(dayIndex, blockIndex, { slotMin: Number(e.target.value) || block.slotMin })} wrapperClassName="w-32" />
                                 <Input label="Máx. encaixes/dia" type="number" min={0} value={block.maxEncaixes} onChange={(e) => updateBlock(dayIndex, blockIndex, { maxEncaixes: Number(e.target.value) || 0 })} wrapperClassName="w-36" />
                                 {day.blocks.length > 1 && (
-                                  <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover horário" onClick={() => removeBlock(dayIndex, blockIndex)} />
+                                  <Button variant="ghost" size="sm" iconOnly icon={CloseCircle} aria-label="Remover horário" onClick={() => removeBlock(dayIndex, blockIndex)} className="mb-1" />
                                 )}
                               </div>
                             ))}
@@ -490,64 +476,67 @@ export default function ProfissionalDetalhe() {
                         )}
                       </div>
                     ))}
-                  </CardBody>
-                </Card>
-                <Card className="h-fit">
-                  <CardHeader title="Capacidade semanal" />
-                  <CardBody className="flex flex-col gap-4">
-                    <div>
-                      <p className="text-sm text-text-muted">Horas por semana</p>
-                      <p className="font-display text-2xl font-semibold text-text">{(totalMinutes / 60).toFixed(1).replace(".", ",")}h</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-text-muted">Vagas por semana</p>
-                      <p className="font-display text-2xl font-semibold text-text">{totalSlots.toLocaleString("pt-BR")}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-text-muted">Duração média do slot</p>
-                      <p className="font-display text-2xl font-semibold text-text">{avgDuration} min</p>
-                    </div>
-                  </CardBody>
-                </Card>
+                  </div>
+                </FormSection>
+                <aside className="flex h-fit flex-col gap-4 rounded-lg bg-surface p-5 lg:sticky lg:top-24">
+                  <h3 className="text-md font-semibold text-text">Capacidade semanal</h3>
+                  <div>
+                    <p className="text-sm text-text-muted">Horas por semana</p>
+                    <p className="font-display text-2xl font-semibold text-text">{(totalMinutes / 60).toFixed(1).replace(".", ",")}h</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-text-muted">Vagas por semana</p>
+                    <p className="font-display text-2xl font-semibold text-text">{totalSlots.toLocaleString("pt-BR")}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-text-muted">Duração média do slot</p>
+                    <p className="font-display text-2xl font-semibold text-text">{avgDuration} min</p>
+                  </div>
+                </aside>
               </div>
             );
           }
 
           if (active === 2) {
             return (
-              <Card>
-                <CardHeader title="Procedimentos e valores" description="Procedimentos que este profissional realiza e o valor particular cobrado." />
-                <Table>
-                  <THead>
-                    <tr>
-                      <TH>Procedimento</TH>
-                      <TH>Duração</TH>
-                      <TH align="right">Valor particular</TH>
-                    </tr>
-                  </THead>
-                  <TBody>
-                    {procedureRows.map((row) => {
-                      const proc = procedureById(row.procedureId);
-                      if (!proc) return null;
-                      return (
-                        <TR key={row.procedureId}>
-                          <TD>{proc.name}</TD>
-                          <TD className="text-text-muted">{proc.durationMin} min</TD>
-                          <TD numeric>{brl(row.priceCents)}</TD>
-                        </TR>
-                      );
-                    })}
-                  </TBody>
-                </Table>
-              </Card>
+              <FormSection variant="stacked" title="Procedimentos e valores" description="Procedimentos que este profissional realiza e o valor particular cobrado.">
+                <div className="-mx-4">
+                  <Table>
+                    <THead>
+                      <tr>
+                        <TH>Procedimento</TH>
+                        <TH>Duração</TH>
+                        <TH align="right">Valor particular</TH>
+                      </tr>
+                    </THead>
+                    <TBody>
+                      {procedureRows.map((row) => {
+                        const proc = procedureById(row.procedureId);
+                        if (!proc) return null;
+                        return (
+                          <TR key={row.procedureId}>
+                            <TD>{proc.name}</TD>
+                            <TD className="text-text-muted">{proc.durationMin} min</TD>
+                            <TD numeric>{brl(row.priceCents)}</TD>
+                          </TR>
+                        );
+                      })}
+                    </TBody>
+                  </Table>
+                </div>
+              </FormSection>
             );
           }
 
           if (active === 3) {
             return (
-              <Card>
-                <CardHeader title="Convênios aceitos" description="Convênios em que este profissional atende." actions={<Button size="sm" variant="primary" onClick={() => notify("Convênios atualizados.")}>Salvar alterações</Button>} />
-                <CardBody className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FormSection
+                variant="stacked"
+                title="Convênios aceitos"
+                description="Convênios em que este profissional atende."
+                actions={<Button size="sm" variant="primary" onClick={() => notify("Convênios atualizados.")}>Salvar alterações</Button>}
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {insurances.map((ins) => (
                     <Checkbox
                       key={ins.id}
@@ -558,121 +547,123 @@ export default function ProfissionalDetalhe() {
                       onChange={(e) => setAcceptedInsurances((prev) => (e.target.checked ? [...prev, ins.id] : prev.filter((id) => id !== ins.id)))}
                     />
                   ))}
-                </CardBody>
-              </Card>
+                </div>
+              </FormSection>
             );
           }
 
           if (active === 4) {
             return (
-              <div className="flex flex-col gap-6">
-                <Card>
-                  <CardHeader title="Regra padrão de repasse" actions={<Button size="sm" variant="primary" onClick={() => notify("Regra de repasse salva.")}>Salvar</Button>} />
-                  <CardBody>
-                    <FormSection title="Modelo" description="Como calcular o repasse deste profissional por padrão.">
-                      <div className="flex items-center gap-6">
-                        <Radio name="repasse-mode" label="Percentual sobre o valor" checked={repasseMode === "percentual"} onChange={() => setRepasseMode("percentual")} />
-                        <Radio name="repasse-mode" label="Valor fixo por atendimento" checked={repasseMode === "fixo"} onChange={() => setRepasseMode("fixo")} />
-                      </div>
-                      <Input
-                        label={repasseMode === "percentual" ? "Percentual de repasse" : "Valor fixo"}
-                        type="number"
-                        suffix={repasseMode === "percentual" ? "%" : "R$"}
-                        value={repasseMode === "percentual" ? repasseValue : Math.round(repasseValue / 100)}
-                        onChange={(e) => setRepasseValue(repasseMode === "percentual" ? Number(e.target.value) || 0 : (Number(e.target.value) || 0) * 100)}
-                        wrapperClassName="max-w-xs"
-                      />
-                    </FormSection>
-                  </CardBody>
-                </Card>
+              <div className="flex flex-col">
+                <FormSection
+                  variant="stacked"
+                  title="Regra padrão de repasse"
+                  description="Como calcular o repasse deste profissional por padrão."
+                  actions={<Button size="sm" variant="primary" onClick={() => notify("Regra de repasse salva.")}>Salvar</Button>}
+                >
+                  <div className="flex flex-wrap items-center gap-6">
+                    <Radio name="repasse-mode" label="Percentual sobre o valor" checked={repasseMode === "percentual"} onChange={() => setRepasseMode("percentual")} />
+                    <Radio name="repasse-mode" label="Valor fixo por atendimento" checked={repasseMode === "fixo"} onChange={() => setRepasseMode("fixo")} />
+                  </div>
+                  <Input
+                    label={repasseMode === "percentual" ? "Percentual de repasse" : "Valor fixo"}
+                    type="number"
+                    suffix={repasseMode === "percentual" ? "%" : "R$"}
+                    value={repasseMode === "percentual" ? repasseValue : Math.round(repasseValue / 100)}
+                    onChange={(e) => setRepasseValue(repasseMode === "percentual" ? Number(e.target.value) || 0 : (Number(e.target.value) || 0) * 100)}
+                    wrapperClassName="max-w-xs"
+                  />
+                </FormSection>
                 {repasseInit && repasseInit.overrides.length > 0 && (
-                  <Card>
-                    <CardHeader title="Exceções por procedimento" description="Procedimentos com regra de repasse diferente da padrão." />
-                    <Table>
-                      <THead>
-                        <tr>
-                          <TH>Procedimento</TH>
-                          <TH>Tipo</TH>
-                          <TH align="right">Valor</TH>
-                        </tr>
-                      </THead>
-                      <TBody>
-                        {repasseInit.overrides.map((o) => (
-                          <TR key={o.procedureId}>
-                            <TD>{procedureById(o.procedureId)?.name ?? "—"}</TD>
-                            <TD className="text-text-muted">{o.mode === "percentual" ? "Percentual" : "Fixo"}</TD>
-                            <TD numeric>{o.mode === "percentual" ? `${o.value}%` : brl(o.value)}</TD>
-                          </TR>
-                        ))}
-                      </TBody>
-                    </Table>
-                  </Card>
+                  <FormSection variant="stacked" title="Exceções por procedimento" description="Procedimentos com regra de repasse diferente da padrão.">
+                    <div className="-mx-4">
+                      <Table>
+                        <THead>
+                          <tr>
+                            <TH>Procedimento</TH>
+                            <TH>Tipo</TH>
+                            <TH align="right">Valor</TH>
+                          </tr>
+                        </THead>
+                        <TBody>
+                          {repasseInit.overrides.map((o) => (
+                            <TR key={o.procedureId}>
+                              <TD>{procedureById(o.procedureId)?.name ?? "—"}</TD>
+                              <TD className="text-text-muted">{o.mode === "percentual" ? "Percentual" : "Fixo"}</TD>
+                              <TD numeric>{o.mode === "percentual" ? `${o.value}%` : brl(o.value)}</TD>
+                            </TR>
+                          ))}
+                        </TBody>
+                      </Table>
+                    </div>
+                  </FormSection>
                 )}
               </div>
             );
           }
 
           return (
-            <div className="flex flex-col gap-6">
-              <Card>
-                <CardHeader title="Usuário vinculado" />
-                <CardBody className="flex flex-col gap-4">
-                  <DescriptionList
-                    columns={2}
-                    items={[
-                      { label: "Usuário", value: access?.username },
-                      { label: "Perfil de acesso", value: access?.profileName },
-                      { label: "Último acesso", value: access?.lastAccess },
-                      { label: "Status", value: <Badge tone={accessEnabled ? "success" : "neutral"} dot>{accessEnabled ? "Ativo" : "Inativo"}</Badge> },
-                    ]}
-                  />
-                  <Switch checked={accessEnabled} onChange={(v) => { setAccessEnabled(v); notify(v ? "Acesso ao sistema habilitado." : "Acesso ao sistema revogado."); }} label="Acesso ao sistema habilitado" description="Permite login com e-mail e senha." />
-                </CardBody>
-              </Card>
-              <Card>
-                <CardHeader
-                  title="Permissões do perfil"
-                  description="Permissões do perfil “Profissional de saúde”, aplicadas a todos com esse perfil."
-                  actions={<ButtonLink to="/cadastros/funcionarios?tab=perfis&perfil=profissional" variant="secondary" size="sm">Gerenciar permissões</ButtonLink>}
+            <div className="flex flex-col">
+              <FormSection variant="stacked" title="Usuário vinculado">
+                <DescriptionList
+                  columns={2}
+                  items={[
+                    { label: "Usuário", value: access?.username },
+                    { label: "Perfil de acesso", value: access?.profileName },
+                    { label: "Último acesso", value: access?.lastAccess },
+                    { label: "Status", value: <Badge tone={accessEnabled ? "success" : "neutral"} dot>{accessEnabled ? "Ativo" : "Inativo"}</Badge> },
+                  ]}
                 />
-                <Table>
-                  <THead>
-                    <tr>
-                      <TH>Funcionalidade</TH>
-                      <TH align="center">Ver</TH>
-                      <TH align="center">Criar</TH>
-                      <TH align="center">Editar</TH>
-                      <TH align="center">Excluir</TH>
-                    </tr>
-                  </THead>
-                  <TBody>
-                    {PERMISSION_CATEGORIES.flatMap((cat) => [
-                      <TR key={cat.key} className="bg-surface">
-                        <TD colSpan={5} className="text-xs font-semibold tracking-wide text-text-muted uppercase">
-                          {cat.label}
-                        </TD>
-                      </TR>,
-                      ...cat.items.map((item) => {
-                        const p = PROFILE_PERMISSIONS.profissional[item.key];
-                        return (
-                          <TR key={item.key}>
-                            <TD>{item.label}</TD>
-                            {(["ver", "criar", "editar", "excluir"] as const).map((k) => (
-                              <TD key={k} align="center">
-                                {p[k] ? <TickCircle size={16} aria-hidden className="mx-auto text-success" /> : <CloseCircle size={16} aria-hidden className="mx-auto text-text-subtle" />}
-                              </TD>
-                            ))}
-                          </TR>
-                        );
-                      }),
-                    ])}
-                  </TBody>
-                </Table>
-              </Card>
+                <Switch checked={accessEnabled} onChange={(v) => { setAccessEnabled(v); notify(v ? "Acesso ao sistema habilitado." : "Acesso ao sistema revogado."); }} label="Acesso ao sistema habilitado" description="Permite login com e-mail e senha." />
+              </FormSection>
+              <FormSection
+                variant="stacked"
+                title="Permissões do perfil"
+                description="Permissões do perfil “Profissional de saúde”, aplicadas a todos com esse perfil."
+                actions={<ButtonLink to="/cadastros/funcionarios?tab=perfis&perfil=profissional" variant="secondary" size="sm">Gerenciar permissões</ButtonLink>}
+              >
+                <div className="-mx-4">
+                  <Table>
+                    <THead>
+                      <tr>
+                        <TH>Funcionalidade</TH>
+                        <TH align="center">Ver</TH>
+                        <TH align="center">Criar</TH>
+                        <TH align="center">Editar</TH>
+                        <TH align="center">Excluir</TH>
+                      </tr>
+                    </THead>
+                    <TBody>
+                      {PERMISSION_CATEGORIES.flatMap((cat) => [
+                        <TR key={cat.key} className="bg-surface">
+                          <TD colSpan={5} className="text-xs font-semibold tracking-wide text-text-muted uppercase">
+                            {cat.label}
+                          </TD>
+                        </TR>,
+                        ...cat.items.map((item) => {
+                          const p = PROFILE_PERMISSIONS.profissional[item.key];
+                          return (
+                            <TR key={item.key}>
+                              <TD>{item.label}</TD>
+                              {(["ver", "criar", "editar", "excluir"] as const).map((k) => (
+                                <TD key={k} align="center">
+                                  {p[k] ? <TickCircle size={16} aria-label="Sim" className="mx-auto text-success" /> : <CloseCircle size={16} aria-label="Não" className="mx-auto text-text-subtle" />}
+                                </TD>
+                              ))}
+                            </TR>
+                          );
+                        }),
+                      ])}
+                    </TBody>
+                  </Table>
+                </div>
+              </FormSection>
             </div>
           );
         }}
-      </Tabs>
+      </LiquidTabs>
+
+      <SaveBar dirty={dados.dirty} onDiscard={dados.discard} onSave={dados.save} />
     </div>
   );
 }

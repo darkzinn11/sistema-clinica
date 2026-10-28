@@ -202,6 +202,26 @@ export function searchableLinks(): (NavLink & { trail: string; icon: IconType })
   return out;
 }
 
+/**
+ * Arruma a trilha de breadcrumbs vinda da tela, para todas seguirem a mesma regra:
+ * - "Início" não entra (o breadcrumb já começa com o ícone da casa);
+ * - nomes de grupo do menu (Principal, Gestão, Administração) não são lugares, então saem;
+ * - um item sem link que é uma seção do menu ganha o link dela (ex.: "Recepção" → sala de espera);
+ * - se sobra só o próprio título da página, não há trilha a mostrar.
+ */
+export function normalizeTrail<T extends { label: string; href?: string }>(crumbs: T[], title?: unknown): T[] {
+  const groups = new Set(NAV.map((g) => g.label));
+  const trail = crumbs
+    .filter((c) => c.label !== "Início" && !groups.has(c.label))
+    .map((c, i, all) => {
+      if (c.href || i === all.length - 1) return c;
+      const section = ALL_ITEMS.find((item) => item.label === c.label);
+      return section ? { ...c, href: section.href } : c;
+    });
+  if (trail.length === 1 && trail[0].label === title) return [];
+  return trail;
+}
+
 /** Item de topo dono de um caminho — o mais específico ganha. */
 export function findSection(pathname: string): NavItem | undefined {
   let best: NavItem | undefined;

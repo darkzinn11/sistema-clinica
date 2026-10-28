@@ -99,7 +99,7 @@ export default function FinanceiroVisao() {
           <CardHeader
             className="border-b-0 pb-0"
             title="Receitas × despesas"
-            description="Evolução diária dos pagamentos no período selecionado."
+            description="Entradas e saídas no período selecionado."
           />
           <CardBody className="pt-3">
             <FinancialFlowChart data={serie} />

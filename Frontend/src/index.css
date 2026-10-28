@@ -477,7 +477,12 @@ body { -webkit-font-smoothing: antialiased; }
   border-color: var(--c-accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-accent) 11%, transparent);
 }
-.ui-table-header { background: color-mix(in srgb, var(--c-surface) 55%, var(--c-surface-raised)); }
+.ui-table-header th { background: color-mix(in srgb, var(--c-surface) 55%, var(--c-surface-raised)); }
+/* Faixa do cabeçalho com as pontas arredondadas, acompanhando os cantos dos cards (a tabela é
+   border-separate para o arredondamento das células aparecer; as divisórias ficam nas células). */
+.ui-table thead th:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+.ui-table thead th:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+.ui-table tbody tr + tr > td { border-top: 1px solid var(--c-border); }
 .ui-table-row { transition: background-color 200ms ease; }
 .ui-table-row:hover { background: color-mix(in srgb, var(--c-accent-muted) 24%, transparent); }
 @media (min-width: 1024px) and (max-width: 1279px) {

@@ -203,18 +203,21 @@ export function Switch({
   label,
   description,
   disabled,
+  labelOnTop,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
   description?: string;
   disabled?: boolean;
+  /** Rótulo pequeno em cima do botão, como o rótulo de um campo (ex.: "Ativo" ao lado de outros campos). */
+  labelOnTop?: boolean;
 }) {
   const id = useId();
   return (
-    <div className="flex items-start justify-between gap-4">
+    <div className={labelOnTop ? "flex flex-col items-start gap-1.5" : "flex items-start justify-between gap-4"}>
       <label htmlFor={id} className="flex flex-col">
-        <span className="text-base font-medium text-text">{label}</span>
+        <span className={cn("font-medium text-text", labelOnTop ? "text-sm" : "text-base")}>{label}</span>
         {description && <span className="text-sm text-text-muted">{description}</span>}
       </label>
       <button

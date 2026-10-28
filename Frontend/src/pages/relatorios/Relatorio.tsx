@@ -77,7 +77,7 @@ export default function Relatorio() {
       <PageHeader
         title={report.name}
         description={config.statement ? "Demonstração do resultado do exercício no período selecionado." : report.description}
-        breadcrumbs={[{ label: "Relatórios", href: "/relatorios" }, { label: report.category, href: "/relatorios" }, { label: report.name }]}
+        breadcrumbs={[{ label: "Relatórios", href: "/relatorios" }, { label: report.category }, { label: report.name }]}
         meta={<span className="rounded-full bg-surface px-2.5 py-1 text-xs font-medium text-text-muted">{report.category}</span>}
         actions={
           <>

@@ -143,7 +143,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                         <Avatar name={r.label} size="sm" />
                       ) : (
                         <span aria-hidden className="inline-flex h-8 w-8 shrink-0 items-center justify-center" style={{ color: "var(--c-accent)" }}>
-                          <r.icon size={21} variant="Linear" />
+                          <r.icon size={21} variant="Bulk" />
                         </span>
                       )}
                       <span className="flex min-w-0 flex-1 flex-col">

@@ -31,7 +31,7 @@ export default function ProdutoDetalhe() {
   if (!isNovo && id && !produto) {
     return (
       <div className="mx-auto max-w-5xl">
-        <PageHeader title="Produto não encontrado" breadcrumbs={[{ label: "Estoque", href: "/estoque" }, { label: "Produtos", href: "/estoque/produtos" }]} />
+        <PageHeader card title="Produto não encontrado" breadcrumbs={[{ label: "Estoque", href: "/estoque" }, { label: "Produtos", href: "/estoque/produtos" }]} />
         <Card>
           <EmptyState title="Produto não encontrado" description="Ele pode ter sido removido ou o link está incorreto." />
         </Card>
@@ -55,6 +55,7 @@ export default function ProdutoDetalhe() {
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
+        card
         title={isNovo ? "Novo produto" : produto?.nome ?? ""}
         description={isNovo ? "Cadastre um novo item de estoque." : `Código ${produto?.codigo} · ${produto?.categoria}`}
         breadcrumbs={[{ label: "Estoque", href: "/estoque" }, { label: "Produtos", href: "/estoque/produtos" }, { label: isNovo ? "Novo produto" : produto?.nome ?? "" }]}

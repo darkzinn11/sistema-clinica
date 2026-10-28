@@ -28,6 +28,8 @@ const sizes = {
   md: "h-10 w-10 text-sm",
   lg: "h-14 w-14 text-lg",
   xl: "h-20 w-20 text-2xl",
+  /** Foto grande do cabeçalho de cadastro (profissional, paciente). */
+  hero: "h-[186px] w-[186px] text-5xl",
 };
 
 export function Avatar({ name, size = "sm", className }: { name: string; size?: keyof typeof sizes; className?: string }) {
