@@ -27,7 +27,7 @@ import { ExportarAgendaModal } from "@/components/agenda/ExportarAgendaModal";
 import { DayGrid, type GridColumn } from "@/components/agenda/DayGrid";
 import { MiniMonth } from "@/components/agenda/MiniMonth";
 import { NovoAgendamentoDrawer } from "@/components/agenda/NovoAgendamentoDrawer";
-import { Skeleton } from "@/components/ui/misc";
+import { Skeleton, Tooltip } from "@/components/ui/misc";
 import { addDaysIso, dateLong } from "@/lib/format";
 import { useAgendaItems, useChangeStatus } from "@/lib/api/agenda";
 import { freeSlots, toAppointment, workWindow } from "@/lib/agenda/model";
@@ -224,9 +224,16 @@ function AgendaDiaView() {
         className="pb-5"
         actions={
           <>
-            <Button variant="secondary" size="md" icon={ExportCurve} disabled={appts.length === 0} onClick={() => setExportOpen(true)}>
-              Exportar
-            </Button>
+            {appts.length === 0 ? (
+              // Desativado sem explicação parece defeito: o tooltip diz por que não há o que exportar.
+              <Tooltip content="Não há agendamentos neste dia para exportar." side="bottom" className="w-auto">
+                <Button variant="secondary" size="md" icon={ExportCurve} disabled>Exportar</Button>
+              </Tooltip>
+            ) : (
+              <Button variant="secondary" size="md" icon={ExportCurve} onClick={() => setExportOpen(true)}>
+                Exportar
+              </Button>
+            )}
             <Button
               variant="primary"
               icon={Add}
