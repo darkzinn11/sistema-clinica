@@ -10,7 +10,6 @@ type FlowPoint = {
   despesas: number;
 };
 type SeriesKey = "receitas" | "despesas";
-type View = "ambas" | SeriesKey;
 
 const LINE_SERIES: { key: SeriesKey; label: string; color: string }[] = [
   { key: "receitas", label: "Receitas", color: "var(--c-finance-revenue)" },
@@ -37,21 +36,21 @@ function roundedMax(value: number): number {
   return (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 2.5 ? 2.5 : scaled <= 5 ? 5 : 10) * magnitude;
 }
 
-function useContainerWidth() {
+function useContainerSize() {
   const element = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
   useEffect(() => {
     if (!element.current) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => setSize({ width: entry.contentRect.width, height: entry.contentRect.height }));
     observer.observe(element.current);
     return () => observer.disconnect();
   }, []);
-  return [element, width] as const;
+  return [element, size] as const;
 }
 
-type Bucket = { label: string; from: string; to: string; receitas: number; despesas: number };
+type Bucket = { label: string; from: string; to: string; receitas: number; despesas: number; partial: boolean };
 
-/** Até 12 dias, uma barra por dia; acima disso, por semana — barras largas e legíveis (um mês vira 4–5 barras). */
+/** Até 12 dias, uma coluna por dia; acima disso, por semana (um mês vira 4–5 colunas). A última semana pode ficar incompleta. */
 function toBuckets(days: FlowPoint[]): Bucket[] {
   const size = days.length > 12 ? 7 : 1;
   const out: Bucket[] = [];
@@ -64,6 +63,7 @@ function toBuckets(days: FlowPoint[]): Bucket[] {
       to: last.iso,
       receitas: chunk.reduce((sum, d) => sum + d.receitas, 0),
       despesas: chunk.reduce((sum, d) => sum + d.despesas, 0),
+      partial: chunk.length < size,
     });
   }
   return out;
@@ -72,177 +72,140 @@ function toBuckets(days: FlowPoint[]): Bucket[] {
 const bucketDate = (b: Bucket) => (b.from === b.to ? dateShort(b.from) : `${dateShort(b.from)} – ${dateShort(b.to)}`);
 
 /**
- * Receitas × despesas em barras arredondadas, uma por dia ou por semana (duas lado a lado em "Ambas").
- * Os dias acima da média do período ficam no degradê da cor da série; os demais, em barras claras com contorno.
- * A média aparece como uma linha tracejada com um ponto no início. Ao passar o mouse, o dia inteiro fica em
- * destaque e um balão escuro mostra a data e os valores.
+ * Curva suave pelos pontos (cúbica monótona de Fritsch–Carlson): não passa do maior nem do menor valor
+ * vizinho, então nunca afunda abaixo do zero nem inventa picos entre duas semanas.
+ */
+function smoothPath(points: [number, number][]): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M${points[0][0]} ${points[0][1]}`;
+  const n = points.length;
+  const dx = points.slice(1).map((p, i) => p[0] - points[i][0]);
+  const slope = points.slice(1).map((p, i) => (p[1] - points[i][1]) / dx[i]);
+  const tangent = points.map((_, i) => {
+    if (i === 0) return slope[0];
+    if (i === n - 1) return slope[n - 2];
+    return slope[i - 1] * slope[i] <= 0 ? 0 : (slope[i - 1] + slope[i]) / 2;
+  });
+  for (let i = 0; i < n - 1; i++) {
+    if (slope[i] === 0) { tangent[i] = 0; tangent[i + 1] = 0; continue; }
+    const a = tangent[i] / slope[i], b = tangent[i + 1] / slope[i], h = Math.hypot(a, b);
+    if (h > 3) { tangent[i] = 3 * a / h * slope[i]; tangent[i + 1] = 3 * b / h * slope[i]; }
+  }
+  let d = `M${points[0][0]} ${points[0][1]}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = points[i], [x1, y1] = points[i + 1], third = dx[i] / 3;
+    d += ` C${x0 + third} ${y0 + tangent[i] * third} ${x1 - third} ${y1 - tangent[i + 1] * third} ${x1} ${y1}`;
+  }
+  return d;
+}
+
+/**
+ * Receitas e despesas em curvas suaves com área esmaecida embaixo, uma por dia ou por semana.
+ * Ao passar o mouse, uma linha vertical marca o ponto e o balão mostra receitas, despesas e saldo.
+ * Os totais do período ficam nos cards do topo da página.
  */
 export function FinancialFlowChart({ data: days }: { data: FlowPoint[] }) {
   const data = toBuckets(days);
-  const weekly = days.length > 12;
-  const [view, setView] = useState<View>("ambas");
-  const [hover, setHover] = useState<number | null>(null);
-  const [container, width] = useContainerWidth();
   const gradientId = useId().replace(/:/g, "");
-  const visible = LINE_SERIES.filter((series) => view === "ambas" || series.key === view);
-  const plot = { left: width < 420 ? 56 : 74, right: 12, top: 22, bottom: 40 };
-  const height = width < 420 ? 274 : 308;
+  const [hover, setHover] = useState<number | null>(null);
+  // O gráfico ocupa toda a altura que o card oferece (no mínimo 260): acompanha o card vizinho, sem vão embaixo.
+  const [container, { width, height }] = useContainerSize();
+  const plot = { left: width < 420 ? 52 : 64, right: 16, top: 16, bottom: 34 };
   const plotWidth = Math.max(0, width - plot.left - plot.right);
   const plotHeight = height - plot.top - plot.bottom;
   // Escala em passos redondos (1, 2, 2,5 ou 5 × 10ⁿ), com no máximo 5 faixas: nada de "R$ 1,3 mil".
-  const peak = Math.max(1, ...data.flatMap((item) => visible.map((s) => item[s.key])));
-  const step = roundedMax(peak / 5);
+  const peak = Math.max(1, ...data.flatMap((d) => [d.receitas, d.despesas]));
+  const step = roundedMax(peak / 4);
   const max = Math.ceil(peak / step) * step;
-  const slot = data.length ? plotWidth / data.length : 0;
-  const center = (index: number) => plot.left + (index + 0.5) * slot;
-  const y = (value: number) => plot.top + plotHeight - value / max * plotHeight;
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step);
-  const labelsEvery = Math.max(1, Math.ceil(data.length / Math.max(1, Math.floor(plotWidth / 60))));
+  // Um único ponto (hoje) fica no meio; com mais, a curva vai de ponta a ponta.
+  const x = (index: number) => data.length > 1 ? plot.left + index / (data.length - 1) * plotWidth : plot.left + plotWidth / 2;
+  const y = (value: number) => plot.top + plotHeight - value / max * plotHeight;
+  const baseline = y(0);
+  const labelsEvery = Math.max(1, Math.ceil(data.length / Math.max(1, Math.floor(plotWidth / 72))));
+  const curves = LINE_SERIES.map((series) => {
+    const line = smoothPath(data.map((d, index) => [x(index), y(d[series.key])]));
+    const area = data.length > 1 ? `${line} L${x(data.length - 1)} ${baseline} L${x(0)} ${baseline} Z` : "";
+    return { ...series, line, area };
+  });
   const point = hover !== null ? data[hover] : null;
-  const totals = {
-    receitas: days.reduce((sum, point) => sum + point.receitas, 0),
-    despesas: days.reduce((sum, point) => sum + point.despesas, 0),
-  };
-  const average = {
-    receitas: data.length ? totals.receitas / data.length : 0,
-    despesas: data.length ? totals.despesas / data.length : 0,
-  };
-  // Barras ocupam ~62% da faixa de cada dia; em "Ambas" a faixa se divide em duas com um respiro entre elas.
-  const groupWidth = Math.min(slot * 0.62, visible.length > 1 ? 120 : 96);
-  const gap = visible.length > 1 ? Math.max(2, groupWidth * 0.1) : 0;
-  const barWidth = Math.max(2, (groupWidth - gap * (visible.length - 1)) / visible.length);
-  const radius = Math.min(18, barWidth * 0.3);
-  // dias sem movimento ainda mostram um tracinho claro, para manter o ritmo das barras
-  const MIN_BAR = 4;
 
   function onPointerMove(event: PointerEvent<SVGRectElement>) {
     if (!data.length || !plotWidth) return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(0.9999, (event.clientX - rect.left) / rect.width));
-    setHover(Math.floor(ratio * data.length));
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    setHover(data.length > 1 ? Math.round(ratio * (data.length - 1)) : 0);
   }
 
-  const tooltipW = 196;
-  const tooltipLeft = hover !== null ? center(hover) + groupWidth / 2 + 14 : 0;
-  const tooltipFlip = tooltipLeft + tooltipW > width;
+  const tooltipW = 200;
+  const tooltipRight = hover !== null && x(hover) + 16 + tooltipW > width;
 
   return (
-    <figure className="ms-finance-flow min-w-0" aria-label="Gráfico de evolução diária de receitas e despesas">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2" aria-label="Legenda do gráfico">
-          {LINE_SERIES.map((series) => (
-            <span key={series.key} className={cn("inline-flex items-center gap-2 text-xs font-medium", view !== "ambas" && view !== series.key ? "text-text-subtle" : "text-text-muted")}>
-              <span aria-hidden className="h-2.5 w-2.5 rounded-full" style={{ background: `linear-gradient(135deg, ${series.color}, color-mix(in srgb, ${series.color} 45%, white))` }} />
-              {series.label}
-            </span>
-          ))}
-          <span className="inline-flex items-center gap-2 text-xs font-medium text-text-muted">
-            <span aria-hidden className="h-2.5 w-2.5 rounded-full border border-border-strong bg-surface" />
-            Abaixo da média
-          </span>
-        </div>
-        <div className="inline-flex max-w-full items-center rounded-full bg-surface p-1" role="group" aria-label="Séries exibidas">
-          {([
-            ["ambas", "Ambas"], ["receitas", "Receitas"], ["despesas", "Despesas"],
-          ] as const).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={view === value}
-              onClick={() => { setView(value); setHover(null); }}
-              className={cn(
-                "rounded-full px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-                view === value ? "bg-surface-raised text-text shadow-card" : "text-text-muted hover:text-text",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="ms-finance-flow-summary mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <figure className="ms-finance-flow flex min-w-0 flex-1 flex-col" aria-label="Receitas e despesas no período">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-text-muted" aria-label="Legenda do gráfico">
         {LINE_SERIES.map((series) => (
-          <div key={series.key} className="ms-finance-flow-summary-item rounded-lg px-4 py-3">
-            <span className="flex items-center gap-2 text-xs font-medium text-text-muted">
-              <span className="h-2 w-2 rounded-full" style={{ background: series.color }} aria-hidden />
-              {series.key === "receitas" ? "Recebido no período" : "Pago no período"}
-            </span>
-            <strong className="mt-1 block text-lg font-semibold tracking-tight tabular-nums text-text">
-              {brl(totals[series.key] * 100)}
-            </strong>
-          </div>
+          <span key={series.key} className="inline-flex items-center gap-2">
+            <span aria-hidden className="h-2 w-2 rounded-full" style={{ background: series.color }} />
+            {series.label}
+          </span>
         ))}
       </div>
-      <div ref={container} className="relative mt-3 w-full" style={{ height }}>
-        {width > 0 && (
-          <svg className="block overflow-visible" width={width} height={height} role="img" aria-label="Valores por dia; em destaque, os dias acima da média do período">
+
+      <div ref={container} className="relative mt-4 min-h-[260px] w-full flex-1">
+        {width > 0 && height > 0 && (
+          <svg className="absolute inset-0 block overflow-visible" width={width} height={height} role="img" aria-label="Curvas de receitas e despesas">
             <defs>
-              {visible.map((series) => (
-                // diagonal: cor cheia no alto à esquerda, clareando para baixo à direita
-                <linearGradient key={series.key} id={gradientId + "-" + series.key} x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor={series.color} />
-                  <stop offset="100%" stopColor={series.color} stopOpacity={0.38} />
+              {LINE_SERIES.map((series) => (
+                <linearGradient key={series.key} id={gradientId + series.key} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={series.color} stopOpacity={0.22} />
+                  <stop offset="100%" stopColor={series.color} stopOpacity={0} />
                 </linearGradient>
               ))}
             </defs>
 
             {ticks.map((tick) => (
               <g key={tick}>
+                <line x1={plot.left} x2={width - plot.right} y1={y(tick)} y2={y(tick)} stroke="var(--c-chart-grid)" strokeDasharray={tick === 0 ? undefined : "3 5"} />
                 <text x={plot.left - 12} y={y(tick)} textAnchor="end" dominantBaseline="middle" fill="var(--c-text-subtle)" fontSize="11">
-                  {shortMoney(tick)}
+                  {tick === 0 ? "R$ 0" : shortMoney(tick)}
                 </text>
               </g>
             ))}
 
-            {data.map((d, index) => index % labelsEvery === 0 || index === data.length - 1
-              ? <text key={d.from} x={center(index)} y={height - 10} textAnchor="middle" fill={hover === index ? "var(--c-text)" : "var(--c-text-subtle)"} fontSize="11">{d.label}</text>
-              : null)}
+            {data.map((d, index) => index % labelsEvery === 0 || index === data.length - 1 ? (
+              <text key={d.from} x={x(index)} y={height - 8} textAnchor={data.length > 1 && index === 0 ? "start" : data.length > 1 && index === data.length - 1 ? "end" : "middle"} fill={hover === index ? "var(--c-text)" : "var(--c-text-subtle)"} fontSize="11">
+                {d.label}{d.partial ? " (parcial)" : ""}
+              </text>
+            ) : null)}
 
-            {data.map((d, index) => (
-              <g key={d.from}>
-                {visible.map((series, k) => {
-                  const value = d[series.key];
-                  const h = Math.max(MIN_BAR, plot.top + plotHeight - y(value));
-                  const x0 = center(index) - groupWidth / 2 + k * (barWidth + gap);
-                  const strong = hover === index || (value > 0 && value >= average[series.key]);
-                  return (
-                    <rect
-                      key={series.key}
-                      x={x0}
-                      y={plot.top + plotHeight - h}
-                      width={barWidth}
-                      height={h}
-                      rx={Math.min(radius, h / 2)}
-                      fill={strong ? "url(#" + gradientId + "-" + series.key + ")" : "var(--c-surface)"}
-                      stroke={strong ? "none" : "var(--c-border-strong)"}
-                      strokeWidth={1}
-                      opacity={hover !== null && hover !== index ? 0.55 : 1}
-                    />
-                  );
-                })}
-              </g>
+            {curves.map((curve) => curve.area && <path key={curve.key + "-area"} d={curve.area} fill={`url(#${gradientId + curve.key})`} />)}
+            {curves.map((curve) => (
+              <path key={curve.key} d={curve.line} fill="none" stroke={curve.color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
             ))}
 
-            {/* média do período: tracejada, com um ponto no início */}
-            {visible.map((series) => average[series.key] > 0 && (
-              <g key={series.key} aria-hidden>
-                <line x1={plot.left} x2={width - plot.right} y1={y(average[series.key])} y2={y(average[series.key])} stroke={series.color} strokeWidth={1.4} strokeDasharray="5 5" opacity={0.75} />
-                <circle cx={plot.left} cy={y(average[series.key])} r={4.5} fill={series.color} stroke="var(--c-surface-raised)" strokeWidth={2} />
+            {hover !== null && point && (
+              <g aria-hidden>
+                <line x1={x(hover)} x2={x(hover)} y1={plot.top} y2={baseline} stroke="var(--c-border-input)" strokeDasharray="3 4" />
+                {LINE_SERIES.map((series) => (
+                  <circle key={series.key} cx={x(hover)} cy={y(point[series.key])} r={5} fill={series.color} stroke="var(--c-surface-raised)" strokeWidth={2.5} />
+                ))}
               </g>
+            )}
+            {data.length === 1 && hover === null && LINE_SERIES.map((series) => (
+              <circle key={series.key} cx={x(0)} cy={y(data[0][series.key])} r={4} fill={series.color} />
             ))}
 
             <rect
-              x={plot.left} y={plot.top} width={plotWidth} height={plotHeight}
+              x={plot.left - 8} y={plot.top} width={plotWidth + 16} height={plotHeight}
               fill="transparent"
               onPointerMove={onPointerMove}
               onPointerLeave={() => setHover(null)}
             />
             {data.map((d, index) => (
               <circle
-                key={d.from} cx={center(index)} cy={plot.top + plotHeight / 2} r={2}
+                key={d.from} cx={x(index)} cy={baseline} r={2}
                 opacity={0} tabIndex={0}
-                aria-label={bucketDate(d) + ": receitas " + brl(d.receitas * 100) + ", despesas " + brl(d.despesas * 100)}
+                aria-label={bucketDate(d) + (d.partial ? " (parcial)" : "") + ": receitas " + brl(d.receitas * 100) + ", despesas " + brl(d.despesas * 100) + ", saldo " + brl((d.receitas - d.despesas) * 100)}
                 onFocus={() => setHover(index)}
                 onBlur={() => setHover(null)}
                 className="focus-visible:outline-none"
@@ -252,42 +215,58 @@ export function FinancialFlowChart({ data: days }: { data: FlowPoint[] }) {
         )}
 
         {point && hover !== null && width > 0 && (
-          // balão escuro ao lado da barra, com a setinha apontando para ela
           <div
             aria-hidden
-            className="pointer-events-none absolute z-10 rounded-xl bg-text px-3.5 py-3 text-surface-raised shadow-pop"
-            style={{
-              width: tooltipW,
-              left: tooltipFlip ? center(hover) - groupWidth / 2 - 14 - tooltipW : tooltipLeft,
-              top: Math.max(0, Math.min(height - 96, y(Math.max(...visible.map((s) => point[s.key]))) - 8)),
-            }}
+            className="pointer-events-none absolute top-2 z-10 rounded-xl bg-text px-3.5 py-3 text-surface-raised shadow-pop"
+            style={{ width: tooltipW, left: tooltipRight ? x(hover) - 16 - tooltipW : x(hover) + 16 }}
           >
-            <span
-              className="absolute top-4 h-3 w-3 rotate-45 rounded-[2px] bg-text"
-              style={tooltipFlip ? { right: -5 } : { left: -5 }}
-            />
-            <p className="mb-1.5 text-xs font-medium opacity-70">{bucketDate(point)}</p>
-            {visible.map((s) => (
-              <div key={s.key} className="mb-1 flex items-center justify-between gap-2 text-xs last:mb-0">
+            <p className="mb-1.5 text-xs font-medium opacity-70">{bucketDate(point)}{point.partial ? " · parcial" : ""}</p>
+            {LINE_SERIES.map((s) => (
+              <div key={s.key} className="mb-1 flex items-center justify-between gap-2 text-xs">
                 <span className="inline-flex items-center gap-1.5 opacity-90"><span aria-hidden className="h-2 w-2 rounded-full" style={{ background: s.color }} />{s.label}</span>
-                <strong className="whitespace-nowrap font-semibold">{brl(point[s.key] * 100)}</strong>
+                <strong className="whitespace-nowrap font-semibold tabular-nums">{brl(point[s.key] * 100)}</strong>
               </div>
             ))}
+            <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-surface-raised/20 pt-1.5 text-xs">
+              <span className="opacity-90">Saldo</span>
+              <strong className="whitespace-nowrap font-semibold tabular-nums">{brl((point.receitas - point.despesas) * 100)}</strong>
+            </div>
           </div>
         )}
       </div>
-      <p className="mt-2 text-xs text-text-subtle">
-        {weekly ? "Totais por semana. Em destaque, as semanas acima da média do período" : "Em destaque, os dias acima da média do período"} (linha tracejada). Selecione uma série para ver a escala ajustada a ela.
-      </p>
       <table className="sr-only">
-        <caption>Receitas e despesas por dia</caption>
-        <thead><tr><th>Data</th><th>Receitas</th><th>Despesas</th></tr></thead>
-        <tbody>{days.map((d) => (
-          <tr key={d.iso}><th>{dateShort(d.iso)}</th><td>{brl(d.receitas * 100)}</td><td>{brl(d.despesas * 100)}</td></tr>
+        <caption>Receitas, despesas e saldo</caption>
+        <thead><tr><th>Período</th><th>Receitas</th><th>Despesas</th><th>Saldo</th></tr></thead>
+        <tbody>{data.map((d) => (
+          <tr key={d.from}><th>{bucketDate(d)}{d.partial ? " (parcial)" : ""}</th><td>{brl(d.receitas * 100)}</td><td>{brl(d.despesas * 100)}</td><td>{brl((d.receitas - d.despesas) * 100)}</td></tr>
         ))}</tbody>
       </table>
     </figure>
   );
+}
+
+/** Ponto do meio-anel: t = 0 na ponta esquerda, t = π na direita, passando pelo topo. */
+const gaugePoint = (cx: number, cy: number, r: number, t: number) => [cx - r * Math.cos(t), cy - r * Math.sin(t)] as const;
+
+/**
+ * Segmento do meio-anel com cantos arredondados e vão de largura constante entre vizinhos. O contorno é
+ * recuado pelo raio do canto e traçado com essa espessura e junções redondas: o desenho volta ao tamanho
+ * certo já com os cantos suaves. As pontas do meio-anel não têm vão (assentam na base). Segmento estreito
+ * demais para o vão vira nada (null).
+ */
+function gaugeSegment(cx: number, cy: number, inner: number, outer: number, from: number, to: number, gap: number, corner: number) {
+  const end = (angle: number) => (angle <= 0 || angle >= Math.PI ? 0 : gap / 2) + corner;
+  const ro = outer - corner;
+  const ri = inner + corner;
+  const [padFrom, padTo] = [end(from), end(to)];
+  const [ao0, ao1, ai0, ai1] = [from + padFrom / ro, to - padTo / ro, from + padFrom / ri, to - padTo / ri];
+  if (ai1 <= ai0) return null;
+  const f = (n: number) => n.toFixed(2);
+  const [x1, y1] = gaugePoint(cx, cy, ro, ao0);
+  const [x2, y2] = gaugePoint(cx, cy, ro, ao1);
+  const [x3, y3] = gaugePoint(cx, cy, ri, ai1);
+  const [x4, y4] = gaugePoint(cx, cy, ri, ai0);
+  return `M${f(x1)} ${f(y1)} A${f(ro)} ${f(ro)} 0 0 1 ${f(x2)} ${f(y2)} L${f(x3)} ${f(y3)} A${f(ri)} ${f(ri)} 0 0 0 ${f(x4)} ${f(y4)} Z`;
 }
 
 export function FinancialPaymentChart({ data }: { data: { label: string; value: number }[] }) {
@@ -297,62 +276,67 @@ export function FinancialPaymentChart({ data }: { data: { label: string; value: 
   const toggle = (index: number) => setSelected((current) => current === index ? null : index);
   const total = data.reduce((sum, item) => sum + item.value, 0);
   const nonzero = total > 0 ? total : 1;
-  const size = 224;
-  const radius = 81;
-  const length = 2 * Math.PI * radius;
-  const gap = 6;
+  const percent = (value: number) => Math.round(value / nonzero * 100);
+  // Meio-anel do Figma: 252 de largura, anel de 42, vão de 6 e cantos de 6. A folga em volta acomoda o destaque.
+  const outer = 126;
+  const inner = 84;
+  const lift = 5;
+  const width = (outer + lift) * 2;
+  const height = outer + lift;
+  const cx = width / 2;
+  const cy = height;
+  // O valor precisa caber no vão do anel (168 de diâmetro): valores de milhões usam um corpo menor.
+  const centerValue = brl(active !== null ? data[active].value : total);
   const arcs = data.map((item, index) => {
-    const segment = item.value / nonzero * length;
-    const dash = Math.max(0, segment - gap);
-    const position = data.slice(0, index).reduce((sum, preceding) => sum + preceding.value, 0) / nonzero * length + gap / 2;
-    return { ...item, dash, position };
+    const before = data.slice(0, index).reduce((sum, preceding) => sum + preceding.value, 0);
+    return { ...item, from: before / nonzero * Math.PI, to: index === data.length - 1 ? Math.PI : (before + item.value) / nonzero * Math.PI };
   });
 
   return (
     <figure className="ms-finance-payments flex min-w-0 flex-col items-center">
-      <div className="relative mt-1 flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
-        <svg viewBox={"0 0 " + size + " " + size} width={size} height={size} role="img" aria-label="Distribuição da receita por forma de pagamento">
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--c-surface)" strokeWidth={20} />
-          {arcs.map((arc, index) => (
-            <circle
-              key={arc.label}
-              cx={size / 2} cy={size / 2} r={radius}
-              fill="none"
-              stroke={PAYMENT_COLORS[index % PAYMENT_COLORS.length]}
-              strokeWidth={active === index ? 24 : 20}
-              strokeLinecap="round"
-              strokeDasharray={arc.dash + " " + (length - arc.dash)}
-              strokeDashoffset={-arc.position}
-              transform={"rotate(-90 " + size / 2 + " " + size / 2 + ")"}
-              opacity={active !== null && active !== index ? .32 : 1}
-              tabIndex={0}
-              role="button"
-              aria-pressed={selected === index}
-              aria-label={arc.label + ": " + brl(arc.value) + ", " + Math.round(arc.value / nonzero * 100) + " por cento"}
-              onPointerEnter={() => setHovered(index)}
-              onPointerLeave={() => setHovered(null)}
-              onFocus={() => setHovered(index)}
-              onBlur={() => setHovered(null)}
-              onClick={() => toggle(index)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  toggle(index);
-                }
-              }}
-              className="cursor-pointer outline-none focus-visible:stroke-[26px]"
-              style={{ transition: "opacity 180ms ease, stroke-width 180ms ease" }}
-            />
-          ))}
+      <div className="relative mt-4 shrink-0" style={{ width, height }}>
+        <svg viewBox={"0 0 " + width + " " + height} width={width} height={height} role="img" aria-label="Distribuição da receita por forma de pagamento" className="overflow-visible">
+          {arcs.map((arc, index) => {
+            const isActive = active === index;
+            const d = gaugeSegment(cx, cy, inner, isActive ? outer + lift : outer, arc.from, arc.to, 6, 6);
+            if (!d) return null;
+            const color = PAYMENT_COLORS[index % PAYMENT_COLORS.length];
+            return (
+              <path
+                key={arc.label}
+                d={d}
+                fill={color}
+                stroke={color}
+                strokeWidth={12}
+                strokeLinejoin="round"
+                opacity={active !== null && !isActive ? .32 : 1}
+                tabIndex={0}
+                role="button"
+                aria-pressed={selected === index}
+                aria-label={arc.label + ": " + brl(arc.value) + ", " + percent(arc.value) + " por cento"}
+                onPointerEnter={() => setHovered(index)}
+                onPointerLeave={() => setHovered(null)}
+                onFocus={() => setHovered(index)}
+                onBlur={() => setHovered(null)}
+                onClick={() => toggle(index)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggle(index);
+                  }
+                }}
+                className="cursor-pointer outline-none"
+              />
+            );
+          })}
         </svg>
-        <div aria-hidden className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-12 text-center">
-          <span className="max-w-full text-[11px] font-medium text-text-muted">{active !== null ? data[active].label : "Total recebido"}</span>
-          <strong className="max-w-full whitespace-nowrap text-[18px] font-semibold tracking-[-0.045em] text-text">{brl(active !== null ? data[active].value : total)}</strong>
-          <span className="text-[11px] font-medium text-text-subtle">{active !== null ? Math.round(data[active].value / nonzero * 100) + "% do total" : data.length + " formas de pagamento"}</span>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1 text-center" style={{ paddingInline: outer - inner + lift + 6 }}>
+          <strong className={cn("max-w-full whitespace-nowrap font-semibold leading-tight tracking-[-0.03em] tabular-nums text-text", centerValue.length > 13 ? "text-[17px]" : "text-[20px]")}>{centerValue}</strong>
+          <span className="max-w-full truncate text-[13px] text-text-muted">{active !== null ? data[active].label + " · " + percent(data[active].value) + "%" : "Total recebido"}</span>
         </div>
       </div>
-      <div className="mt-4 w-full border-t border-border pt-3">
-        <div className="mb-2 flex items-center justify-between gap-2 px-2 text-xs font-medium text-text-muted">
+      <div className="mt-8 w-full">
+        <div className="mb-1 flex items-center justify-between gap-2 px-3 text-xs font-medium text-text-muted">
           <span>Forma de pagamento</span>
           <span>Participação</span>
         </div>
@@ -368,17 +352,17 @@ export function FinancialPaymentChart({ data }: { data: { label: string; value: 
                 onClick={() => toggle(index)}
                 aria-pressed={selected === index}
                 className={cn(
-                  "ms-finance-payments-legend flex w-full min-w-0 flex-col gap-2 rounded-lg px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "ms-finance-payments-legend flex w-full min-w-0 flex-col gap-2.5 rounded-lg px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                   active === index ? "bg-surface" : "hover:bg-surface",
                 )}
               >
                 <span className="flex w-full min-w-0 items-center justify-between gap-2">
-                  <span className="flex min-w-0 items-center gap-2 text-xs text-text-muted">
+                  <span className="flex min-w-0 items-center gap-2 text-[13px] text-text-muted">
                     <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: PAYMENT_COLORS[index % PAYMENT_COLORS.length] }} />
                     <span className="truncate">{item.label}</span>
                   </span>
-                  <span className="shrink-0 whitespace-nowrap text-right text-xs">
-                    <strong className="font-semibold tabular-nums text-text">{Math.round(item.value / nonzero * 100)}%</strong>
+                  <span className="shrink-0 whitespace-nowrap text-right text-[13px]">
+                    <strong className="font-semibold tabular-nums text-text">{percent(item.value)}%</strong>
                     <span className="ml-2 text-text-muted">{brl(item.value)}</span>
                   </span>
                 </span>

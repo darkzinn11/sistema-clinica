@@ -94,18 +94,19 @@ export default function FinanceiroVisao() {
         <StatCard label="Vencidos a receber" value={brl(vencidosReceber)} icon={<Warning2 size={18} />} delta={{ value: 2, period: "vs. semana passada", goodWhenUp: false, suffix: " contas" }} />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
-        <Card className="min-w-0 xl:col-span-2">
+      <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-3">
+        {/* Os dois cards têm a mesma altura: o gráfico ocupa o espaço que a lista de formas de pagamento abre. */}
+        <Card className="flex min-w-0 flex-col xl:col-span-2">
           <CardHeader
             className="border-b-0 pb-0"
-            title="Receitas × despesas"
-            description="Entradas e saídas no período selecionado."
+            title="Fluxo de caixa"
+            description="Entradas, saídas e saldo no período selecionado."
           />
-          <CardBody className="pt-3">
+          <CardBody className="flex flex-1 flex-col pt-3">
             <FinancialFlowChart data={serie} />
           </CardBody>
         </Card>
-        <Card className="min-w-0">
+        <Card className="min-w-0 self-start">
           <CardHeader
             className="border-b-0 pb-0"
             title="Receita por forma de pagamento"
