@@ -7,90 +7,99 @@
  */
 :root {
   color-scheme: light;
-  --c-bg: #F8F9FB;
-  --c-surface: #F2F6F3;
+  --c-bg: #F8F9FA;
+  --c-surface: #F3F4F5;
   --c-surface-raised: #ffffff;
   --c-surface-selected: #ffffff;
-  --c-border: #E5EBE7;
-  --c-border-strong: #D8E3DB;
-  --c-border-input: #819287;
-  --c-text: #19261E;
-  --c-text-muted: #647168;
-  --c-text-subtle: #6B7B70;
-  --c-accent: #35B64B;
+  --c-border: #EBEBEB;
+  --c-border-strong: #E0E0E0;
+  --c-border-input: #8A8A8A;
+  --c-text: #2E2E2E;
+  --c-text-muted: #6B6B6B;
+  --c-text-subtle: #737373;
+  --c-accent: #1BBC5A;
   /* Gradiente institucional compartilhado por indicadores e botões. */
   --ms-brand-gradient: linear-gradient(
     132deg,
     var(--c-accent) 6%,
     color-mix(in srgb, var(--c-accent) 66%, white) 100%
   );
-  --c-accent-ink: #17792D;
-  --c-accent-strong: #2FA342;
-  --c-accent-muted: #EAF8ED;
-  /* Texto branco sobre #35B64B mede 2.64:1 — abaixo do mínimo AA (4.5:1).
+  --c-accent-ink: #0E7A38;
+  --c-accent-strong: #17A650;
+  --c-accent-muted: #E6F8EE;
+  /* Texto branco sobre #1BBC5A mede 2.4:1 — abaixo do mínimo AA (4.5:1).
      Escolha de marca: branco mesmo assim, por decisão explícita do usuário. */
   --c-on-accent: #ffffff;
-  --c-success: #197B2C;
-  --c-success-bg: #E7F7EA;
+  --c-success: #0E7A38;
+  --c-success-bg: #E6F8EE;
   --c-warning: #946015;
   --c-warning-bg: #FFF3E0;
   --c-warning-fill: #DB9A38;
   --c-danger: #A72F51;
   --c-danger-bg: #FCEAF0;
   --c-danger-fill: #D85876;
-  --c-info: #245C9A;
-  --c-info-bg: #EAF2FC;
+  --c-info: #0F63C2;
+  --c-info-bg: #EAF4FF;
   /* Lilás identifica categorias e pessoas, nunca alertas. */
-  --c-aux: #6252A8;
-  --c-aux-bg: #F1EEFC;
+  --c-aux: #0B6E9E;
+  --c-aux-bg: #E6F7FF;
   /* Cores auxiliares: fundo pastel + glifo colorido no claro; fundo escuro + glifo colorido no escuro. */
   --c-icon-danger: #BF365E;
   --c-icon-warning: #995F17;
-  --c-icon-info: #426FBE;
-  --c-icon-success: #187C36;
+  --c-icon-info: #1274E2;
+  --c-icon-success: #0E7A38;
   --c-icon-danger-surface: #FAEDF0;
   --c-icon-danger-foreground: #CC6577;
   --c-icon-warning-surface: #F8F0E7;
   --c-icon-warning-foreground: #B88657;
-  --c-icon-info-surface: #EBEFFE;
-  --c-icon-info-foreground: #5276E1;
-  --c-icon-success-surface: #E4F7EF;
-  --c-icon-success-foreground: #25B58A;
-  --c-icon-neutral-surface: #F1EFEF;
-  --c-icon-neutral-foreground: #978879;
+  --c-icon-info-surface: #EAF4FF;
+  --c-icon-info-foreground: #48A0FD;
+  --c-icon-success-surface: #E6F8EE;
+  --c-icon-success-foreground: #1BBC5A;
+  --c-icon-neutral-surface: #F0F0F0;
+  --c-icon-neutral-foreground: #6B6B6B;
   --c-overlay: rgb(15 17 21 / 0.4);
 
-  /* paleta de gráficos — instância de referência validada (skill dataviz) */
-  --c-series-1: #397BC6;
-  --c-series-2: #DA7859;
-  --c-series-3: #249F8A;
-  --c-series-4: #D19B31;
-  --c-series-5: #D85876;
-  --c-series-6: #278B52;
-  --c-series-7: #8270C8;
-  --c-series-8: #B66A5C;
+  /* cores de identidade (profissionais, botões do totem); os gráficos usam --c-chart-* */
+  --c-series-1: #1274E2;
+  --c-series-2: #1BBC5A;
+  --c-series-3: #48A0FD;
+  --c-series-4: #2E2E2E;
+  --c-series-5: #0E7A38;
+  --c-series-6: #0B8FD0;
+  --c-series-7: #6B7A8F;
+  --c-series-8: #0A4FA0;
   /* Gráficos financeiros: verde da marca e contrastes auxiliares. */
-  --c-finance-revenue: #2B9D48;
-  --c-finance-expense: #DC785E;
-  --c-finance-pay-1: #35B64B;
-  --c-finance-pay-2: #279B81;
-  --c-finance-pay-3: #527FC9;
-  --c-finance-pay-4: #957ACB;
-  --c-finance-pay-5: #D9A049;
-  --c-finance-pay-6: #DA777D;
-  --c-finance-pay-7: #84938F;
-  --c-finance-pay-8: #A56EBA;
-  --c-chart-grid: #E5EBE7;
-  --c-chart-axis: #CBD9CF;
-  --c-seq-1: #DDF4E3;
-  --c-seq-2: #B8EBC3;
-  --c-seq-3: #91DCA3;
-  --c-seq-4: #67CB7C;
-  --c-seq-5: #36AF51;
-  --c-seq-6: #1E7935;
+  --c-finance-revenue: var(--c-chart-1);
+  --c-finance-expense: var(--c-chart-2);
+  /* Paleta dos gráficos (todas as telas). As --c-series-* seguem para cores de identidade: profissionais, botões do totem. */
+  --c-chart-1: #1BBC5A;
+  --c-chart-2: #1274E2;
+  --c-chart-3: #48A0FD;
+  --c-chart-4: #66CFFF;
+  --c-chart-5: #AEDDF2;
+  --c-chart-6: #E0E0E0;
+  --c-chart-7: #2E2E2E;
+  --c-chart-8: #6B7A8F;
+  --c-finance-pay-1: var(--c-chart-1);
+  --c-finance-pay-2: var(--c-chart-2);
+  --c-finance-pay-3: var(--c-chart-3);
+  --c-finance-pay-4: var(--c-chart-4);
+  --c-finance-pay-5: var(--c-chart-5);
+  --c-finance-pay-6: var(--c-chart-6);
+  --c-finance-pay-7: var(--c-chart-7);
+  --c-finance-pay-8: var(--c-chart-8);
+  --c-chart-grid: #EBEBEB;
+  --c-chart-axis: #E0E0E0;
+  --c-seq-1: #E6F8EE;
+  --c-seq-2: #BDEFD0;
+  --c-seq-3: #8DE2AE;
+  --c-seq-4: #55D084;
+  --c-seq-5: #1BBC5A;
+  --c-seq-6: #0E7A38;
 
-  --shadow-card: 0 2px 4px rgb(27 54 35 / 0.025), 0 12px 32px rgb(27 54 35 / 0.045);
-  --shadow-pop: 0 16px 48px rgb(27 54 35 / 0.14), 0 2px 8px rgb(27 54 35 / 0.06);
+  --shadow-card: 0 2px 4px rgb(30 30 30 / 0.025), 0 12px 32px rgb(30 30 30 / 0.045);
+  --shadow-pop: 0 16px 48px rgb(30 30 30 / 0.14), 0 2px 8px rgb(30 30 30 / 0.06);
 }
 
 :root[data-theme="dark"] {
@@ -106,68 +115,76 @@
   --c-text: #f5f5f5;
   --c-text-muted: #a1a1aa;
   --c-text-subtle: #8b8b93;
-  --c-accent: #62D875;
-  --ms-brand-gradient: linear-gradient(132deg, #238739, #43b85a);
-  --c-accent-ink: #8CED9C;
-  --c-accent-strong: #54CE6A;
-  --c-accent-muted: #203B2A;
+  --c-accent: #3DD27A;
+  --ms-brand-gradient: linear-gradient(132deg, #129048, #2FC56C);
+  --c-accent-ink: #8AEBB0;
+  --c-accent-strong: #2FC56C;
+  --c-accent-muted: #183A27;
   /* Branco sobre o verde mede só 1.81:1 — abaixo do mínimo AA (4.5:1).
      Escolha de marca: branco mesmo assim, por decisão explícita do usuário. */
   --c-on-accent: #ffffff;
-  --c-success: #74D58A;
-  --c-success-bg: #1F3928;
+  --c-success: #5FDB95;
+  --c-success-bg: #183A27;
   --c-warning: #E7BB6C;
   --c-warning-bg: #3D3221;
   --c-warning-fill: #E7BB6C;
   --c-danger: #F18BA7;
   --c-danger-bg: #442A35;
   --c-danger-fill: #F18BA7;
-  --c-info: #8BBDFC;
-  --c-info-bg: #263A51;
-  --c-aux: #C0B2FC;
-  --c-aux-bg: #342F49;
+  --c-info: #6AB4FF;
+  --c-info-bg: #1B3352;
+  --c-aux: #8ADBFF;
+  --c-aux-bg: #17343F;
   --c-icon-danger: #BF365E;
   --c-icon-warning: #995F17;
-  --c-icon-info: #426FBE;
-  --c-icon-success: #187C36;
+  --c-icon-info: #1274E2;
+  --c-icon-success: #0E7A38;
   --c-icon-danger-surface: #30242C;
   --c-icon-danger-foreground: #E486A5;
   --c-icon-warning-surface: #30271F;
   --c-icon-warning-foreground: #E2A56C;
-  --c-icon-info-surface: #212B41;
-  --c-icon-info-foreground: #7F9FFF;
-  --c-icon-success-surface: #1B332B;
-  --c-icon-success-foreground: #47C69B;
+  --c-icon-info-surface: #1B3352;
+  --c-icon-info-foreground: #6AB4FF;
+  --c-icon-success-surface: #183A27;
+  --c-icon-success-foreground: #3DD27A;
   --c-icon-neutral-surface: #2B2B30;
   --c-icon-neutral-foreground: #D2D1D7;
   --c-overlay: rgb(0 0 0 / 0.6);
 
-  --c-series-1: #73B2FA;
-  --c-series-2: #F39B78;
-  --c-series-3: #55C6B1;
-  --c-series-4: #F1C46C;
-  --c-series-5: #F287A4;
-  --c-series-6: #60C284;
-  --c-series-7: #B5A4F0;
-  --c-series-8: #E48A82;
-  --c-finance-revenue: #71D98C;
-  --c-finance-expense: #F1A088;
-  --c-finance-pay-1: #71D98C;
-  --c-finance-pay-2: #60CAB3;
-  --c-finance-pay-3: #8BB6FF;
-  --c-finance-pay-4: #BBA5F1;
-  --c-finance-pay-5: #F1C27C;
-  --c-finance-pay-6: #F09AA4;
-  --c-finance-pay-7: #B5C1BA;
-  --c-finance-pay-8: #D1A0E2;
-  --c-chart-grid: #2A322D;
-  --c-chart-axis: #3B4840;
-  --c-seq-1: #173D28;
-  --c-seq-2: #235A38;
-  --c-seq-3: #2B7647;
-  --c-seq-4: #31945A;
-  --c-seq-5: #50B977;
-  --c-seq-6: #85D9A0;
+  --c-series-1: #6AB4FF;
+  --c-series-2: #3DD27A;
+  --c-series-3: #8ADBFF;
+  --c-series-4: #BDBDBD;
+  --c-series-5: #5FDB95;
+  --c-series-6: #4FC3F7;
+  --c-series-7: #A9B4C2;
+  --c-series-8: #3B8EF0;
+  --c-finance-revenue: var(--c-chart-1);
+  --c-finance-expense: var(--c-chart-2);
+  --c-chart-1: #3DD27A;
+  --c-chart-2: #3B8EF0;
+  --c-chart-3: #6AB4FF;
+  --c-chart-4: #8ADBFF;
+  --c-chart-5: #C3E6F5;
+  --c-chart-6: #8A8A8A;
+  --c-chart-7: #F2F2F2;
+  --c-chart-8: #A9B4C2;
+  --c-finance-pay-1: var(--c-chart-1);
+  --c-finance-pay-2: var(--c-chart-2);
+  --c-finance-pay-3: var(--c-chart-3);
+  --c-finance-pay-4: var(--c-chart-4);
+  --c-finance-pay-5: var(--c-chart-5);
+  --c-finance-pay-6: var(--c-chart-6);
+  --c-finance-pay-7: var(--c-chart-7);
+  --c-finance-pay-8: var(--c-chart-8);
+  --c-chart-grid: #2A2A2A;
+  --c-chart-axis: #3D3D3D;
+  --c-seq-1: #14361F;
+  --c-seq-2: #1B5230;
+  --c-seq-3: #1F6E40;
+  --c-seq-4: #26904F;
+  --c-seq-5: #3DD27A;
+  --c-seq-6: #8AEBB0;
 
   --shadow-card: 0 4px 20px rgb(0 0 0 / 0.12);
   --shadow-pop: 0 18px 52px rgb(0 0 0 / 0.3);
@@ -410,13 +427,13 @@ body {
    - elementos compactos que não são controles (blocos curtos da agenda, tooltip) → rounded-md (12px). */
 :root {
   --ui-radius-panel: 22px;
-  --ui-navigation-active-bg: #EAF8ED;
-  --ui-navigation-active-text: #197B2C;
-  --ui-sidebar-shadow: 0 10px 50px rgb(27 54 35 / .045);
+  --ui-navigation-active-bg: #E6F8EE;
+  --ui-navigation-active-text: #0E7A38;
+  --ui-sidebar-shadow: 0 10px 50px rgb(30 30 30 / .045);
 }
 :root[data-theme="dark"] {
-  --ui-navigation-active-bg: #264431;
-  --ui-navigation-active-text: #9CF0A9;
+  --ui-navigation-active-bg: #183A27;
+  --ui-navigation-active-text: #8AEBB0;
   --ui-sidebar-shadow: 0 10px 40px rgb(0 0 0 / .15);
 }
 html { text-rendering: optimizeLegibility; }
@@ -439,9 +456,9 @@ body { -webkit-font-smoothing: antialiased; }
 /* Sombra das pílulas da topbar: discreta no topo da página e reforçada durante o scroll,
    quando o conteúdo passa por baixo da topbar (que não tem fundo). */
 :root {
-  --ms-topbar-shadow: 0 2px 9px rgb(27 54 35 / .055);
-  --ms-topbar-shadow-hover: 0 5px 18px rgb(27 54 35 / .09);
-  --ms-topbar-shadow-scrolled: 0 6px 20px rgb(27 54 35 / .14), 0 1px 3px rgb(27 54 35 / .08), 0 0 0 1px rgb(27 54 35 / .04);
+  --ms-topbar-shadow: 0 2px 9px rgb(30 30 30 / .055);
+  --ms-topbar-shadow-hover: 0 5px 18px rgb(30 30 30 / .09);
+  --ms-topbar-shadow-scrolled: 0 6px 20px rgb(30 30 30 / .14), 0 1px 3px rgb(30 30 30 / .08), 0 0 0 1px rgb(30 30 30 / .04);
 }
 :root[data-theme="dark"] {
   --ms-topbar-shadow: 0 3px 12px rgb(0 0 0 / .16);
@@ -497,13 +514,13 @@ body { -webkit-font-smoothing: antialiased; }
 .ui-search-trigger {
   border-color: var(--c-border-strong);
   color: var(--c-text-muted);
-  box-shadow: 0 2px 6px rgb(27 54 35 / .035), 0 0 0 1px rgb(27 54 35 / .015);
+  box-shadow: 0 2px 6px rgb(30 30 30 / .035), 0 0 0 1px rgb(30 30 30 / .015);
 }
 .ui-search-trigger:hover {
   background: var(--c-surface-raised);
   border-color: color-mix(in srgb, var(--c-accent) 42%, var(--c-border));
   color: var(--c-text);
-  box-shadow: 0 3px 14px rgb(27 54 35 / .08);
+  box-shadow: 0 3px 14px rgb(30 30 30 / .08);
 }
 .ui-search-trigger:focus-visible {
   background: var(--c-surface-raised);
@@ -612,7 +629,7 @@ body { -webkit-font-smoothing: antialiased; }
   --appt-bg: var(--c-surface);
   background: var(--appt-bg);
   border: 1px solid transparent;
-  box-shadow: 0 1px 4px rgb(27 54 35 / .055);
+  box-shadow: 0 1px 4px rgb(30 30 30 / .055);
   transition: transform 170ms cubic-bezier(.22,1,.36,1), box-shadow 170ms ease, filter 170ms ease;
 }
 .ms-appointment__meta { color: color-mix(in srgb, var(--c-text) 74%, var(--appt-ink)); }
@@ -652,7 +669,7 @@ body { -webkit-font-smoothing: antialiased; }
 .ms-appointment:hover {
   z-index: 30 !important;
   transform: translateY(-1px) scale(1.008);
-  box-shadow: 0 8px 14px -6px rgb(27 54 35 / .22);
+  box-shadow: 0 8px 14px -6px rgb(30 30 30 / .22);
 }
 :root[data-theme="dark"] .ms-appointment:hover { box-shadow: 0 8px 14px -6px rgb(0 0 0 / .45); }
 /* Contorno por dentro (offset negativo): por fora ele passava por baixo do cabeçalho fixo no primeiro horário e ficava cortado. */
@@ -671,7 +688,7 @@ body { -webkit-font-smoothing: antialiased; }
 }
 
 
-/* Brand green is #35B64B; use the AA-contrast text variant on
+/* Brand green is #1BBC5A; use the AA-contrast text variant on
    light surfaces and dark text for primary buttons. */
 .text-accent { color: var(--c-accent-ink); }
 
@@ -786,7 +803,7 @@ body { -webkit-font-smoothing: antialiased; }
   padding: 20px 21px 18px;
   border-radius: var(--ui-radius-panel);
   background: var(--c-surface-raised);
-  box-shadow: 0 3px 18px rgb(25 38 30 / 0.025);
+  box-shadow: 0 3px 18px rgb(30 30 30 / 0.025);
 }
 /* StatCard (demais telas): mesma peça da Início, com altura que acomoda rodapés maiores. */
 .ms-home-metric.ms-stat-card { height: auto; min-height: 144px; }
@@ -908,23 +925,17 @@ body { -webkit-font-smoothing: antialiased; }
 }
 
 /* Charts financeiros: proporções, superfície e foco inspirados nas referências. */
-.ms-finance-flow-summary-item {
-  background: var(--c-surface);
-}
-.ms-finance-flow-summary-item strong {
-  font-variant-numeric: tabular-nums;
-}
 .ms-finance-payments-legend {
   transition: background-color 180ms ease;
 }
 .ms-finance-flow svg path,
-.ms-finance-payments svg circle {
-  transition: opacity 180ms ease, stroke-width 180ms ease;
+.ms-finance-payments svg path {
+  transition: opacity 180ms ease;
 }
 @media (prefers-reduced-motion: reduce) {
   .ms-finance-payments-legend,
   .ms-finance-flow svg path,
-  .ms-finance-payments svg circle { transition: none; }
+  .ms-finance-payments svg path { transition: none; }
 }
 
 /* Login: brilhos suaves da marca nos cantos do fundo branco; painel em verde da marca (base um pouco mais escura,

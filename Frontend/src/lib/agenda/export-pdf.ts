@@ -116,8 +116,8 @@ async function metricIconPng(icon: IconComponent): Promise<string> {
   canvas.width = canvas.height = px;
   const ctx = canvas.getContext("2d")!;
   const gradient = ctx.createLinearGradient(px * 0.17, px * 0.07, px * 0.83, px * 0.93);
-  gradient.addColorStop(0.06, "#35B64B");
-  gradient.addColorStop(1, "#7ACF88"); // --ms-brand-gradient: accent → 66% accent + branco
+  gradient.addColorStop(0.06, "#1BBC5A");
+  gradient.addColorStop(1, "#69D392"); // --ms-brand-gradient: accent → 66% accent + branco
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.arc(px / 2, px / 2, px / 2 - 2, 0, Math.PI * 2); // folga de 2px: a borda suavizada não encosta no limite da imagem
@@ -133,7 +133,7 @@ async function titleIconPng(): Promise<string> {
   const px = 128;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = px;
-  canvas.getContext("2d")!.drawImage(await loadImage(iconSvg(Calendar, "#2FA342", "Bulk")), 0, 0, px, px);
+  canvas.getContext("2d")!.drawImage(await loadImage(iconSvg(Calendar, "#17A650", "Bulk")), 0, 0, px, px);
   return canvas.toDataURL("image/png");
 }
 
@@ -381,7 +381,7 @@ export async function exportAgendaPdf(o: AgendaPdfOptions) {
         }
         if (data.column.index === profCol) {
           const prof = profById.get(appt.professionalId);
-          doc.setFillColor(...toRgb(prof?.color ?? "#35B64B"));
+          doc.setFillColor(...toRgb(prof?.color ?? "#1BBC5A"));
           doc.circle(x + 3.8, cy + height / 2, 1.1, "F");
         }
       },
@@ -406,7 +406,7 @@ export async function exportAgendaPdf(o: AgendaPdfOptions) {
         y = CONTENT_TOP;
       }
       // Como o cabeçalho de coluna da grade: ponto da cor do profissional, nome, especialidade e contagem em Badge.
-      doc.setFillColor(...toRgb(prof?.color ?? "#35B64B"));
+      doc.setFillColor(...toRgb(prof?.color ?? "#1BBC5A"));
       doc.circle(M + 1.4, y + 3.1, 1.4, "F");
       font("semibold", 10.5, C.text);
       const name = prof?.name ?? rows[0].professionalName;

@@ -1,13 +1,13 @@
-/** Cores de série em ordem fixa (instância validada da skill dataviz). Nunca ciclar além de 8. */
+/** Cores dos gráficos em ordem fixa (tokens --c-chart-*). Nunca ciclar além de 8. */
 export const SERIES = [
-  "var(--c-series-1)",
-  "var(--c-series-2)",
-  "var(--c-series-3)",
-  "var(--c-series-4)",
-  "var(--c-series-5)",
-  "var(--c-series-6)",
-  "var(--c-series-7)",
-  "var(--c-series-8)",
+  "var(--c-chart-1)",
+  "var(--c-chart-2)",
+  "var(--c-chart-3)",
+  "var(--c-chart-4)",
+  "var(--c-chart-5)",
+  "var(--c-chart-6)",
+  "var(--c-chart-7)",
+  "var(--c-chart-8)",
 ];
 
 /** 1.284 / 12 mil / 4,2 mi — números grandes compactos pra eixo e indicador. */

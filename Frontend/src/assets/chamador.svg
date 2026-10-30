@@ -20,7 +20,7 @@
 <stop offset="1" stop-color="#DDEEE3"/>
 </radialGradient>
 <linearGradient id="paint2_linear_13024_8085" x1="33.1261" y1="359.131" x2="-162.892" y2="-985.442" gradientUnits="userSpaceOnUse">
-<stop stop-color="#35B64B"/>
+<stop stop-color="#1BBC5A"/>
 <stop offset="0.158654" stop-color="#3AAA61"/>
 <stop offset="0.322115" stop-color="#409D77"/>
 <stop offset="0.543269" stop-color="#227A65"/>
@@ -28,7 +28,7 @@
 <stop offset="1" stop-color="#0C4A61"/>
 </linearGradient>
 <linearGradient id="paint3_linear_13024_8085" x1="0.126093" y1="768.297" x2="-195.892" y2="2112.87" gradientUnits="userSpaceOnUse">
-<stop stop-color="#35B64B"/>
+<stop stop-color="#1BBC5A"/>
 <stop offset="0.158654" stop-color="#3AAA61"/>
 <stop offset="0.322115" stop-color="#409D77"/>
 <stop offset="0.543269" stop-color="#227A65"/>
@@ -43,7 +43,7 @@
 </clipPath>
 <pattern id="pattern0_13024_8085" patternUnits="userSpaceOnUse" patternTransform="matrix(27.7288 0 0 27.7288 0 0)" preserveAspectRatio="none" viewBox="0 0 346.61 346.61" width="1" height="1">
 <g id="pattern0_13024_8085_inner">
-<circle cx="68.5" cy="68.5" r="68.5" fill="#35B64B"/>
+<circle cx="68.5" cy="68.5" r="68.5" fill="#1BBC5A"/>
 </g>
 </pattern></defs>
 </svg>

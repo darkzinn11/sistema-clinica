@@ -399,7 +399,7 @@ export function BarList({ data, format = (n) => n.toLocaleString("pt-BR"), title
             <span className="tabular shrink-0 font-medium text-text">{format(d.value)}</span>
           </div>
           <div className="h-2 w-full rounded-full bg-surface">
-            <div className="h-2 rounded-r-full rounded-l-sm" style={{ width: `${(d.value / max) * 100}%`, background: SERIES[0] }} />
+            <div className="h-2 rounded-full" style={{ width: `${(d.value / max) * 100}%`, background: SERIES[0] }} />
           </div>
         </li>
       ))}
@@ -418,7 +418,7 @@ export function Sparkline({ values, width = 96, height = 28 }: { values: number[
   return (
     <svg width={width} height={height} aria-hidden>
       <polyline points={pts.map((p) => p.join(",")).join(" ")} fill="none" stroke="var(--c-border-strong)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={last[0]} cy={last[1]} r={3} fill="var(--c-series-1)" stroke="var(--c-surface-raised)" strokeWidth={1.5} />
+      <circle cx={last[0]} cy={last[1]} r={3} fill="var(--c-chart-1)" stroke="var(--c-surface-raised)" strokeWidth={1.5} />
     </svg>
   );
 }
